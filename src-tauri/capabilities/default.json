@@ -1,0 +1,60 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "main-capability",
+  "description": "Capability for the main window",
+  "windows": [
+    "main"
+  ],
+  "permissions": [
+    "core:default",
+    "core:window:default",
+    "core:window:allow-start-dragging",
+    "core:window:allow-close",
+    "core:window:allow-minimize",
+    "core:window:allow-maximize",
+    "core:window:allow-toggle-maximize",
+    "opener:default",
+    {
+      "identifier": "http:default",
+      "allow": [
+        {
+          "url": "https://**"
+        },
+        {
+          "url": "http://**"
+        }
+      ]
+    },
+    {
+      "identifier": "fs:scope",
+      "allow": [
+        { "path": "$APPDATA" },
+        { "path": "$APPDATA/**" }
+      ]
+    },
+    {
+      "identifier": "fs:read-files",
+      "allow": [
+        { "path": "$APPDATA/**" }
+      ]
+    },
+    {
+      "identifier": "fs:write-files",
+      "allow": [
+        { "path": "$APPDATA/**" }
+      ]
+    },
+    {
+      "identifier": "fs:create-app-specific-dirs",
+      "allow": [
+        { "path": "$APPDATA/**" }
+      ]
+    },
+    {
+      "identifier": "fs:allow-app-write-recursive",
+      "allow": [
+        { "path": "$APPDATA/**" }
+      ]
+    }
+  ]
+}
