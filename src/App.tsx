@@ -92,23 +92,25 @@ function App() {
 
   return (
     <div className="dark h-screen overflow-hidden">
-      <div className="h-full flex flex-col bg-background text-foreground">
+      <div className="h-full flex flex-col bg-background text-foreground min-w-0">
         <TitleBar />
-        <div className="flex-1 flex min-h-0">
+        <div className="flex-1 flex min-h-0 min-w-0">
           <div className="p-4 border-r border-border">
             <HistoryPanel history={history} onSelect={handleHistorySelect} />
           </div>
-          <div className="flex-1 p-4">
-            <div className="h-full flex flex-col gap-4">
-              <TabBar
-                tabs={tabs}
-                activeTab={activeTab}
-                onTabChange={setActiveTab}
-                onAddTab={addTab}
-                onCloseTab={closeTab}
-                onStartEditing={startEditing}
-                onStopEditing={stopEditing}
-              />
+          <div className="flex-1 p-4 min-w-0">
+            <div className="h-full flex flex-col gap-4 min-w-0">
+              <div className="min-w-0">
+                <TabBar
+                  tabs={tabs}
+                  activeTab={activeTab}
+                  onTabChange={setActiveTab}
+                  onAddTab={addTab}
+                  onCloseTab={closeTab}
+                  onStartEditing={startEditing}
+                  onStopEditing={stopEditing}
+                />
+              </div>
 
               {currentTab && (
                 <>

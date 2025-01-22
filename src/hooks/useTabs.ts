@@ -12,30 +12,41 @@ const DEFAULT_HEADERS = [
 export function useTabs() {
   const [activeTab, setActiveTab] = useState<string>("")
   const [tabs, setTabs] = useState<Tab[]>([])
+  const [nextId, setNextId] = useState(1)
 
   // Initialize with one tab
   useEffect(() => {
     if (tabs.length === 0) {
-      const initialTab = createNewTab({ id: "1" })
+      const initialTab = createNewTab()
       setTabs([initialTab])
       setActiveTab(initialTab.id)
     }
   }, [])
 
-  const createNewTab = (overrides: Partial<Tab> = {}): Tab => ({
-    id: String(tabs.length + 1),
-    name: "New Request",
-    method: "GET",
-    url: "",
-    rawUrl: "",
-    params: [],
-    headers: [...DEFAULT_HEADERS],
-    body: "",
-    contentType: "application/json",
-    response: null,
-    loading: false,
-    ...overrides
-  })
+  const generateUniqueId = () => {
+    const id = String(nextId)
+    setNextId(prev => prev + 1)
+    return id
+  }
+
+  const createNewTab = (overrides: Partial<Tab> = {}): Tab => {
+    const id = overrides.id || generateUniqueId()
+    const { id: _, ...restOverrides } = overrides // Remove id from overrides to prevent duplication
+    return {
+      id,
+      name: "New Request",
+      method: "GET",
+      url: "",
+      rawUrl: "",
+      params: [],
+      headers: [...DEFAULT_HEADERS],
+      body: "",
+      contentType: "application/json",
+      response: null,
+      loading: false,
+      ...restOverrides
+    }
+  }
 
   const addTab = () => {
     const newTab = createNewTab()
@@ -47,7 +58,7 @@ export function useTabs() {
     setTabs(prev => {
       const newTabs = prev.filter(t => t.id !== tabId)
       if (newTabs.length === 0) {
-        const newTab = createNewTab({ id: "1" })
+        const newTab = createNewTab()
         setActiveTab(newTab.id)
         return [newTab]
       }

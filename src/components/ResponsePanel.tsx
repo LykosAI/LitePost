@@ -36,11 +36,11 @@ export function ResponsePanel({ response }: ResponsePanelProps) {
           <ScrollArea className="h-full [&_[data-radix-scroll-area-scrollbar]]:w-4 [&_[data-radix-scroll-area-scrollbar]]:ml-2 [&_[data-radix-scroll-area-thumb]]:rounded-sm [&_[data-radix-scroll-area-thumb]]:bg-secondary">
             <div className="bg-muted rounded-md p-2 mr-2">
               {response?.error ? (
-                <pre className="text-sm text-red-400">
+                <pre className="text-sm text-red-400 break-all overflow-wrap-anywhere">
                   Error: {response.error}
                 </pre>
               ) : response ? (
-                <pre className={`text-sm whitespace-pre-wrap ${isErrorStatus ? "text-red-400" : ""}`}>
+                <pre className={`text-sm whitespace-pre-wrap break-all overflow-wrap-anywhere ${isErrorStatus ? "text-red-400" : ""}`}>
                   {response.body}
                 </pre>
               ) : (
