@@ -1,5 +1,21 @@
-import { fetch } from '@tauri-apps/plugin-http'
+import { invoke } from '@tauri-apps/api/core'
 import { Tab, HistoryItem } from '@/types'
+
+interface RedirectInfo {
+  url: string
+  status: number
+  status_text: string
+  headers: Record<string, string>
+}
+
+interface ResponseData {
+  status: number
+  status_text: string
+  headers: Record<string, string>
+  body: string
+  redirect_chain: RedirectInfo[]
+  cookies: string[]
+}
 
 export function useRequest(onHistoryUpdate: (item: HistoryItem) => void) {
   const sendRequest = async (tab: Tab) => {
@@ -14,43 +30,68 @@ export function useRequest(onHistoryUpdate: (item: HistoryItem) => void) {
         }
       })
 
-      // Add content type header if body is present
-      if (tab.body && tab.method !== "GET" && tab.method !== "HEAD") {
-        headerRecord["Content-Type"] = tab.contentType
+      // Handle authentication
+      let url = tab.rawUrl
+      if (tab.auth.type === 'basic') {
+        const credentials = btoa(`${tab.auth.username || ''}:${tab.auth.password || ''}`)
+        headerRecord['Authorization'] = `Basic ${credentials}`
+      } else if (tab.auth.type === 'bearer' && tab.auth.token) {
+        headerRecord['Authorization'] = `Bearer ${tab.auth.token}`
+      } else if (tab.auth.type === 'api-key' && tab.auth.key && tab.auth.value) {
+        if (tab.auth.addTo === 'header') {
+          headerRecord[tab.auth.key] = tab.auth.value
+        } else {
+          // Add to query parameters
+          const separator = url.includes('?') ? '&' : '?'
+          url += `${separator}${encodeURIComponent(tab.auth.key)}=${encodeURIComponent(tab.auth.value)}`
+        }
       }
 
-      const res = await fetch(tab.rawUrl, {
+      // Add cookies to headers
+      const cookieHeader = tab.cookies
+        .map(c => `${encodeURIComponent(c.name)}=${encodeURIComponent(c.value)}`)
+        .join('; ')
+
+      if (cookieHeader) {
+        headerRecord['Cookie'] = cookieHeader
+      }
+
+      const options = {
         method: tab.method,
+        url,
         headers: headerRecord,
-        body: tab.body && tab.method !== "GET" && tab.method !== "HEAD" ? tab.body : undefined
-      })
+        body: tab.body && tab.method !== "GET" && tab.method !== "HEAD" ? tab.body : undefined,
+        content_type: tab.body && tab.method !== "GET" && tab.method !== "HEAD" ? tab.contentType : undefined,
+        cookies: tab.cookies
+      }
+
+      const response = await invoke<ResponseData>('send_request', { options })
 
       // Add to history
       onHistoryUpdate({
         method: tab.method,
         url: tab.rawUrl,
-        timestamp: new Date()
+        rawUrl: tab.rawUrl,
+        timestamp: new Date(),
+        params: tab.params,
+        headers: tab.headers,
+        body: tab.body,
+        contentType: tab.contentType,
+        auth: tab.auth
       })
-
-      // Convert headers to record
-      const responseHeaders: Record<string, string> = {}
-      res.headers.forEach((value, key) => {
-        responseHeaders[key] = value
-      })
-
-      // Convert the response to our format
-      let responseBody = ""
-      if (res.headers.get("content-type")?.includes("application/json")) {
-        responseBody = JSON.stringify(await res.json(), null, 2)
-      } else {
-        responseBody = await res.text()
-      }
 
       return {
-        status: res.status,
-        statusText: res.statusText,
-        headers: responseHeaders,
-        body: responseBody,
+        status: response.status,
+        statusText: response.status_text,
+        headers: response.headers,
+        body: response.body,
+        redirectChain: response.redirect_chain.map((redirect: RedirectInfo) => ({
+          url: redirect.url,
+          status: redirect.status,
+          statusText: redirect.status_text,
+          headers: redirect.headers
+        })),
+        cookies: response.cookies
       }
     } catch (error) {
       console.error('Request error:', error)
@@ -59,7 +100,7 @@ export function useRequest(onHistoryUpdate: (item: HistoryItem) => void) {
         statusText: "Error",
         headers: {},
         body: "",
-        error: error instanceof Error ? error.message : "An error occurred",
+        error: typeof error === 'string' ? error : error instanceof Error ? error.message : "An error occurred"
       }
     }
   }

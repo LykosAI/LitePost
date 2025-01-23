@@ -1,5 +1,5 @@
 import { Separator } from "@/components/ui/separator"
-import { useState, useEffect } from "react"
+import { useEffect } from "react"
 import { RequestPanel } from "./components/RequestPanel"
 import { ResponsePanel } from "./components/ResponsePanel"
 import { TitleBar } from "./components/Titlebar"
@@ -9,10 +9,29 @@ import { useTabs } from "./hooks/useTabs"
 import { useUrlParams } from "./hooks/useUrlParams"
 import { useRequest } from "./hooks/useRequest"
 import { useHistory } from "./hooks/useHistory"
-import { HistoryItem, Tab } from "./types"
+import { HistoryItem, Tab, AuthConfig } from "./types"
+import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels"
+
+// Utility function to get clean tab name from URL
+const getCleanTabName = (url: string): string => {
+  try {
+    // Remove query parameters
+    const urlWithoutQuery = url.split('?')[0]
+    // Get last part of path
+    const lastPart = urlWithoutQuery.split('/').pop()
+    return lastPart || "New Request"
+  } catch (error) {
+    return "New Request"
+  }
+}
+
+const defaultAuth: AuthConfig = {
+  type: 'none',
+  addTo: 'header'
+}
 
 function App() {
-  const { history, addHistoryItem } = useHistory()
+  const { history, addHistoryItem, removeHistoryItem, clearHistory } = useHistory()
   const { 
     tabs, 
     activeTab, 
@@ -81,10 +100,15 @@ function App() {
 
   const handleHistorySelect = (item: HistoryItem) => {
     const newTab = createNewTab({
-      name: item.url.split('/').pop() || "New Request",
+      name: getCleanTabName(item.url),
       method: item.method,
       url: item.url,
-      rawUrl: item.url,
+      rawUrl: item.rawUrl,
+      params: item.params,
+      headers: item.headers,
+      body: item.body,
+      contentType: item.contentType,
+      auth: item.auth
     })
     setTabs((prev: Tab[]) => [...prev, newTab])
     setActiveTab(newTab.id)
@@ -94,50 +118,69 @@ function App() {
     <div className="dark h-screen overflow-hidden">
       <div className="h-full flex flex-col bg-background text-foreground min-w-0">
         <TitleBar />
-        <div className="flex-1 flex min-h-0 min-w-0">
-          <div className="p-4 border-r border-border">
-            <HistoryPanel history={history} onSelect={handleHistorySelect} />
-          </div>
-          <div className="flex-1 p-4 min-w-0">
-            <div className="h-full flex flex-col gap-4 min-w-0">
-              <div className="min-w-0">
-                <TabBar
-                  tabs={tabs}
-                  activeTab={activeTab}
-                  onTabChange={setActiveTab}
-                  onAddTab={addTab}
-                  onCloseTab={closeTab}
-                  onStartEditing={startEditing}
-                  onStopEditing={stopEditing}
+        <div className="flex-1 min-h-0 min-w-0">
+          <PanelGroup direction="horizontal">
+            <Panel defaultSize={20} minSize={15}>
+              <div className="h-full p-4">
+                <HistoryPanel 
+                  history={history} 
+                  onSelect={handleHistorySelect} 
+                  onRemove={removeHistoryItem}
+                  onClear={clearHistory}
                 />
               </div>
-
-              {currentTab && (
-                <>
-                  <RequestPanel
-                    method={currentTab.method}
-                    url={currentTab.rawUrl}
-                    params={currentTab.params}
-                    headers={currentTab.headers}
-                    loading={currentTab.loading}
-                    body={currentTab.body}
-                    contentType={currentTab.contentType}
-                    onMethodChange={(method) => updateTab(currentTab.id, { method })}
-                    onUrlChange={(url) => updateTab(currentTab.id, { rawUrl: url })}
-                    onParamsChange={(params) => updateTab(currentTab.id, { params })}
-                    onHeadersChange={(headers) => updateTab(currentTab.id, { headers })}
-                    onBodyChange={(body) => updateTab(currentTab.id, { body })}
-                    onContentTypeChange={(contentType) => updateTab(currentTab.id, { contentType })}
-                    onSend={() => handleSend(currentTab.id)}
+            </Panel>
+            <PanelResizeHandle className="w-1.5 bg-border hover:bg-accent transition-colors cursor-col-resize" />
+            <Panel minSize={50}>
+              <div className="h-full p-4 flex flex-col gap-4 min-w-0">
+                <div className="min-w-0">
+                  <TabBar
+                    tabs={tabs}
+                    activeTab={activeTab}
+                    onTabChange={setActiveTab}
+                    onAddTab={addTab}
+                    onCloseTab={closeTab}
+                    onStartEditing={startEditing}
+                    onStopEditing={stopEditing}
                   />
+                </div>
 
-                  <Separator />
-
-                  <ResponsePanel response={currentTab.response} />
-                </>
-              )}
-            </div>
-          </div>
+                {currentTab && (
+                  <PanelGroup direction="vertical">
+                    <Panel>
+                      <RequestPanel
+                        method={currentTab.method}
+                        url={currentTab.rawUrl}
+                        loading={currentTab.loading}
+                        params={currentTab.params}
+                        headers={currentTab.headers}
+                        body={currentTab.body}
+                        contentType={currentTab.contentType}
+                        auth={currentTab.auth}
+                        cookies={currentTab.cookies}
+                        onMethodChange={(method) => updateTab(currentTab.id, { method })}
+                        onUrlChange={(rawUrl) => {
+                          const name = getCleanTabName(rawUrl)
+                          updateTab(currentTab.id, { rawUrl, url: rawUrl, name })
+                        }}
+                        onParamsChange={(params) => updateTab(currentTab.id, { params })}
+                        onHeadersChange={(headers) => updateTab(currentTab.id, { headers })}
+                        onBodyChange={(body) => updateTab(currentTab.id, { body })}
+                        onContentTypeChange={(contentType) => updateTab(currentTab.id, { contentType })}
+                        onAuthChange={(auth) => updateTab(currentTab.id, { auth })}
+                        onCookiesChange={(cookies) => updateTab(currentTab.id, { cookies })}
+                        onSend={() => handleSend(currentTab.id)}
+                      />
+                    </Panel>
+                    <PanelResizeHandle className="h-1.5 bg-border hover:bg-accent transition-colors cursor-row-resize" />
+                    <Panel>
+                      <ResponsePanel response={currentTab.response} />
+                    </Panel>
+                  </PanelGroup>
+                )}
+              </div>
+            </Panel>
+          </PanelGroup>
         </div>
       </div>
     </div>

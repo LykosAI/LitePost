@@ -11,22 +11,23 @@ export function useUrlParams(url: string, onParamsChange: (params: URLParam[]) =
 
     debounceTimeout.current = setTimeout(() => {
       try {
-        // Don't parse params if we're still typing
+        // Don't parse params if we're still typing or no query string
         if (!url.includes('?')) {
           onParamsChange([])
           return
         }
 
-        const [baseUrl, search] = url.split('?')
+        const [_, queryString] = url.split('?')
         
-        // Don't clear params while typing
-        if (!search || search.trim() === '') {
+        // Don't parse if no query string
+        if (!queryString || queryString.trim() === '') {
+          onParamsChange([])
           return
         }
 
-        // Parse the URL parameters if we have a valid query string
+        // Parse the URL parameters
         try {
-          const searchParams = new URLSearchParams(search)
+          const searchParams = new URLSearchParams(queryString)
           const newParams: URLParam[] = []
           
           searchParams.forEach((value, key) => {

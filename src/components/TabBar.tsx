@@ -61,7 +61,7 @@ export function TabBar({
                     e.preventDefault()
                     onStartEditing(tab.id)
                   }}
-                  className={`data-[state=active]:bg-accent data-[state=active]:text-accent-foreground hover:bg-muted rounded-md py-1.5 transition-colors ${tabs.length > 1 ? 'px-5 truncate' : 'px-3'}`}
+                  className={`data-[state=active]:bg-accent data-[state=active]:text-accent-foreground hover:bg-muted rounded-md py-1.5 transition-colors ${tabs.length > 1 ? 'px-3 pr-7 truncate' : 'px-3'}`}
                 >
                   {tab.isEditing ? (
                     <Input
@@ -87,7 +87,7 @@ export function TabBar({
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-5 w-5 p-0 opacity-0 group-hover:opacity-100 absolute right-1 top-1/2 -translate-y-1/2 hover:bg-accent hover:text-accent-foreground rounded-full"
+                    className="h-5 w-5 p-0 opacity-0 group-hover:opacity-100 absolute right-1.5 top-1/2 -translate-y-1/2 hover:bg-accent hover:text-accent-foreground rounded-full"
                     onClick={(e) => {
                       e.stopPropagation()
                       onCloseTab(tab.id)

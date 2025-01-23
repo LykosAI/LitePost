@@ -2,6 +2,7 @@ import { Window } from '@tauri-apps/api/window'
 import { Button } from './ui/button'
 import { X, Minus, Square } from 'lucide-react'
 import icon from '../assets/icon_1024.png'
+import { SettingsPanel } from './SettingsPanel'
 
 export function TitleBar() {
   const appWindow = Window.getCurrent()
@@ -12,7 +13,8 @@ export function TitleBar() {
         <img src={icon} alt="LitePost" className="h-6 w-6 rounded-lg" />
         <span className="text-xl font-semibold">LitePost</span>
       </div>
-      <div className="flex">
+      <div className="flex items-center">
+        <SettingsPanel />
         <Button
           variant="ghost"
           size="sm"

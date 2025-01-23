@@ -34,10 +34,7 @@ export function useHistory() {
     }
   }
 
-  const addHistoryItem = async (item: HistoryItem) => {
-    const newHistory = [item, ...history]
-    setHistory(newHistory)
-    
+  const saveHistory = async (newHistory: HistoryItem[]) => {
     try {
       const data = new TextEncoder().encode(JSON.stringify(newHistory, null, 2))
       await writeFile(
@@ -50,8 +47,27 @@ export function useHistory() {
     }
   }
 
+  const addHistoryItem = async (item: HistoryItem) => {
+    const newHistory = [item, ...history]
+    setHistory(newHistory)
+    await saveHistory(newHistory)
+  }
+
+  const removeHistoryItem = async (timestamp: Date) => {
+    const newHistory = history.filter(item => item.timestamp.getTime() !== timestamp.getTime())
+    setHistory(newHistory)
+    await saveHistory(newHistory)
+  }
+
+  const clearHistory = async () => {
+    setHistory([])
+    await saveHistory([])
+  }
+
   return {
     history,
-    addHistoryItem
+    addHistoryItem,
+    removeHistoryItem,
+    clearHistory
   }
 } 

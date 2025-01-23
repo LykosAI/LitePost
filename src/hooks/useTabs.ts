@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Tab } from '@/types'
+import { Tab, AuthConfig } from '@/types'
 
 const DEFAULT_HEADERS = [
   { key: "Accept", value: "application/json", enabled: true },
@@ -8,6 +8,24 @@ const DEFAULT_HEADERS = [
   { key: "Cache-Control", value: "no-cache", enabled: false },
   { key: "Content-Type", value: "application/json", enabled: false }
 ]
+
+const DEFAULT_AUTH: AuthConfig = {
+  type: 'none',
+  addTo: 'header'
+}
+
+// Utility function to get clean tab name from URL
+const getCleanTabName = (url: string): string => {
+  try {
+    // Remove query parameters
+    const urlWithoutQuery = url.split('?')[0]
+    // Get last part of path
+    const lastPart = urlWithoutQuery.split('/').pop()
+    return lastPart || "New Request"
+  } catch (error) {
+    return "New Request"
+  }
+}
 
 export function useTabs() {
   const [activeTab, setActiveTab] = useState<string>("")
@@ -30,8 +48,7 @@ export function useTabs() {
   }
 
   const createNewTab = (overrides: Partial<Tab> = {}): Tab => {
-    const id = overrides.id || generateUniqueId()
-    const { id: _, ...restOverrides } = overrides // Remove id from overrides to prevent duplication
+    const id = generateUniqueId()
     return {
       id,
       name: "New Request",
@@ -41,10 +58,12 @@ export function useTabs() {
       params: [],
       headers: [...DEFAULT_HEADERS],
       body: "",
-      contentType: "application/json",
+      contentType: "none",
       response: null,
       loading: false,
-      ...restOverrides
+      auth: { ...DEFAULT_AUTH },
+      cookies: [],
+      ...overrides
     }
   }
 
