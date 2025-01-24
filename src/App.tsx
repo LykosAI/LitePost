@@ -55,7 +55,7 @@ function App() {
     if (currentTab) {
       updateTab(currentTab.id, { params })
     }
-  })
+  }, currentTab?.params)
 
   // Update raw URL when params change without affecting user input
   useEffect(() => {

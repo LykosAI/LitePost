@@ -18,6 +18,9 @@ import { CODE_SNIPPETS } from "@/utils/codeSnippets"
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import { toast } from "sonner"
+import { CopyButton } from "./CopyButton"
+import { KeyValueList } from "./KeyValueList"
+import { AuthConfigurator } from "./AuthConfigurator"
 
 const HTTP_METHODS = ["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"]
 const CONTENT_TYPES = [
@@ -47,44 +50,6 @@ interface RequestPanelProps {
   onAuthChange: (auth: AuthConfig) => void
   onCookiesChange: (cookies: Cookie[]) => void
   onSend: () => void
-}
-
-const AUTH_TYPES: { value: AuthType; label: string }[] = [
-  { value: 'none', label: 'No Auth' },
-  { value: 'basic', label: 'Basic Auth' },
-  { value: 'bearer', label: 'Bearer Token' },
-  { value: 'api-key', label: 'API Key' },
-]
-
-interface CopyButtonProps {
-  content: string
-  className?: string
-}
-
-function CopyButton({ content, className = "" }: CopyButtonProps) {
-  const [copied, setCopied] = useState(false)
-
-  const copy = async () => {
-    await navigator.clipboard.writeText(content)
-    setCopied(true)
-    toast.success("Copied to clipboard")
-    setTimeout(() => setCopied(false), 2000)
-  }
-
-  return (
-    <Button
-      variant="outline"
-      size="icon"
-      className={`h-8 w-8 ${className}`}
-      onClick={copy}
-    >
-      {copied ? (
-        <Check className="h-4 w-4" />
-      ) : (
-        <Copy className="h-4 w-4" />
-      )}
-    </Button>
-  )
 }
 
 export function RequestPanel({
@@ -211,213 +176,31 @@ export function RequestPanel({
           <TabsContent value="params" className="h-full p-4 pt-2 data-[state=active]:flex data-[state=active]:flex-col">
             <ScrollArea className="flex-1 min-h-0">
               <div className="space-y-2 pr-4">
-                <div className="grid grid-cols-[1fr,1fr,auto,auto] gap-2">
-                  {params.map((param, index) => (
-                    <React.Fragment key={index}>
-                      <Input
-                        placeholder="Parameter name"
-                        value={param.key}
-                        onChange={(e) => {
-                          const newParams = [...params]
-                          newParams[index].key = e.target.value
-                          onParamsChange(newParams)
-                        }}
-                      />
-                      <Input
-                        placeholder="Value"
-                        value={param.value}
-                        onChange={(e) => {
-                          const newParams = [...params]
-                          newParams[index].value = e.target.value
-                          onParamsChange(newParams)
-                        }}
-                      />
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => {
-                          const newParams = [...params]
-                          newParams[index].enabled = !newParams[index].enabled
-                          onParamsChange(newParams)
-                        }}
-                        className={param.enabled ? "text-foreground" : "text-muted-foreground"}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={param.enabled}
-                          className="h-4 w-4"
-                          onChange={() => {}} // Handled by button click
-                        />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => {
-                          const newParams = params.filter((_, i) => i !== index)
-                          onParamsChange(newParams)
-                        }}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </React.Fragment>
-                  ))}
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="w-full"
-                  onClick={() => {
-                    onParamsChange([...params, { key: "", value: "", enabled: true }])
-                  }}
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Parameter
-                </Button>
+                <KeyValueList
+                  items={params}
+                  onItemsChange={onParamsChange}
+                  keyPlaceholder="Parameter name"
+                  valuePlaceholder="Value"
+                />
               </div>
             </ScrollArea>
           </TabsContent>
           <TabsContent value="auth" className="h-full p-4 pt-2 data-[state=active]:flex data-[state=active]:flex-col">
             <ScrollArea className="flex-1 min-h-0">
               <div className="space-y-4 pr-4">
-                <Select value={auth.type} onValueChange={(value: AuthType) => onAuthChange({ ...auth, type: value })}>
-                  <SelectTrigger className="w-[200px] bg-background border-input focus:ring-0 focus-visible:ring-1">
-                    <SelectValue placeholder="Authentication Type" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-gray-800 border-border">
-                    {AUTH_TYPES.map((type) => (
-                      <SelectItem
-                        key={type.value}
-                        value={type.value}
-                        className="hover:bg-muted focus:bg-muted text-white"
-                      >
-                        {type.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-
-                {auth.type === 'basic' && (
-                  <div className="space-y-2">
-                    <Input
-                      placeholder="Username"
-                      value={auth.username || ''}
-                      onChange={(e) => onAuthChange({ ...auth, username: e.target.value })}
-                    />
-                    <Input
-                      type="password"
-                      placeholder="Password"
-                      value={auth.password || ''}
-                      onChange={(e) => onAuthChange({ ...auth, password: e.target.value })}
-                    />
-                  </div>
-                )}
-
-                {auth.type === 'bearer' && (
-                  <Input
-                    placeholder="Bearer Token"
-                    value={auth.token || ''}
-                    onChange={(e) => onAuthChange({ ...auth, token: e.target.value })}
-                  />
-                )}
-
-                {auth.type === 'api-key' && (
-                  <div className="space-y-2">
-                    <Input
-                      placeholder="Key"
-                      value={auth.key || ''}
-                      onChange={(e) => onAuthChange({ ...auth, key: e.target.value })}
-                    />
-                    <Input
-                      placeholder="Value"
-                      value={auth.value || ''}
-                      onChange={(e) => onAuthChange({ ...auth, value: e.target.value })}
-                    />
-                    <Select 
-                      value={auth.addTo || 'header'} 
-                      onValueChange={(value: 'header' | 'query') => onAuthChange({ ...auth, addTo: value })}
-                    >
-                      <SelectTrigger className="w-[200px] bg-background border-input focus:ring-0 focus-visible:ring-1">
-                        <SelectValue placeholder="Add to" />
-                      </SelectTrigger>
-                      <SelectContent className="bg-gray-800 border-border">
-                        <SelectItem value="header" className="hover:bg-muted focus:bg-muted text-white">
-                          Header
-                        </SelectItem>
-                        <SelectItem value="query" className="hover:bg-muted focus:bg-muted text-white">
-                          Query Parameter
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
+                <AuthConfigurator auth={auth} onAuthChange={onAuthChange} />
               </div>
             </ScrollArea>
           </TabsContent>
           <TabsContent value="headers" className="h-full p-4 pt-2 data-[state=active]:flex data-[state=active]:flex-col">
             <ScrollArea className="flex-1 min-h-0">
               <div className="space-y-2 pr-4">
-                <div className="grid grid-cols-[1fr,1fr,auto,auto] gap-2">
-                  {headers.map((header, index) => (
-                    <React.Fragment key={index}>
-                      <Input
-                        placeholder="Header name"
-                        value={header.key}
-                        onChange={(e) => {
-                          const newHeaders = [...headers]
-                          newHeaders[index].key = e.target.value
-                          onHeadersChange(newHeaders)
-                        }}
-                      />
-                      <Input
-                        placeholder="Value"
-                        value={header.value}
-                        onChange={(e) => {
-                          const newHeaders = [...headers]
-                          newHeaders[index].value = e.target.value
-                          onHeadersChange(newHeaders)
-                        }}
-                      />
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => {
-                          const newHeaders = [...headers]
-                          newHeaders[index].enabled = !newHeaders[index].enabled
-                          onHeadersChange(newHeaders)
-                        }}
-                        className={header.enabled ? "text-foreground" : "text-muted-foreground"}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={header.enabled}
-                          className="h-4 w-4"
-                          onChange={() => {}} // Handled by button click
-                        />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => {
-                          const newHeaders = headers.filter((_, i) => i !== index)
-                          onHeadersChange(newHeaders)
-                        }}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </React.Fragment>
-                  ))}
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="w-full"
-                  onClick={() => {
-                    onHeadersChange([...headers, { key: "", value: "", enabled: true }])
-                  }}
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Header
-                </Button>
+                <KeyValueList
+                  items={headers}
+                  onItemsChange={onHeadersChange}
+                  keyPlaceholder="Header name"
+                  valuePlaceholder="Value"
+                />
               </div>
             </ScrollArea>
           </TabsContent>

@@ -5,18 +5,10 @@ import { Response } from "@/types"
 import { useEffect, useState, memo, useMemo } from "react"
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism'
-import { ChevronRight, ChevronDown, ZoomIn, ZoomOut, RotateCw, Copy, Check } from "lucide-react"
+import { ChevronRight, ChevronDown, ZoomIn, ZoomOut, RotateCw } from "lucide-react"
 import { Button } from "./ui/button"
 import { useSettings } from "@/store/settings"
-import { toast } from "sonner"
-import { CODE_SNIPPETS } from "@/utils/codeSnippets"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
+import { CopyButton } from "./CopyButton"
 
 interface ResponsePanelProps {
   response: Response | null
@@ -198,37 +190,6 @@ function ImageViewer({ src, contentType, isBase64 }: ImageViewerProps) {
   )
 }
 
-interface CopyButtonProps {
-  content: string
-  className?: string
-}
-
-function CopyButton({ content, className = "" }: CopyButtonProps) {
-  const [copied, setCopied] = useState(false)
-
-  const copy = async () => {
-    await navigator.clipboard.writeText(content)
-    setCopied(true)
-    toast.success("Copied to clipboard")
-    setTimeout(() => setCopied(false), 2000)
-  }
-
-  return (
-    <Button
-      variant="outline"
-      size="icon"
-      className={`h-8 w-8 ${className}`}
-      onClick={copy}
-    >
-      {copied ? (
-        <Check className="h-4 w-4" />
-      ) : (
-        <Copy className="h-4 w-4" />
-      )}
-    </Button>
-  )
-}
-
 export function ResponsePanel({ 
   response,
 }: ResponsePanelProps) {
@@ -301,33 +262,35 @@ export function ResponsePanel({
   return (
     <Card className="h-full flex flex-col">
       <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full flex flex-col">
-        <div className="flex justify-between items-center ps-4 pt-3 pb-1">
-          <TabsList>
-            <TabsTrigger value="response">Response</TabsTrigger>
-            {responseFormat === "html" && <TabsTrigger value="preview">Preview</TabsTrigger>}
-            {responseFormat !== "other" && <TabsTrigger value="raw">Raw</TabsTrigger>}
-            <TabsTrigger value="headers">Headers</TabsTrigger>
-            {response?.redirectChain && response.redirectChain.length > 0 && (
-              <TabsTrigger value="redirects">Redirects</TabsTrigger>
+        <div className="flex flex-col gap-2 ps-4 pt-3 pb-1">
+          <div className="flex flex-wrap gap-2 items-center justify-between">
+            <TabsList>
+              <TabsTrigger value="response">Response</TabsTrigger>
+              {responseFormat === "html" && <TabsTrigger value="preview">Preview</TabsTrigger>}
+              {responseFormat !== "other" && <TabsTrigger value="raw">Raw</TabsTrigger>}
+              <TabsTrigger value="headers">Headers</TabsTrigger>
+              {response?.redirectChain && response.redirectChain.length > 0 && (
+                <TabsTrigger value="redirects">Redirects</TabsTrigger>
+              )}
+              <TabsTrigger value="cookies">Cookies</TabsTrigger>
+              {response?.timing && <TabsTrigger value="timing">Timing</TabsTrigger>}
+            </TabsList>
+            {response && !response.error && (
+              <div className="flex flex-wrap gap-4 ps-1 pe-4 text-sm">
+                <span className={statusClass}>Status: {response.statusText}</span>
+                {response.timing && (
+                  <span className="text-muted-foreground">
+                    Time: {Math.round(response.timing.total)}ms
+                  </span>
+                )}
+                {response.size && (
+                  <span className="text-muted-foreground">
+                    Size: {(response.size.total / 1024).toFixed(1)}KB
+                  </span>
+                )}
+              </div>
             )}
-            <TabsTrigger value="cookies">Cookies</TabsTrigger>
-            {response?.timing && <TabsTrigger value="timing">Timing</TabsTrigger>}
-          </TabsList>
-          {response && !response.error && (
-            <div className={`text-sm ${statusClass} pr-4 flex items-center gap-4`}>
-              <span>Status: {response.statusText}</span>
-              {response.timing && (
-                <span className="text-muted-foreground">
-                  Time: {Math.round(response.timing.total)}ms
-                </span>
-              )}
-              {response.size && (
-                <span className="text-muted-foreground">
-                  Size: {(response.size.total / 1024).toFixed(1)}KB
-                </span>
-              )}
-            </div>
-          )}
+          </div>
         </div>
         <TabsContent value="response" className="flex-1 mt-0 px-4 pt-2 min-h-0">
           <ScrollArea className="h-full pr-3 [&_[data-radix-scroll-area-thumb]]:bg-accent [&_[data-radix-scroll-area-thumb]]:hover:bg-accent/80">
@@ -368,6 +331,9 @@ export function ResponsePanel({
                       'pre[class*="language-"]': {
                         ...oneDark['pre[class*="language-"]'],
                         background: 'none',
+                        whiteSpace: 'pre-wrap',
+                        wordBreak: 'break-all',
+                        overflowWrap: 'anywhere',
                       }
                     }}
                     customStyle={{
@@ -376,7 +342,9 @@ export function ResponsePanel({
                       background: 'transparent',
                       fontSize: '0.875rem',
                       minWidth: 'auto',
-                      wordBreak: 'break-all'
+                      wordBreak: 'break-all',
+                      overflowWrap: 'anywhere',
+                      whiteSpace: 'pre-wrap'
                     }}
                     wrapLongLines
                   >

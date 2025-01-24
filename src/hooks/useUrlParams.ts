@@ -1,7 +1,7 @@
 import { useRef, useEffect } from 'react'
 import { URLParam } from '@/types'
 
-export function useUrlParams(url: string, onParamsChange: (params: URLParam[]) => void) {
+export function useUrlParams(url: string, onParamsChange: (params: URLParam[]) => void, currentParams: URLParam[] = []) {
   const debounceTimeout = useRef<NodeJS.Timeout | null>(null)
 
   useEffect(() => {
@@ -13,7 +13,10 @@ export function useUrlParams(url: string, onParamsChange: (params: URLParam[]) =
       try {
         // Don't parse params if we're still typing or no query string
         if (!url.includes('?')) {
-          onParamsChange([])
+          // Only clear params if there are no manually added empty ones
+          if (!currentParams.some(p => p.key === '')) {
+            onParamsChange([])
+          }
           return
         }
 
@@ -21,7 +24,10 @@ export function useUrlParams(url: string, onParamsChange: (params: URLParam[]) =
         
         // Don't parse if no query string
         if (!queryString || queryString.trim() === '') {
-          onParamsChange([])
+          // Only clear params if there are no manually added empty ones
+          if (!currentParams.some(p => p.key === '')) {
+            onParamsChange([])
+          }
           return
         }
 
@@ -40,7 +46,9 @@ export function useUrlParams(url: string, onParamsChange: (params: URLParam[]) =
             }
           })
 
-          onParamsChange(newParams)
+          // Preserve any manually added empty params
+          const emptyParams = currentParams.filter(p => p.key === '')
+          onParamsChange([...newParams, ...emptyParams])
         } catch (error) {
           // Invalid query string, just keep existing params
           console.error('Error parsing URL params:', error)
@@ -55,5 +63,5 @@ export function useUrlParams(url: string, onParamsChange: (params: URLParam[]) =
         clearTimeout(debounceTimeout.current)
       }
     }
-  }, [url, onParamsChange])
+  }, [url, onParamsChange, currentParams])
 } 
