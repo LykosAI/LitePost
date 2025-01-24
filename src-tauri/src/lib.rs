@@ -6,6 +6,7 @@ use std::sync::Arc;
 use tauri::http::method::Method;
 use tauri::Url;
 use std::str::FromStr;
+use base64;
 
 #[derive(Debug, Serialize, Deserialize)]
 struct RequestOptions {
@@ -29,12 +30,35 @@ struct Cookie {
 }
 
 #[derive(Debug, Serialize)]
+struct ResponseTiming {
+    start: u128,
+    end: u128,
+    duration: u128,
+    dns: Option<u128>,
+    tcp: Option<u128>,
+    tls: Option<u128>,
+    request: Option<u128>,
+    first_byte: Option<u128>,
+    download: Option<u128>,
+    total: u128,
+}
+
+#[derive(Debug, Serialize)]
+struct ResponseSize {
+    headers: usize,
+    body: usize,
+    total: usize,
+}
+
+#[derive(Debug, Serialize)]
 struct RedirectInfo {
     url: String,
     status: u16,
     status_text: String,
     headers: HashMap<String, String>,
     cookies: Vec<String>,
+    timing: Option<ResponseTiming>,
+    size: Option<ResponseSize>,
 }
 
 #[derive(Debug, Serialize)]
@@ -43,8 +67,11 @@ struct ResponseData {
     status_text: String,
     headers: HashMap<String, String>,
     body: String,
+    is_base64: bool,
     redirect_chain: Vec<RedirectInfo>,
     cookies: Vec<String>,
+    timing: Option<ResponseTiming>,
+    size: Option<ResponseSize>,
 }
 
 // Add new struct for application state
@@ -70,6 +97,10 @@ async fn send_request(
 ) -> Result<ResponseData, String> {
     let client = &client_wrapper.client;
     let cookie_jar = &client_wrapper.cookie_jar;
+    let start_time = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_millis();
 
     // Add UI cookies to the cookie store
     let url = Url::parse(&options.url).map_err(|e| e.to_string())?;
@@ -114,6 +145,11 @@ async fn send_request(
     let mut response = None;
 
     for i in 0..10 { // Max 10 redirects
+        let dns_start = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_millis();
+
         let resp = request
             .try_clone()
             .ok_or_else(|| "Failed to clone request".to_string())?
@@ -121,12 +157,22 @@ async fn send_request(
             .await
             .map_err(|e| e.to_string())?;
 
+        let first_byte_time = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_millis();
+
         let status = resp.status();
         let headers: HashMap<String, String> = resp
             .headers()
             .iter()
             .map(|(k, v)| (k.to_string(), v.to_str().unwrap_or("").to_string()))
             .collect();
+
+        // Calculate headers size
+        let headers_size = headers.iter()
+            .map(|(k, v)| k.len() + v.len() + 4) // +4 for ": " and "\r\n"
+            .sum();
 
         if status.is_redirection() {
             if let Some(location) = resp.headers().get("location") {
@@ -144,12 +190,34 @@ async fn send_request(
                     .map(String::from)
                     .collect();
 
+                let end_time = std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap()
+                    .as_millis();
+
                 redirect_chain.push(RedirectInfo {
                     url: current_url.clone(),
                     status: status.as_u16(),
                     status_text: status.to_string(),
-                    headers,
+                    headers: headers.clone(),
                     cookies: redirect_cookies,
+                    timing: Some(ResponseTiming {
+                        start: dns_start,
+                        end: end_time,
+                        duration: end_time - dns_start,
+                        dns: Some(first_byte_time - dns_start),
+                        tcp: None,
+                        tls: None,
+                        request: None,
+                        first_byte: Some(first_byte_time - dns_start),
+                        download: Some(end_time - first_byte_time),
+                        total: end_time - dns_start,
+                    }),
+                    size: Some(ResponseSize {
+                        headers: headers_size,
+                        body: 0, // Redirects don't typically have bodies
+                        total: headers_size,
+                    }),
                 });
 
                 if i == 9 {
@@ -165,17 +233,22 @@ async fn send_request(
             }
         }
 
-        response = Some(resp);
+        response = Some((resp, dns_start, first_byte_time));
         break;
     }
 
-    let final_response = response.ok_or_else(|| "No response received".to_string())?;
+    let (final_response, dns_start, first_byte_time) = response.ok_or_else(|| "No response received".to_string())?;
     let status = final_response.status();
     let headers: HashMap<String, String> = final_response
         .headers()
         .iter()
         .map(|(k, v)| (k.to_string(), v.to_str().unwrap_or("").to_string()))
         .collect();
+
+    // Calculate headers size
+    let headers_size = headers.iter()
+        .map(|(k, v)| k.len() + v.len() + 4) // +4 for ": " and "\r\n"
+        .sum();
 
     let mut all_cookies = Vec::new();
     
@@ -193,15 +266,57 @@ async fn send_request(
             .map(String::from)
     );
 
-    let body = final_response.text().await.map_err(|e| e.to_string())?;
+    // Check content type to determine if response is binary
+    let content_type = headers.get("content-type").map(|s| s.to_lowercase());
+    let is_binary = content_type.as_ref().map_or(false, |ct| 
+        (ct.starts_with("image/") && !ct.starts_with("image/svg")) || // SVG is text-based XML
+        ct.starts_with("application/octet-stream") ||
+        ct.starts_with("audio/") ||
+        ct.starts_with("video/")
+    );
+
+    let (body, body_size, is_base64) = if is_binary {
+        // For binary data, get bytes and base64 encode
+        let bytes = final_response.bytes().await.map_err(|e| e.to_string())?;
+        let size = bytes.len();
+        (base64::encode(bytes), size, true)
+    } else {
+        // For text data (including SVG), get as string
+        let text = final_response.text().await.map_err(|e| e.to_string())?;
+        let size = text.len();
+        (text, size, false)
+    };
+
+    let end_time = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_millis();
 
     Ok(ResponseData {
         status: status.as_u16(),
         status_text: status.to_string(),
         headers,
         body,
+        is_base64,
         redirect_chain,
         cookies: all_cookies,
+        timing: Some(ResponseTiming {
+            start: start_time,
+            end: end_time,
+            duration: end_time - start_time,
+            dns: Some(first_byte_time - dns_start),
+            tcp: None,
+            tls: None,
+            request: None,
+            first_byte: Some(first_byte_time - dns_start),
+            download: Some(end_time - first_byte_time),
+            total: end_time - start_time,
+        }),
+        size: Some(ResponseSize {
+            headers: headers_size,
+            body: body_size,
+            total: headers_size + body_size,
+        }),
     })
 }
 

@@ -28,7 +28,7 @@ export function SettingsPanel() {
         </Button>
       </SheetTrigger>
       <SheetContent 
-        className="w-[400px] sm:w-[540px] border-l border-border bg-primary"
+        className="w-[400px] sm:w-[540px] border-l border-border bg-primary [&_button>svg]:text-primary-foreground [&_.close-button]:bg-transparent [&_.close-button]:hover:bg-zinc-800"
         side="right"
       >
         <SheetHeader>
@@ -40,7 +40,7 @@ export function SettingsPanel() {
             <div className="space-y-4">
               <div>
                 <h3 className="text-lg font-medium text-primary-foreground">JSON Viewer</h3>
-                <p className="text-sm text-muted-foreground">
+                <p className="text-sm text-primary-foreground/70">
                   Configure how JSON responses are displayed and auto-expanded.
                 </p>
               </div>
@@ -48,8 +48,8 @@ export function SettingsPanel() {
               <div className="grid gap-4">
                 <div className="space-y-2">
                   <div className="flex justify-between">
-                    <Label className="text-foreground">Auto-expand Depth</Label>
-                    <span className="text-sm text-muted-foreground">
+                    <Label className="text-primary-foreground">Auto-expand Depth</Label>
+                    <span className="text-sm text-primary-foreground/70">
                       {jsonViewer.maxAutoExpandDepth} levels
                     </span>
                   </div>
@@ -61,16 +61,16 @@ export function SettingsPanel() {
                     onValueChange={([value]) =>
                       updateJSONViewerSettings({ maxAutoExpandDepth: value })
                     }
-                    className="[&_[role=slider]]:bg-primary [&_[role=slider]]:border-primary [&_[data-orientation=horizontal]]:bg-zinc-800"
+                    className="[&_[role=slider]]:bg-blue-500 [&_[role=slider]]:border-blue-500 [&_[data-orientation=horizontal]]:bg-zinc-700"
                   />
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-xs text-primary-foreground/70">
                     Maximum nesting depth to automatically expand in JSON responses.
                   </p>
                 </div>
                 <div className="space-y-2">
                   <div className="flex justify-between">
-                    <Label className="text-foreground">Max Array Size to Auto-expand</Label>
-                    <span className="text-sm text-muted-foreground">
+                    <Label className="text-primary-foreground">Max Array Size to Auto-expand</Label>
+                    <span className="text-sm text-primary-foreground/70">
                       {jsonViewer.maxAutoExpandArraySize} items
                     </span>
                   </div>
@@ -82,16 +82,16 @@ export function SettingsPanel() {
                     onValueChange={([value]) =>
                       updateJSONViewerSettings({ maxAutoExpandArraySize: value })
                     }
-                    className="[&_[role=slider]]:bg-primary [&_[role=slider]]:border-primary [&_[data-orientation=horizontal]]:bg-zinc-800"
+                    className="[&_[role=slider]]:bg-blue-500 [&_[role=slider]]:border-blue-500 [&_[data-orientation=horizontal]]:bg-zinc-700"
                   />
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-xs text-primary-foreground/70">
                     Arrays larger than this size will be collapsed by default.
                   </p>
                 </div>
                 <div className="space-y-2">
                   <div className="flex justify-between">
-                    <Label className="text-foreground">Max Object Size to Auto-expand</Label>
-                    <span className="text-sm text-muted-foreground">
+                    <Label className="text-primary-foreground">Max Object Size to Auto-expand</Label>
+                    <span className="text-sm text-primary-foreground/70">
                       {jsonViewer.maxAutoExpandObjectSize} properties
                     </span>
                   </div>
@@ -103,9 +103,9 @@ export function SettingsPanel() {
                     onValueChange={([value]) =>
                       updateJSONViewerSettings({ maxAutoExpandObjectSize: value })
                     }
-                    className="[&_[role=slider]]:bg-primary [&_[role=slider]]:border-primary [&_[data-orientation=horizontal]]:bg-zinc-800"
+                    className="[&_[role=slider]]:bg-blue-500 [&_[role=slider]]:border-blue-500 [&_[data-orientation=horizontal]]:bg-zinc-700"
                   />
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-xs text-primary-foreground/70">
                     Objects with more properties than this will be collapsed by default.
                   </p>
                 </div>
@@ -116,26 +116,26 @@ export function SettingsPanel() {
             {/* Example of how other sections would look */}
             <div className="space-y-4">
               <div>
-                <h3 className="text-lg font-medium text-foreground">Request Defaults</h3>
-                <p className="text-sm text-muted-foreground">
+                <h3 className="text-lg font-medium text-primary-foreground">Request Defaults</h3>
+                <p className="text-sm text-primary-foreground/70">
                   Configure default settings for new requests.
                 </p>
               </div>
               <Separator className="bg-zinc-800" />
-              <div className="text-sm text-muted-foreground italic">
+              <div className="text-sm text-primary-foreground/70 italic">
                 Coming soon...
               </div>
             </div>
 
             <div className="space-y-4">
               <div>
-                <h3 className="text-lg font-medium text-foreground">Theme</h3>
-                <p className="text-sm text-muted-foreground">
+                <h3 className="text-lg font-medium text-primary-foreground">Theme</h3>
+                <p className="text-sm text-primary-foreground/70">
                   Customize the application appearance.
                 </p>
               </div>
               <Separator className="bg-zinc-800" />
-              <div className="text-sm text-muted-foreground italic">
+              <div className="text-sm text-primary-foreground/70 italic">
                 Coming soon...
               </div>
             </div>

@@ -58,7 +58,7 @@ export function useTabs() {
       params: [],
       headers: [...DEFAULT_HEADERS],
       body: "",
-      contentType: "none",
+      contentType: "application/json",
       response: null,
       loading: false,
       auth: { ...DEFAULT_AUTH },

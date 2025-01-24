@@ -10,8 +10,32 @@ export interface Response {
     statusText: string
     headers: Record<string, string>
     cookies?: string[]
+    timing?: ResponseTiming
+    size?: ResponseSize
   }[]
   cookies?: string[]
+  is_base64?: boolean
+  timing?: ResponseTiming
+  size?: ResponseSize
+}
+
+export interface ResponseTiming {
+  start: number
+  end: number
+  duration: number
+  dns?: number
+  tcp?: number
+  tls?: number
+  request?: number
+  first_byte?: number
+  download?: number
+  total: number
+}
+
+export interface ResponseSize {
+  headers: number
+  body: number
+  total: number
 }
 
 export interface HistoryItem {

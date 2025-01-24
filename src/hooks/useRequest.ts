@@ -6,6 +6,28 @@ interface RedirectInfo {
   status: number
   status_text: string
   headers: Record<string, string>
+  cookies?: string[]
+  timing?: ResponseTiming
+  size?: ResponseSize
+}
+
+interface ResponseTiming {
+  start: number
+  end: number
+  duration: number
+  dns?: number
+  tcp?: number
+  tls?: number
+  request?: number
+  first_byte?: number
+  download?: number
+  total: number
+}
+
+interface ResponseSize {
+  headers: number
+  body: number
+  total: number
 }
 
 interface ResponseData {
@@ -15,6 +37,9 @@ interface ResponseData {
   body: string
   redirect_chain: RedirectInfo[]
   cookies: string[]
+  is_base64: boolean
+  timing?: ResponseTiming
+  size?: ResponseSize
 }
 
 export function useRequest(onHistoryUpdate: (item: HistoryItem) => void) {
@@ -65,7 +90,9 @@ export function useRequest(onHistoryUpdate: (item: HistoryItem) => void) {
         cookies: tab.cookies
       }
 
+      console.log('Sending request with options:', options);
       const response = await invoke<ResponseData>('send_request', { options })
+      console.log('Received response:', response);
 
       // Add to history
       onHistoryUpdate({
@@ -80,7 +107,7 @@ export function useRequest(onHistoryUpdate: (item: HistoryItem) => void) {
         auth: tab.auth
       })
 
-      return {
+      const mappedResponse = {
         status: response.status,
         statusText: response.status_text,
         headers: response.headers,
@@ -89,10 +116,19 @@ export function useRequest(onHistoryUpdate: (item: HistoryItem) => void) {
           url: redirect.url,
           status: redirect.status,
           statusText: redirect.status_text,
-          headers: redirect.headers
+          headers: redirect.headers,
+          cookies: redirect.cookies,
+          timing: redirect.timing,
+          size: redirect.size
         })),
-        cookies: response.cookies
+        cookies: response.cookies,
+        is_base64: response.is_base64,
+        timing: response.timing,
+        size: response.size
       }
+
+      console.log('Mapped response:', mappedResponse);
+      return mappedResponse
     } catch (error) {
       console.error('Request error:', error)
       return {

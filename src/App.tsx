@@ -11,6 +11,7 @@ import { useRequest } from "./hooks/useRequest"
 import { useHistory } from "./hooks/useHistory"
 import { HistoryItem, Tab, AuthConfig } from "./types"
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels"
+import { Toaster } from "sonner"
 
 // Utility function to get clean tab name from URL
 const getCleanTabName = (url: string): string => {
@@ -116,6 +117,7 @@ function App() {
 
   return (
     <div className="dark h-screen overflow-hidden">
+      <Toaster theme="dark" position="bottom-right" />
       <div className="h-full flex flex-col bg-background text-foreground min-w-0">
         <TitleBar />
         <div className="flex-1 min-h-0 min-w-0">

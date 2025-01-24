@@ -1,7 +1,7 @@
 import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { Plus, Trash2 } from "lucide-react"
+import { Plus, Trash2, Copy, Check } from "lucide-react"
 import {
   Select,
   SelectContent,
@@ -12,8 +12,12 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import React, { useEffect } from "react"
+import React, { useEffect, useState, useMemo } from "react"
 import { AuthConfig, AuthType, URLParam, Header, Cookie } from "@/types"
+import { CODE_SNIPPETS } from "@/utils/codeSnippets"
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
+import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism'
+import { toast } from "sonner"
 
 const HTTP_METHODS = ["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"]
 const CONTENT_TYPES = [
@@ -52,6 +56,37 @@ const AUTH_TYPES: { value: AuthType; label: string }[] = [
   { value: 'api-key', label: 'API Key' },
 ]
 
+interface CopyButtonProps {
+  content: string
+  className?: string
+}
+
+function CopyButton({ content, className = "" }: CopyButtonProps) {
+  const [copied, setCopied] = useState(false)
+
+  const copy = async () => {
+    await navigator.clipboard.writeText(content)
+    setCopied(true)
+    toast.success("Copied to clipboard")
+    setTimeout(() => setCopied(false), 2000)
+  }
+
+  return (
+    <Button
+      variant="outline"
+      size="icon"
+      className={`h-8 w-8 ${className}`}
+      onClick={copy}
+    >
+      {copied ? (
+        <Check className="h-4 w-4" />
+      ) : (
+        <Copy className="h-4 w-4" />
+      )}
+    </Button>
+  )
+}
+
 export function RequestPanel({
   method,
   url,
@@ -72,6 +107,23 @@ export function RequestPanel({
   onCookiesChange,
   onSend,
 }: RequestPanelProps) {
+  const [selectedLanguage, setSelectedLanguage] = useState(CODE_SNIPPETS[0].value)
+  
+  const codeSnippet = useMemo(() => {
+    const generator = CODE_SNIPPETS.find(s => s.value === selectedLanguage)?.generator
+    if (!generator) return ''
+    
+    return generator({
+      method,
+      url,
+      headers,
+      body,
+      contentType,
+      auth,
+      cookies,
+    })
+  }, [selectedLanguage, method, url, headers, body, contentType, auth, cookies])
+
   // Add keyboard event handler
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -152,6 +204,7 @@ export function RequestPanel({
             <TabsTrigger value="headers">Headers</TabsTrigger>
             <TabsTrigger value="body">Body</TabsTrigger>
             <TabsTrigger value="cookies">Cookies</TabsTrigger>
+            <TabsTrigger value="code">Code</TabsTrigger>
           </TabsList>
         </div>
         <div className="flex-1 min-h-0">
@@ -448,6 +501,67 @@ export function RequestPanel({
                 <Plus className="h-4 w-4 mr-2" /> Add Cookie
               </Button>
             </div>
+          </TabsContent>
+          <TabsContent value="code" className="flex-1 mt-0 px-4 pt-2 pb-4 min-h-0 h-full">
+            <ScrollArea className="h-full pr-4">
+              <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <Select value={selectedLanguage} onValueChange={setSelectedLanguage}>
+                    <SelectTrigger className="w-[200px] bg-background border-input focus:ring-0 focus-visible:ring-1">
+                      <SelectValue placeholder="Select Language" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-gray-800 border-border">
+                      {CODE_SNIPPETS.map((lang) => (
+                        <SelectItem
+                          key={lang.value}
+                          value={lang.value}
+                          className="hover:bg-muted focus:bg-muted text-white"
+                        >
+                          {lang.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <CopyButton content={codeSnippet} />
+                </div>
+                
+                <div className="relative font-mono text-sm bg-muted rounded-md p-4">
+                  <SyntaxHighlighter
+                    language={selectedLanguage === 'curl' ? 'bash' : selectedLanguage}
+                    style={{
+                      ...oneDark,
+                      'pre[class*="language-"]': {
+                        ...oneDark['pre[class*="language-"]'],
+                        background: 'transparent',
+                        margin: 0,
+                        padding: 0,
+                      },
+                      'code[class*="language-"]': {
+                        ...oneDark['code[class*="language-"]'],
+                        background: 'transparent',
+                      },
+                      'pre > code': {
+                        ...oneDark['pre > code'],
+                        background: 'transparent',
+                      },
+                      'token': {
+                        background: 'transparent',
+                      }
+                    }}
+                    customStyle={{
+                      background: 'transparent',
+                      fontSize: 'inherit',
+                      whiteSpace: 'pre-wrap',
+                      wordBreak: 'break-all',
+                      overflowWrap: 'break-word',
+                    }}
+                    wrapLongLines
+                  >
+                    {codeSnippet}
+                  </SyntaxHighlighter>
+                </div>
+              </div>
+            </ScrollArea>
           </TabsContent>
         </div>
       </Tabs>
