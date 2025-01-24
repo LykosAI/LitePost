@@ -97,6 +97,8 @@ export function generateCurlSnippet(request: RequestData): string {
   const url = addApiKeyToUrl(request.url, request.auth)
   parts.push(`  "${escapeString(url)}"`)
 
+  parts.unshift('# WARNING: curl commands may expose secrets in process listings\n')
+
   return parts.join('\n')
 }
 
@@ -150,9 +152,9 @@ export function generatePythonSnippet(request: RequestData): string {
   if (request.body) {
     if (request.contentType?.includes('json')) {
       lines.push('\nimport json')
-      reqParts.push('        json=json.loads("""')
-      reqParts.push(request.body)
-      reqParts.push('        """),')
+      reqParts.push('        json=json.loads(')
+      reqParts.push(`            ${JSON.stringify(request.body)},`)
+      reqParts.push('        ),')
     } else {
       reqParts.push('        content="""')
       reqParts.push(request.body)
@@ -177,6 +179,10 @@ export function generatePythonSnippet(request: RequestData): string {
   lines.push('    print(response.text)')
   lines.push('finally:')
   lines.push('    client.close()')
+
+  lines.unshift('# Generated code - verify before use in production')
+  lines.unshift('# Requires python 3.6+ and httpx package')
+  lines.unshift('# Install with: pip install httpx')
 
   return lines.join('\n')
 }
@@ -239,7 +245,13 @@ export function generateJavaScriptSnippet(request: RequestData): string {
   lines.push('  options')
   lines.push(')')
   lines.push('  .then(response => response.text())')
-  lines.push('  .then(data => console.log(data))')
+  lines.push('  .then(data => {')
+  if (request.contentType?.includes('json')) {
+    lines.push('    console.log("Response:", JSON.parse(data))')
+  } else {
+    lines.push('    console.log("Response:", data)')
+  }
+  lines.push('  })')
   lines.push('  .catch(error => console.error(error));')
 
   // Using axios
@@ -269,6 +281,10 @@ export function generateJavaScriptSnippet(request: RequestData): string {
   lines.push('})')
   lines.push('  .then(response => console.log(response.data))')
   lines.push('  .catch(error => console.error(error));')
+
+  lines.unshift('// Generated code - verify before use in production')
+  lines.unshift('// Requires Node.js 14+ or browser environment')
+  lines.unshift('// For axios: npm install axios')
 
   return lines.join('\n')
 }
@@ -360,6 +376,20 @@ export function generateCSharpSnippet(request: RequestData): string {
   // Cleanup
   lines.push('\n// Dispose services')
   lines.push('provider.Dispose();')
+
+  // Note: HttpClient should be reused in production applications
+  // See: https://learn.microsoft.com/en-us/dotnet/architecture/microservices/implement-resilient-applications/use-httpclientfactory-to-implement-resilient-http-requests')
+
+  lines.push('\ntry {')
+  lines.push('} catch (HttpRequestException ex) {')
+  lines.push('    Console.WriteLine($"HTTP Error: {ex.Message}");')
+  lines.push('} catch (TaskCanceledException ex) {')
+  lines.push('    Console.WriteLine("Request timed out");')
+  lines.push('} catch (Exception ex) {')
+  lines.push('    Console.WriteLine($"General error: {ex.Message}");')
+  lines.push('}')
+
+  lines.unshift('// Generated code - verify before use in production')
 
   return lines.join('\n')
 }
@@ -467,6 +497,12 @@ export function generateGoSnippet(request: RequestData): string {
   lines.push('    fmt.Printf("Response: %s\\n", string(body))')
   lines.push('}')
 
+  lines.push('// Client should be reused for multiple requests')
+  lines.push('// See https://pkg.go.dev/net/http#Client')
+
+  lines.unshift('// Generated code - verify before use in production')
+  lines.unshift('// Requires Go 1.13+')
+
   return lines.join('\n')
 }
 
@@ -543,6 +579,10 @@ export function generateRubySnippet(request: RequestData): string {
   lines.push('rescue Faraday::Error => e')
   lines.push('  puts "Error: #{e.message}"')
   lines.push('end')
+
+  lines.unshift('# Generated code - verify before use in production')
+  lines.unshift('# Requires faraday gem')
+  lines.unshift('# Install with: gem install faraday')
 
   return lines.join('\n')
 }
