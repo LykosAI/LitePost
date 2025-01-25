@@ -14,15 +14,19 @@ jobs:
         include:
           - platform: 'macos-latest'
             args: '--target aarch64-apple-darwin'
+            artifact_name: 'LitePost_aarch64.app.tar.gz'
           - platform: 'macos-latest'
             args: '--target x86_64-apple-darwin'
+            artifact_name: 'LitePost_x64.app.tar.gz'
           - platform: 'ubuntu-22.04'
             args: ''
+            artifact_name: 'litepost_0.1.0_amd64.AppImage'
           - platform: 'windows-latest'
             args: ''
+            artifact_name: 'LitePost_0.1.0_x64-setup.exe'
     runs-on: ${{ matrix.platform }}
     outputs:
-      release_url: ${{ steps.build-app.outputs.release_url }}
+      upload_url: ${{ steps.create_release.outputs.upload_url }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -52,14 +56,26 @@ jobs:
       - name: Install frontend dependencies
         run: pnpm install
 
+      - name: Create Release
+        id: create_release
+        if: matrix.platform == 'ubuntu-22.04'
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref_name }}
+          release_name: 'LitePost ${{ github.ref_name }}'
+          body: 'See the assets to download this version and install.'
+          draft: true
+          prerelease: false
+
       - name: Build the app
-        id: build-app
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tagName: ${{ github.ref_name }}
-          releaseName: 'LitePost v${{ github.ref_name }}'
+          releaseName: 'LitePost ${{ github.ref_name }}'
           releaseBody: 'See the assets to download this version and install.'
           releaseDraft: true
           prerelease: false
@@ -86,10 +102,83 @@ jobs:
       - name: Install Tauri CLI
         run: pnpm add -D @tauri-apps/cli
 
-      - name: Download all artifacts
-        uses: actions/download-artifact@v3
+      - name: Wait for release assets
+        uses: actions/github-script@v7
         with:
-          path: artifacts
+          script: |
+            const artifacts = [
+              'LitePost_aarch64.app.tar.gz',
+              'LitePost_x64.app.tar.gz',
+              'litepost_0.1.0_amd64.AppImage',
+              'LitePost_0.1.0_x64-setup.exe'
+            ];
+            
+            const tag = context.ref.replace('refs/tags/', '');
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            
+            let attempts = 0;
+            const maxAttempts = 30;
+            
+            while (attempts < maxAttempts) {
+              const release = await github.rest.repos.getReleaseByTag({
+                owner,
+                repo,
+                tag
+              });
+              
+              const assets = release.data.assets.map(asset => asset.name);
+              const missingAssets = artifacts.filter(artifact => !assets.includes(artifact));
+              
+              if (missingAssets.length === 0) {
+                console.log('All assets found!');
+                break;
+              }
+              
+              console.log(`Waiting for assets: ${missingAssets.join(', ')}`);
+              attempts++;
+              
+              if (attempts === maxAttempts) {
+                throw new Error('Timed out waiting for assets');
+              }
+              
+              await new Promise(resolve => setTimeout(resolve, 10000));
+            }
+
+      - name: Download release assets
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const artifacts = [
+              'LitePost_aarch64.app.tar.gz',
+              'LitePost_x64.app.tar.gz',
+              'litepost_0.1.0_amd64.AppImage',
+              'LitePost_0.1.0_x64-setup.exe'
+            ];
+            
+            const tag = context.ref.replace('refs/tags/', '');
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            
+            const release = await github.rest.repos.getReleaseByTag({
+              owner,
+              repo,
+              tag
+            });
+            
+            const fs = require('fs');
+            const path = require('path');
+            
+            if (!fs.existsSync('artifacts')) {
+              fs.mkdirSync('artifacts');
+            }
+            
+            for (const asset of release.data.assets) {
+              if (artifacts.includes(asset.name)) {
+                const response = await github.request(asset.browser_download_url);
+                fs.writeFileSync(path.join('artifacts', asset.name), Buffer.from(response.data));
+              }
+            }
 
       - name: Generate signatures and updater JSON
         env:
@@ -99,28 +188,23 @@ jobs:
         run: |
           # Sign artifacts and collect signatures
           declare -A signatures
-          for file in artifacts/build-*/; do
-            if [ -f "$file" ]; then
-              signature=$(pnpm tauri signer sign "$file")
-              platform=$(basename "$file" | cut -d'-' -f2-)
-              
-              case "$platform" in
-                "macos-latest")
-                  if [[ "$file" == *"aarch64"* ]]; then
-                    signatures["darwin-aarch64"]="$signature"
-                  else
-                    signatures["darwin-x86_64"]="$signature"
-                  fi
-                  ;;
-                "ubuntu-22.04")
-                  signatures["linux-x86_64"]="$signature"
-                  ;;
-                "windows-latest")
-                  signatures["windows-x86_64"]="$signature"
-                  ;;
-              esac
-            fi
-          done
+          
+          # Sign each artifact directly
+          if [ -f "artifacts/LitePost_x64.app.tar.gz" ]; then
+            signatures["darwin-x86_64"]=$(pnpm tauri signer sign "artifacts/LitePost_x64.app.tar.gz")
+          fi
+          
+          if [ -f "artifacts/LitePost_aarch64.app.tar.gz" ]; then
+            signatures["darwin-aarch64"]=$(pnpm tauri signer sign "artifacts/LitePost_aarch64.app.tar.gz")
+          fi
+          
+          if [ -f "artifacts/litepost_0.1.0_amd64.AppImage" ]; then
+            signatures["linux-x86_64"]=$(pnpm tauri signer sign "artifacts/litepost_0.1.0_amd64.AppImage")
+          fi
+          
+          if [ -f "artifacts/LitePost_0.1.0_x64-setup.exe" ]; then
+            signatures["windows-x86_64"]=$(pnpm tauri signer sign "artifacts/LitePost_0.1.0_x64-setup.exe")
+          fi
 
           # Create latest.json with collected signatures
           echo '{
@@ -152,7 +236,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          upload_url: ${{ needs.build.outputs.release_url }}
+          upload_url: ${{ needs.build.outputs.upload_url }}
           asset_path: ./latest.json
           asset_name: latest.json
           asset_content_type: application/json

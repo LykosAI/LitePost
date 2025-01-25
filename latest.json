@@ -1,0 +1,23 @@
+{
+  "version": "v0.1.0",
+  "notes": "Initial release",
+  "pub_date": "2024-01-22T00:00:00Z",
+  "platforms": {
+    "linux-x86_64": {
+      "signature": "",
+      "url": "https://github.com/LykosAI/LitePost/releases/download/v0.1.0/litepost_0.1.0_amd64.AppImage"
+    },
+    "windows-x86_64": {
+      "signature": "",
+      "url": "https://github.com/LykosAI/LitePost/releases/download/v0.1.0/LitePost_0.1.0_x64-setup.exe"
+    },
+    "darwin-x86_64": {
+      "signature": "",
+      "url": "https://github.com/LykosAI/LitePost/releases/download/v0.1.0/LitePost_x64.app.tar.gz"
+    },
+    "darwin-aarch64": {
+      "signature": "",
+      "url": "https://github.com/LykosAI/LitePost/releases/download/v0.1.0/LitePost_aarch64.app.tar.gz"
+    }
+  }
+} 
