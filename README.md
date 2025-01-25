@@ -53,16 +53,53 @@ litepost/
 └── public/                # Static assets
 ```
 
-## Features
+## Features 🚀
 
-- Modern, native UI built with React, Tailwind CSS, and Shadcn UI
-- Cross-platform support (Windows, macOS, Linux)
-- API request history
-- Multiple request tabs
+- 🎨 Modern, native UI built with React, Tailwind CSS, and Shadcn UI
+- 💻 Cross-platform support (Windows, macOS, Linux)
+
+### Request & Authentication 🔐
+- Multiple request tabs with history
+- Authentication support:
+  - Basic Auth
+  - Bearer Token
+  - API Key (header and query parameter)
 - Custom request headers and parameters
-- Response preview
+- 📝 Code generation for multiple languages (curl, Python, JavaScript, C#, Go, Ruby)
 
-## Contributing
+### Response Handling 📊
+- Advanced response visualization:
+  - ✨ JSON prettification with syntax highlighting
+  - 📄 XML formatting
+  - 🌐 HTML preview
+  - 🖼️ Image preview
+- Response metrics:
+  - 📏 Size measurements
+  - ⚡ Request/response timing
+  - 📈 Network timing breakdown (DNS, First byte, Download time)
+
+### Environment Management 🌍
+- Create, edit, and delete environments
+- Variable substitution
+- Environment switching
+- Environment-specific variables
+
+### Collections 📁
+- Save and organize requests in collections
+- Basic folder organization
+- Import/export collections
+- Postman format compatibility
+
+### Testing ✅
+- JavaScript-based test scripts
+- Comprehensive test assertions:
+  - Status code validation
+  - JSON value verification
+  - Header checks
+  - Response time validation
+- Test execution with results display
+
+## Contributing 🤝
 
 1. Fork the repository
 2. Create your feature branch (`git checkout -b feature/amazing-feature`)
@@ -70,7 +107,7 @@ litepost/
 4. Push to the branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
 
-## License
+## License ⚖️
 
 This project is licensed under the GNU Affero General Public License v3.0 (AGPL-3.0). This means:
 
