@@ -30,15 +30,11 @@ function CodeEditor({ value, onChange, className = "" }: {
   onChange: (value: string) => void
   className?: string 
 }) {
-  const [isFocused, setIsFocused] = useState(false)
-
   return (
     <div className={`relative font-mono text-sm rounded-md border ${className}`}>
       <Textarea
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        onFocus={() => setIsFocused(true)}
-        onBlur={() => setIsFocused(false)}
         className="absolute inset-0 bg-transparent text-transparent caret-white resize-none font-mono text-sm p-4 z-10"
         spellCheck={false}
       />

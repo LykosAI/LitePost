@@ -165,6 +165,9 @@ export function RequestPanel({
       contentType,
       auth,
       cookies,
+      testScripts,
+      testAssertions,
+      testResults
     }
     
     addRequest(collectionId, requestData)
@@ -186,6 +189,9 @@ export function RequestPanel({
       contentType,
       auth,
       cookies,
+      testScripts,
+      testAssertions,
+      testResults
     }
     
     // Add collection and get its ID

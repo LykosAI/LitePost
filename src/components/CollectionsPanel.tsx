@@ -296,7 +296,10 @@ export const CollectionsPanel = forwardRef<HTMLButtonElement, CollectionsPanelPr
                                 cookies: request.cookies,
                                 loading: false,
                                 response: null,
-                                isEditing: false
+                                isEditing: false,
+                                testScripts: request.testScripts || [],
+                                testAssertions: request.testAssertions || [],
+                                testResults: request.testResults || null
                               });
                             });
                             onOpenChange(false);
@@ -350,7 +353,10 @@ export const CollectionsPanel = forwardRef<HTMLButtonElement, CollectionsPanelPr
                                   cookies: request.cookies,
                                   loading: false,
                                   response: null,
-                                  isEditing: false
+                                  isEditing: false,
+                                  testScripts: request.testScripts || [],
+                                  testAssertions: request.testAssertions || [],
+                                  testResults: request.testResults || null
                                 });
                                 onOpenChange(false);
                               }}

@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input"
 import { Trash2, Search, RotateCcw } from "lucide-react"
 import { useState, useMemo } from "react"
 import { cn } from "@/lib/utils"
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { TooltipProvider } from "@/components/ui/tooltip"
 import {
   ContextMenu,
   ContextMenuContent,

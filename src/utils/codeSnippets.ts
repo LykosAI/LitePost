@@ -1,4 +1,4 @@
-import { AuthConfig, AuthType, Header, Cookie } from "@/types"
+import { AuthConfig, Header, Cookie } from "@/types"
 
 interface RequestData {
   method: string

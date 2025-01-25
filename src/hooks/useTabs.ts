@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Tab, AuthConfig, TestScript, TestAssertion, TestResult } from '@/types'
+import { Tab, AuthConfig } from '@/types'
 import { getRequestNameFromUrl } from '@/utils/url'
 
 const DEFAULT_HEADERS = [
@@ -13,19 +13,6 @@ const DEFAULT_HEADERS = [
 const DEFAULT_AUTH: AuthConfig = {
   type: 'none',
   addTo: 'header'
-}
-
-// Utility function to get clean tab name from URL
-const getCleanTabName = (url: string): string => {
-  try {
-    // Remove query parameters
-    const urlWithoutQuery = url.split('?')[0]
-    // Get last part of path
-    const lastPart = urlWithoutQuery.split('/').pop()
-    return lastPart || "New Request"
-  } catch (error) {
-    return "New Request"
-  }
 }
 
 export function useTabs() {

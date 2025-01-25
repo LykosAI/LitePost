@@ -19,7 +19,7 @@ interface SettingsPanelProps {
   onOpenChange: (open: boolean) => void
 }
 
-export const SettingsPanel = forwardRef<HTMLDivElement, SettingsPanelProps>(
+export const SettingsPanel = forwardRef<HTMLButtonElement, SettingsPanelProps>(
   ({ open, onOpenChange }, ref) => {
     const { jsonViewer, updateJSONViewerSettings } = useSettings()
 

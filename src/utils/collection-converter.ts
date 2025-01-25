@@ -1,4 +1,4 @@
-import { Collection, SavedRequest } from '@/store/collections'
+import { Collection } from '@/store/collections'
 import { URLParam, Header, AuthConfig, AuthType, Cookie } from '@/types'
 
 interface PostmanCollection {
@@ -103,6 +103,9 @@ export function importFromPostman(postmanCollections: PostmanCollection[]): Coll
       contentType: item.request.header.find(h => h.key.toLowerCase() === 'content-type')?.value || 'application/json',
       auth: convertPostmanAuth(item.request.auth),
       cookies: [] as Cookie[],
+      testScripts: [],
+      testAssertions: [],
+      testResults: null,
       createdAt: new Date(),
       updatedAt: new Date()
     })),

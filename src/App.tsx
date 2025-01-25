@@ -1,4 +1,3 @@
-import { Separator } from "@/components/ui/separator"
 import { useEffect } from "react"
 import { RequestPanel } from "./components/RequestPanel"
 import { ResponsePanel } from "./components/ResponsePanel"
@@ -9,16 +8,11 @@ import { useTabs } from "./hooks/useTabs"
 import { useUrlParams } from "./hooks/useUrlParams"
 import { useRequest } from "./hooks/useRequest"
 import { useHistory } from "./hooks/useHistory"
-import { HistoryItem, Tab, AuthConfig } from "./types"
+import { HistoryItem, Tab } from "./types"
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels"
 import { Toaster } from "sonner"
 import { getRequestNameFromUrl } from "./utils/url"
 import { UpdateChecker } from './components/UpdateChecker'
-
-const defaultAuth: AuthConfig = {
-  type: 'none',
-  addTo: 'header'
-}
 
 function App() {
   const { history, addHistoryItem, removeHistoryItem, clearHistory } = useHistory()

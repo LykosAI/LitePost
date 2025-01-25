@@ -24,6 +24,9 @@ export interface SavedRequest {
   contentType: string
   auth: Tab['auth']
   cookies: Tab['cookies']
+  testScripts: Tab['testScripts']
+  testAssertions: Tab['testAssertions']
+  testResults: Tab['testResults']
   createdAt: Date
   updatedAt: Date
 }

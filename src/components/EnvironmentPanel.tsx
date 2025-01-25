@@ -15,7 +15,7 @@ interface EnvironmentPanelProps {
   onOpenChange: (open: boolean) => void
 }
 
-export const EnvironmentPanel = forwardRef<HTMLDivElement, EnvironmentPanelProps>(
+export const EnvironmentPanel = forwardRef<HTMLButtonElement, EnvironmentPanelProps>(
   ({ open, onOpenChange }, ref) => {
     return (
       <Sheet open={open} onOpenChange={onOpenChange}>
