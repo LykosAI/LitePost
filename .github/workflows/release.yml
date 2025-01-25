@@ -5,7 +5,7 @@ on:
       - 'v*'
 
 jobs:
-  release:
+  build:
     permissions:
       contents: write
     strategy:
@@ -21,6 +21,8 @@ jobs:
           - platform: 'windows-latest'
             args: ''
     runs-on: ${{ matrix.platform }}
+    outputs:
+      release_url: ${{ steps.build-app.outputs.release_url }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -55,22 +57,102 @@ jobs:
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
-          TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
         with:
           tagName: ${{ github.ref_name }}
           releaseName: 'LitePost v${{ github.ref_name }}'
           releaseBody: 'See the assets to download this version and install.'
           releaseDraft: true
           prerelease: false
-          includeUpdaterJson: true
-          updaterJsonPreferNsis: true
           args: ${{ matrix.args }}
 
-      - name: Upload updater artifacts
-        uses: actions/upload-artifact@v3
+  create-update:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
         with:
-          name: updater-${{ matrix.platform }}
-          path: |
-            src-tauri/target/**/release/bundle/*/updater.json
-            src-tauri/target/**/release/bundle/*/signature
+          node-version: 20
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8
+          run_install: false
+
+      - name: Install Tauri CLI
+        run: pnpm add -D @tauri-apps/cli
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v3
+        with:
+          path: artifacts
+
+      - name: Generate signatures and updater JSON
+        env:
+          TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
+          TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Sign artifacts and collect signatures
+          declare -A signatures
+          for file in artifacts/build-*/; do
+            if [ -f "$file" ]; then
+              signature=$(pnpm tauri signer sign "$file")
+              platform=$(basename "$file" | cut -d'-' -f2-)
+              
+              case "$platform" in
+                "macos-latest")
+                  if [[ "$file" == *"aarch64"* ]]; then
+                    signatures["darwin-aarch64"]="$signature"
+                  else
+                    signatures["darwin-x86_64"]="$signature"
+                  fi
+                  ;;
+                "ubuntu-22.04")
+                  signatures["linux-x86_64"]="$signature"
+                  ;;
+                "windows-latest")
+                  signatures["windows-x86_64"]="$signature"
+                  ;;
+              esac
+            fi
+          done
+
+          # Create latest.json with collected signatures
+          echo '{
+            "version": "${{ github.ref_name }}",
+            "notes": "See the assets to download this version and install.",
+            "pub_date": "'$(date -u +"%Y-%m-%dT%H:%M:%SZ")'",
+            "platforms": {
+              "darwin-x86_64": {
+                "signature": "'${signatures["darwin-x86_64"]}'",
+                "url": "https://github.com/LykosAI/LitePost/releases/download/${{ github.ref_name }}/LitePost_x64.app.tar.gz"
+              },
+              "darwin-aarch64": {
+                "signature": "'${signatures["darwin-aarch64"]}'",
+                "url": "https://github.com/LykosAI/LitePost/releases/download/${{ github.ref_name }}/LitePost_aarch64.app.tar.gz"
+              },
+              "linux-x86_64": {
+                "signature": "'${signatures["linux-x86_64"]}'",
+                "url": "https://github.com/LykosAI/LitePost/releases/download/${{ github.ref_name }}/litepost_0.1.0_amd64.AppImage"
+              },
+              "windows-x86_64": {
+                "signature": "'${signatures["windows-x86_64"]}'",
+                "url": "https://github.com/LykosAI/LitePost/releases/download/${{ github.ref_name }}/LitePost_0.1.0_x64-setup.exe"
+              }
+            }
+          }' > latest.json
+
+      - name: Upload latest.json
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.build.outputs.release_url }}
+          asset_path: ./latest.json
+          asset_name: latest.json
+          asset_content_type: application/json
