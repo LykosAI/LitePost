@@ -47,7 +47,7 @@
   },
   "devDependencies": {
     "@shadcn/ui": "^0.0.4",
-    "@tauri-apps/cli": "^2",
+    "@tauri-apps/cli": "^2.2.5",
     "@types/node": "^22.10.7",
     "@types/react": "^18.3.1",
     "@types/react-dom": "^18.3.1",

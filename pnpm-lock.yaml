@@ -115,7 +115,7 @@ importers:
         specifier: ^0.0.4
         version: 0.0.4
       '@tauri-apps/cli':
-        specifier: ^2
+        specifier: ^2.2.5
         version: 2.2.5
       '@types/node':
         specifier: ^22.10.7
