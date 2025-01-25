@@ -51,6 +51,7 @@ jobs:
         run: pnpm install
 
       - name: Build the app
+        id: build-app
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -65,4 +66,11 @@ jobs:
           includeUpdaterJson: true
           updaterJsonPreferNsis: true
           args: ${{ matrix.args }}
-          includeRelease: true
+
+      - name: Upload updater artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: updater-${{ matrix.platform }}
+          path: |
+            src-tauri/target/**/release/bundle/*/updater.json
+            src-tauri/target/**/release/bundle/*/signature
