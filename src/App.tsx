@@ -13,6 +13,7 @@ import { HistoryItem, Tab, AuthConfig } from "./types"
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels"
 import { Toaster } from "sonner"
 import { getRequestNameFromUrl } from "./utils/url"
+import { UpdateChecker } from './components/UpdateChecker'
 
 const defaultAuth: AuthConfig = {
   type: 'none',
@@ -188,6 +189,7 @@ function App() {
             </Panel>
           </PanelGroup>
         </div>
+        <UpdateChecker />
       </div>
     </div>
   )

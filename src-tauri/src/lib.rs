@@ -1,12 +1,18 @@
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-use tauri_plugin_http::reqwest::{self, Client, header::{HeaderMap, HeaderName, HeaderValue}};
+use base64;
+use base64::engine::general_purpose;
+use base64::Engine as _;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::str::FromStr;
 use std::sync::Arc;
 use tauri::http::method::Method;
 use tauri::Url;
-use std::str::FromStr;
-use base64;
+use tauri_plugin_http::reqwest::{
+    self,
+    header::{HeaderMap, HeaderName, HeaderValue},
+    Client,
+};
 
 #[derive(Debug, Serialize, Deserialize)]
 struct RequestOptions {
@@ -115,7 +121,7 @@ async fn send_request(
         if key.to_lowercase() != "cookie" {
             headers.insert(
                 HeaderName::from_str(&key).map_err(|e| e.to_string())?,
-                HeaderValue::from_str(&value).map_err(|e| e.to_string())?
+                HeaderValue::from_str(&value).map_err(|e| e.to_string())?,
             );
         }
     }
@@ -125,16 +131,17 @@ async fn send_request(
         if let Some(content_type) = options.content_type {
             headers.insert(
                 HeaderName::from_static("content-type"),
-                HeaderValue::from_str(&content_type).map_err(|e| e.to_string())?
+                HeaderValue::from_str(&content_type).map_err(|e| e.to_string())?,
             );
         }
     }
 
-    let mut request = client.request(
-        Method::from_str(&options.method).map_err(|e| e.to_string())?,
-        &options.url
-    )
-    .headers(headers);
+    let mut request = client
+        .request(
+            Method::from_str(&options.method).map_err(|e| e.to_string())?,
+            &options.url,
+        )
+        .headers(headers);
 
     if let Some(body) = options.body {
         request = request.body(body);
@@ -144,7 +151,8 @@ async fn send_request(
     let mut redirect_chain = Vec::new();
     let mut response = None;
 
-    for i in 0..10 { // Max 10 redirects
+    for i in 0..10 {
+        // Max 10 redirects
         let dns_start = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap()
@@ -170,7 +178,8 @@ async fn send_request(
             .collect();
 
         // Calculate headers size
-        let headers_size = headers.iter()
+        let headers_size = headers
+            .iter()
             .map(|(k, v)| k.len() + v.len() + 4) // +4 for ": " and "\r\n"
             .sum();
 
@@ -183,7 +192,8 @@ async fn send_request(
                     .map_err(|e| e.to_string())?
                     .to_string();
 
-                let redirect_cookies: Vec<String> = resp.headers()
+                let redirect_cookies: Vec<String> = resp
+                    .headers()
                     .get_all("set-cookie")
                     .iter()
                     .filter_map(|h| h.to_str().ok())
@@ -227,7 +237,7 @@ async fn send_request(
                 current_url = next_url;
                 request = client.request(
                     Method::from_str(&options.method).map_err(|e| e.to_string())?,
-                    &current_url
+                    &current_url,
                 );
                 continue;
             }
@@ -237,7 +247,8 @@ async fn send_request(
         break;
     }
 
-    let (final_response, dns_start, first_byte_time) = response.ok_or_else(|| "No response received".to_string())?;
+    let (final_response, dns_start, first_byte_time) =
+        response.ok_or_else(|| "No response received".to_string())?;
     let status = final_response.status();
     let headers: HashMap<String, String> = final_response
         .headers()
@@ -246,40 +257,46 @@ async fn send_request(
         .collect();
 
     // Calculate headers size
-    let headers_size = headers.iter()
+    let headers_size = headers
+        .iter()
         .map(|(k, v)| k.len() + v.len() + 4) // +4 for ": " and "\r\n"
         .sum();
 
     let mut all_cookies = Vec::new();
-    
+
     // Collect cookies from redirect chain
     for redirect in &redirect_chain {
         all_cookies.extend(redirect.cookies.clone());
     }
-    
+
     // Add cookies from final response
     all_cookies.extend(
-        final_response.headers()
+        final_response
+            .headers()
             .get_all("set-cookie")
             .iter()
             .filter_map(|h| h.to_str().ok())
-            .map(String::from)
+            .map(String::from),
     );
 
     // Check content type to determine if response is binary
     let content_type = headers.get("content-type").map(|s| s.to_lowercase());
-    let is_binary = content_type.as_ref().map_or(false, |ct| 
+    let is_binary = content_type.as_ref().map_or(false, |ct| {
         (ct.starts_with("image/") && !ct.starts_with("image/svg")) || // SVG is text-based XML
         ct.starts_with("application/octet-stream") ||
         ct.starts_with("audio/") ||
         ct.starts_with("video/")
-    );
+    });
 
     let (body, body_size, is_base64) = if is_binary {
         // For binary data, get bytes and base64 encode
         let bytes = final_response.bytes().await.map_err(|e| e.to_string())?;
         let size = bytes.len();
-        (base64::encode(bytes), size, true)
+        (
+            base64::engine::general_purpose::STANDARD.encode(bytes),
+            size,
+            true,
+        )
     } else {
         // For text data (including SVG), get as string
         let text = final_response.text().await.map_err(|e| e.to_string())?;
@@ -323,21 +340,23 @@ async fn send_request(
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let cookie_jar = Arc::new(reqwest::cookie::Jar::default());
-    
+    let client = Client::builder()
+        .cookie_provider(Arc::clone(&cookie_jar))
+        .build()
+        .unwrap();
+
+    let client_wrapper = ClientWrapper { client, cookie_jar };
+
     tauri::Builder::default()
-        .manage(ClientWrapper {
-            client: Client::builder()
-                .redirect(reqwest::redirect::Policy::none())
-                .cookie_store(true)
-                .cookie_provider(cookie_jar.clone())
-                .build()
-                .unwrap(),
-            cookie_jar,
-        })
-        .plugin(tauri_plugin_fs::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_http::init())
+        .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![greet, send_request])
+        .manage(client_wrapper)
+        .invoke_handler(tauri::generate_handler![
+            greet,
+            send_request,
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
