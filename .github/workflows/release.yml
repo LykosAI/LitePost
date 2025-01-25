@@ -51,4 +51,6 @@ jobs:
           releaseName: 'LitePost v${{ github.ref_name }}'
           releaseBody: 'See the assets to download this version and install.'
           releaseDraft: true
-          prerelease: false 
+          prerelease: false
+          includeUpdaterJson: true
+          updaterJsonPreferNsis: true
