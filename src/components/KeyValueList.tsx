@@ -42,12 +42,14 @@ export function KeyValueList<T extends { key: string; value: string; enabled: bo
               value={item.key}
               onChange={(e) => updateItem(index, 'key', e.target.value)}
               disabled={disabled}
+              className="bg-background border-input text-foreground focus-visible:ring-ring"
             />
             <Input
               placeholder={valuePlaceholder}
               value={item.value}
               onChange={(e) => updateItem(index, 'value', e.target.value)}
               disabled={disabled}
+              className="bg-background border-input text-foreground focus-visible:ring-ring"
             />
             <Button
               variant="ghost"

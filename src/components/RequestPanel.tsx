@@ -1,7 +1,7 @@
 import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { Plus, Trash2, Copy, Check } from "lucide-react"
+import { Plus, Trash2, Save } from "lucide-react"
 import {
   Select,
   SelectContent,
@@ -13,14 +13,24 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import React, { useEffect, useState, useMemo } from "react"
-import { AuthConfig, AuthType, URLParam, Header, Cookie } from "@/types"
+import { AuthConfig, URLParam, Header, Cookie, TestScript, TestAssertion, TestResult, Response } from "@/types"
 import { CODE_SNIPPETS } from "@/utils/codeSnippets"
+import { getRequestNameFromUrl } from "@/utils/url"
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism'
-import { toast } from "sonner"
 import { CopyButton } from "./CopyButton"
 import { KeyValueList } from "./KeyValueList"
 import { AuthConfigurator } from "./AuthConfigurator"
+import { TestPanel } from "./TestPanel"
+import { runTests } from "@/utils/testRunner"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
+import { useCollectionStore } from "@/store/collections"
 
 const HTTP_METHODS = ["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"]
 const CONTENT_TYPES = [
@@ -41,6 +51,10 @@ interface RequestPanelProps {
   contentType: string
   auth: AuthConfig
   cookies: Cookie[]
+  response: Response | null
+  testScripts: TestScript[]
+  testAssertions: TestAssertion[]
+  testResults: TestResult | null
   onMethodChange: (value: string) => void
   onUrlChange: (value: string) => void
   onParamsChange: (params: URLParam[]) => void
@@ -49,6 +63,9 @@ interface RequestPanelProps {
   onContentTypeChange: (contentType: string) => void
   onAuthChange: (auth: AuthConfig) => void
   onCookiesChange: (cookies: Cookie[]) => void
+  onTestScriptsChange: (scripts: TestScript[]) => void
+  onTestAssertionsChange: (assertions: TestAssertion[]) => void
+  onTestResultsChange: (results: TestResult | null) => void
   onSend: () => void
 }
 
@@ -62,6 +79,10 @@ export function RequestPanel({
   contentType,
   auth,
   cookies,
+  response,
+  testScripts,
+  testAssertions,
+  testResults,
   onMethodChange,
   onUrlChange,
   onParamsChange,
@@ -70,9 +91,16 @@ export function RequestPanel({
   onContentTypeChange,
   onAuthChange,
   onCookiesChange,
+  onTestScriptsChange,
+  onTestAssertionsChange,
+  onTestResultsChange,
   onSend,
 }: RequestPanelProps) {
   const [selectedLanguage, setSelectedLanguage] = useState(CODE_SNIPPETS[0].value)
+  const { collections, addRequest, addCollection } = useCollectionStore()
+  const [saveDialogOpen, setSaveDialogOpen] = useState(false)
+  const [newCollectionName, setNewCollectionName] = useState('')
+  const [isAddingCollection, setIsAddingCollection] = useState(false)
   
   const codeSnippet = useMemo(() => {
     const generator = CODE_SNIPPETS.find(s => s.value === selectedLanguage)?.generator
@@ -125,6 +153,58 @@ export function RequestPanel({
     onCookiesChange([...cookies, { name: '', value: '' }]);
   };
 
+  const handleSaveToCollection = (collectionId: string) => {
+    const requestData = {
+      name: getRequestNameFromUrl(url),
+      method,
+      url,
+      rawUrl: url,
+      params,
+      headers,
+      body,
+      contentType,
+      auth,
+      cookies,
+    }
+    
+    addRequest(collectionId, requestData)
+    setSaveDialogOpen(false)
+  }
+
+  const handleAddCollection = () => {
+    if (!newCollectionName.trim()) return
+    
+    // Create request data object
+    const requestData = {
+      name: getRequestNameFromUrl(url),
+      method,
+      url,
+      rawUrl: url,
+      params,
+      headers,
+      body,
+      contentType,
+      auth,
+      cookies,
+    }
+    
+    // Add collection and get its ID
+    const collectionId = addCollection(newCollectionName.trim())
+    
+    // Add request to the new collection
+    addRequest(collectionId, requestData)
+    
+    setNewCollectionName('')
+    setIsAddingCollection(false)
+    setSaveDialogOpen(false)
+  }
+
+  const handleRunTests = async () => {
+    if (!response) return
+    const results = await runTests(testScripts, testAssertions, response)
+    onTestResultsChange(results)
+  }
+
   return (
     <Card className="h-full flex flex-col">
       <div className="flex gap-2 p-4 pb-2">
@@ -156,6 +236,76 @@ export function RequestPanel({
           }}
           className="flex-1"
         />
+        <Dialog open={saveDialogOpen} onOpenChange={setSaveDialogOpen}>
+          <DialogTrigger asChild>
+            <Button variant="outline">
+              <Save className="h-4 w-4 mr-2" />
+              Save
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="dark bg-background border-border">
+            <DialogHeader>
+              <DialogTitle className="text-foreground">Save to Collection</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 mt-4">
+              {isAddingCollection ? (
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="Collection name"
+                    value={newCollectionName}
+                    onChange={(e) => setNewCollectionName(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        handleAddCollection()
+                      } else if (e.key === 'Escape') {
+                        setIsAddingCollection(false)
+                        setNewCollectionName('')
+                      }
+                    }}
+                    autoFocus
+                    className="flex-1 bg-background text-foreground"
+                  />
+                  <Button 
+                    variant="secondary" 
+                    onClick={handleAddCollection}
+                    disabled={!newCollectionName.trim()}
+                  >
+                    Add
+                  </Button>
+                </div>
+              ) : (
+                <Button
+                  variant="outline"
+                  className="w-full justify-start text-foreground hover:bg-muted"
+                  onClick={() => setIsAddingCollection(true)}
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  New Collection
+                </Button>
+              )}
+              
+              {collections.length === 0 ? (
+                !isAddingCollection && (
+                  <p className="text-sm text-muted-foreground">
+                    No collections found. Create a collection first to save requests.
+                  </p>
+                )
+              ) : (
+                collections.map((collection) => (
+                  <Button
+                    key={collection.id}
+                    variant="outline"
+                    className="w-full justify-start text-foreground hover:bg-muted"
+                    onClick={() => handleSaveToCollection(collection.id)}
+                  >
+                    <Save className="h-4 w-4 mr-2" />
+                    {collection.name}
+                  </Button>
+                ))
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
         <Button variant="secondary" disabled={loading} onClick={onSend}>
           {loading ? "Sending..." : "Send"}
         </Button>
@@ -169,6 +319,7 @@ export function RequestPanel({
             <TabsTrigger value="headers">Headers</TabsTrigger>
             <TabsTrigger value="body">Body</TabsTrigger>
             <TabsTrigger value="cookies">Cookies</TabsTrigger>
+            <TabsTrigger value="tests">Tests</TabsTrigger>
             <TabsTrigger value="code">Code</TabsTrigger>
           </TabsList>
         </div>
@@ -284,6 +435,17 @@ export function RequestPanel({
                 <Plus className="h-4 w-4 mr-2" /> Add Cookie
               </Button>
             </div>
+          </TabsContent>
+          <TabsContent value="tests" className="h-full p-0 data-[state=active]:flex data-[state=active]:flex-col">
+            <TestPanel
+              scripts={testScripts}
+              assertions={testAssertions}
+              testResults={testResults}
+              response={response}
+              onScriptsChange={onTestScriptsChange}
+              onAssertionsChange={onTestAssertionsChange}
+              onRunTests={handleRunTests}
+            />
           </TabsContent>
           <TabsContent value="code" className="flex-1 mt-0 px-4 pt-2 pb-4 min-h-0 h-full">
             <ScrollArea className="h-full pr-4">

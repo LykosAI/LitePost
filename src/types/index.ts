@@ -84,6 +84,39 @@ export interface Session {
   lastUsed: Date
 }
 
+export interface TestScript {
+  id: string
+  name: string
+  code: string
+  enabled: boolean
+}
+
+export interface TestAssertion {
+  id: string
+  type: 'status' | 'json' | 'header' | 'responseTime'
+  property?: string // For JSON path or header name
+  operator: 'equals' | 'contains' | 'exists' | 'greaterThan' | 'lessThan'
+  expected: string | number | boolean
+  enabled: boolean
+}
+
+export interface TestResult {
+  scriptId: string
+  success: boolean
+  error?: string
+  assertions: {
+    id: string
+    success: boolean
+    message: string
+  }[]
+  scriptResults: {
+    name: string
+    success: boolean
+    message?: string
+  }[]
+  duration: number
+}
+
 export interface Tab {
   id: string
   name: string
@@ -100,6 +133,9 @@ export interface Tab {
   auth: AuthConfig
   cookies: Cookie[]
   activeSession?: Session
+  testScripts: TestScript[]
+  testAssertions: TestAssertion[]
+  testResults: TestResult | null
 }
 
 export interface Cookie {

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
-import { Tab, AuthConfig } from '@/types'
+import { Tab, AuthConfig, TestScript, TestAssertion, TestResult } from '@/types'
+import { getRequestNameFromUrl } from '@/utils/url'
 
 const DEFAULT_HEADERS = [
   { key: "Accept", value: "application/json", enabled: true },
@@ -63,6 +64,9 @@ export function useTabs() {
       loading: false,
       auth: { ...DEFAULT_AUTH },
       cookies: [],
+      testScripts: [],
+      testAssertions: [],
+      testResults: null,
       ...overrides
     }
   }
@@ -108,7 +112,7 @@ export function useTabs() {
   const stopEditing = (tabId: string, newName: string) => {
     updateTab(tabId, { 
       isEditing: false,
-      name: newName.trim() || "New Request"
+      name: newName.trim() || getRequestNameFromUrl(tabs.find(t => t.id === tabId)?.rawUrl || "") || "New Request"
     })
   }
 

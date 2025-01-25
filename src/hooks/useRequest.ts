@@ -1,5 +1,6 @@
 import { invoke } from '@tauri-apps/api/core'
 import { Tab, HistoryItem } from '@/types'
+import { useEnvironmentStore } from '@/store/environments'
 
 interface RedirectInfo {
   url: string
@@ -43,51 +44,73 @@ interface ResponseData {
 }
 
 export function useRequest(onHistoryUpdate: (item: HistoryItem) => void) {
+  const { getVariable } = useEnvironmentStore()
+
+  const substituteVariables = (text: string): string => {
+    return text.replace(/\{\{([^}]+)\}\}/g, (match, key) => {
+      const value = getVariable(key.trim())
+      return value !== undefined ? value : match
+    })
+  }
+
   const sendRequest = async (tab: Tab) => {
     if (!tab.rawUrl) return null
 
     try {
-      // Convert enabled headers to record
+      // Substitute environment variables in URL and headers
+      let url = substituteVariables(tab.rawUrl)
       const headerRecord: Record<string, string> = {}
       tab.headers.forEach(header => {
         if (header.enabled && header.key) {
-          headerRecord[header.key] = header.value
+          headerRecord[substituteVariables(header.key)] = substituteVariables(header.value)
         }
       })
 
-      // Handle authentication
-      let url = tab.rawUrl
+      // Handle authentication with variable substitution
       if (tab.auth.type === 'basic') {
-        const credentials = btoa(`${tab.auth.username || ''}:${tab.auth.password || ''}`)
+        const username = substituteVariables(tab.auth.username || '')
+        const password = substituteVariables(tab.auth.password || '')
+        const credentials = btoa(`${username}:${password}`)
         headerRecord['Authorization'] = `Basic ${credentials}`
       } else if (tab.auth.type === 'bearer' && tab.auth.token) {
-        headerRecord['Authorization'] = `Bearer ${tab.auth.token}`
+        headerRecord['Authorization'] = `Bearer ${substituteVariables(tab.auth.token)}`
       } else if (tab.auth.type === 'api-key' && tab.auth.key && tab.auth.value) {
+        const key = substituteVariables(tab.auth.key)
+        const value = substituteVariables(tab.auth.value)
         if (tab.auth.addTo === 'header') {
-          headerRecord[tab.auth.key] = tab.auth.value
+          headerRecord[key] = value
         } else {
           // Add to query parameters
           const separator = url.includes('?') ? '&' : '?'
-          url += `${separator}${encodeURIComponent(tab.auth.key)}=${encodeURIComponent(tab.auth.value)}`
+          url += `${separator}${encodeURIComponent(key)}=${encodeURIComponent(value)}`
         }
       }
 
-      // Add cookies to headers
+      // Add cookies to headers with variable substitution
       const cookieHeader = tab.cookies
-        .map(c => `${encodeURIComponent(c.name)}=${encodeURIComponent(c.value)}`)
+        .map(c => `${encodeURIComponent(substituteVariables(c.name))}=${encodeURIComponent(substituteVariables(c.value))}`)
         .join('; ')
 
       if (cookieHeader) {
         headerRecord['Cookie'] = cookieHeader
       }
 
+      // Substitute variables in body if it exists
+      const body = tab.body && tab.method !== "GET" && tab.method !== "HEAD" 
+        ? substituteVariables(tab.body) 
+        : undefined
+
       const options = {
         method: tab.method,
         url,
         headers: headerRecord,
-        body: tab.body && tab.method !== "GET" && tab.method !== "HEAD" ? tab.body : undefined,
+        body,
         content_type: tab.body && tab.method !== "GET" && tab.method !== "HEAD" ? tab.contentType : undefined,
-        cookies: tab.cookies
+        cookies: tab.cookies.map(c => ({
+          ...c,
+          name: substituteVariables(c.name),
+          value: substituteVariables(c.value)
+        }))
       }
 
       console.log('Sending request with options:', options);

@@ -1,0 +1,38 @@
+You are an expert developer working on LitePost, a modern API client application built with Tauri and React. The tech stack includes:
+
+Frontend:
+- React 18 with TypeScript
+- Vite as the build tool
+- Tailwind CSS for styling
+- shadcn/ui components (based on Radix UI)
+- Zustand for state management
+- React Router for navigation
+- React Syntax Highlighter for code display
+- React Resizable Panels for UI layout
+
+Backend (Tauri):
+- Rust-based desktop framework
+- Tauri plugins: fs, http, opener
+- Cross-platform desktop capabilities
+
+Project Structure:
+- /src: React frontend code
+  - /components: React components including UI elements
+  - /hooks: Custom React hooks
+  - /store: Zustand state management
+  - /utils: Utility functions
+- /src-tauri: Rust backend code
+
+Key Features:
+- API request management
+- Response visualization
+- Authentication configuration
+- Settings management
+- Modern, responsive UI
+
+Development Guidelines:
+1. Follow TypeScript best practices with strict type checking
+2. Use Tailwind CSS for styling, following the project's design system
+3. Implement proper error handling for both frontend and Rust operations
+4. Maintain consistent component structure using shadcn/ui patterns
+5. Ensure cross-platform compatibility (Windows, macOS, Linux)

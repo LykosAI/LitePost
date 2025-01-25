@@ -136,53 +136,54 @@ export function generatePythonSnippet(request: RequestData): string {
     lines.push('}')
   }
 
-  // Client setup with defaults
-  lines.push('\n# Create a client with defaults')
-  lines.push('client = httpx.Client(')
-  lines.push('    timeout=30.0,  # 30 second timeout')
+  // Client setup with sensible defaults
+  lines.push('\n# Reuse this client for multiple requests')
+  lines.push('with httpx.Client(')
+  lines.push('    timeout=30.0,')
   lines.push('    follow_redirects=True,')
-  lines.push('    http2=True')
-  lines.push(')')
+  lines.push('    http2=True,')
+  lines.push(') as client:')
+  lines.push('    response = client.' + `${request.method.toLowerCase()}(`)
+  lines.push('        url,')
 
-  // Request
-  const reqParts = ['try:', '    response = client']
-  reqParts.push(`    .${request.method.toLowerCase()}(`)
-  reqParts.push('        url,')
-  
   if (request.body) {
     if (request.contentType?.includes('json')) {
-      lines.push('\nimport json')
-      reqParts.push('        json=json.loads(')
-      reqParts.push(`            ${JSON.stringify(request.body)},`)
-      reqParts.push('        ),')
+      lines.push('        json={')  // Assume JSON serializable data
+      lines.push('            # Add your JSON data here')
+      lines.push('        },')
     } else {
-      reqParts.push('        content="""')
-      reqParts.push(request.body)
-      reqParts.push('        """,')
+      lines.push('        content="""')
+      lines.push(request.body)
+      lines.push('        """,')
     }
   }
 
   if (Object.keys(headers).length > 0) {
-    reqParts.push('        headers=headers,')
+    lines.push('        headers=headers,')
   }
 
   if (request.cookies.length > 0) {
-    reqParts.push('        cookies=cookies,')
+    lines.push('        cookies=cookies,')
   }
 
-  reqParts.push('    )')
-
-  lines.push('\n' + reqParts.join('\n'))
+  lines.push('    )')
 
   // Response handling
-  lines.push('    print(f"Status: {response.status_code}")')
-  lines.push('    print(response.text)')
-  lines.push('finally:')
-  lines.push('    client.close()')
+  lines.push('\n    print(f"Status Code: {response.status_code}")')
+  lines.push('    print(f"Response Headers: {response.headers}")\n')
+  
+  if (request.contentType?.includes('json')) {
+    lines.push('    try:')
+    lines.push('        print(response.json())')
+    lines.push('    except ValueError:')
+    lines.push('        print("Failed to parse JSON response")')
+  } else {
+    lines.push('    print(response.text)')
+  }
 
   lines.unshift('# Generated code - verify before use in production')
-  lines.unshift('# Requires python 3.6+ and httpx package')
-  lines.unshift('# Install with: pip install httpx')
+  lines.unshift('# Install: pip install httpx')
+  lines.unshift('# Recommended for production: Add error handling and logging')
 
   return lines.join('\n')
 }

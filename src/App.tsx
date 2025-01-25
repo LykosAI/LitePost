@@ -12,19 +12,7 @@ import { useHistory } from "./hooks/useHistory"
 import { HistoryItem, Tab, AuthConfig } from "./types"
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels"
 import { Toaster } from "sonner"
-
-// Utility function to get clean tab name from URL
-const getCleanTabName = (url: string): string => {
-  try {
-    // Remove query parameters
-    const urlWithoutQuery = url.split('?')[0]
-    // Get last part of path
-    const lastPart = urlWithoutQuery.split('/').pop()
-    return lastPart || "New Request"
-  } catch (error) {
-    return "New Request"
-  }
-}
+import { getRequestNameFromUrl } from "./utils/url"
 
 const defaultAuth: AuthConfig = {
   type: 'none',
@@ -101,7 +89,7 @@ function App() {
 
   const handleHistorySelect = (item: HistoryItem) => {
     const newTab = createNewTab({
-      name: getCleanTabName(item.url),
+      name: getRequestNameFromUrl(item.url),
       method: item.method,
       url: item.url,
       rawUrl: item.rawUrl,
@@ -119,7 +107,13 @@ function App() {
     <div className="dark h-screen overflow-hidden">
       <Toaster theme="dark" position="bottom-right" />
       <div className="h-full flex flex-col bg-background text-foreground min-w-0">
-        <TitleBar />
+        <TitleBar 
+          currentRequest={currentTab} 
+          onRequestSelect={(request) => {
+            setTabs((prev: Tab[]) => [...prev, request])
+            setActiveTab(request.id)
+          }}
+        />
         <div className="flex-1 min-h-0 min-w-0">
           <PanelGroup direction="horizontal">
             <Panel defaultSize={20} minSize={15}>
@@ -160,10 +154,17 @@ function App() {
                         contentType={currentTab.contentType}
                         auth={currentTab.auth}
                         cookies={currentTab.cookies}
+                        response={currentTab.response}
+                        testScripts={currentTab.testScripts}
+                        testAssertions={currentTab.testAssertions}
+                        testResults={currentTab.testResults}
                         onMethodChange={(method) => updateTab(currentTab.id, { method })}
                         onUrlChange={(rawUrl) => {
-                          const name = getCleanTabName(rawUrl)
-                          updateTab(currentTab.id, { rawUrl, url: rawUrl, name })
+                          updateTab(currentTab.id, { 
+                            rawUrl, 
+                            url: rawUrl, 
+                            name: getRequestNameFromUrl(rawUrl)
+                          })
                         }}
                         onParamsChange={(params) => updateTab(currentTab.id, { params })}
                         onHeadersChange={(headers) => updateTab(currentTab.id, { headers })}
@@ -171,6 +172,9 @@ function App() {
                         onContentTypeChange={(contentType) => updateTab(currentTab.id, { contentType })}
                         onAuthChange={(auth) => updateTab(currentTab.id, { auth })}
                         onCookiesChange={(cookies) => updateTab(currentTab.id, { cookies })}
+                        onTestScriptsChange={(testScripts) => updateTab(currentTab.id, { testScripts })}
+                        onTestAssertionsChange={(testAssertions) => updateTab(currentTab.id, { testAssertions })}
+                        onTestResultsChange={(testResults) => updateTab(currentTab.id, { testResults })}
                         onSend={() => handleSend(currentTab.id)}
                       />
                     </Panel>
