@@ -125,14 +125,17 @@ jobs:
             
             while (attempts < maxAttempts) {
               try {
+                // Get all releases including drafts
                 const releases = await github.rest.repos.listReleases({
                   owner,
-                  repo
+                  repo,
+                  per_page: 100
                 });
                 
-                const release = releases.data.find(r => r.tag_name === tag);
+                // Find the release by tag, including drafts
+                const release = releases.data.find(r => r.tag_name === tag && r.draft);
                 if (!release) {
-                  throw new Error('Release not found');
+                  throw new Error('Draft release not found');
                 }
                 
                 const assets = release.assets.map(asset => asset.name);
@@ -171,14 +174,17 @@ jobs:
             const owner = context.repo.owner;
             const repo = context.repo.repo;
             
+            // Get all releases including drafts
             const releases = await github.rest.repos.listReleases({
               owner,
-              repo
+              repo,
+              per_page: 100
             });
             
-            const release = releases.data.find(r => r.tag_name === tag);
+            // Find the release by tag, including drafts
+            const release = releases.data.find(r => r.tag_name === tag && r.draft);
             if (!release) {
-              throw new Error('Release not found');
+              throw new Error('Draft release not found');
             }
             
             const fs = require('fs');
