@@ -27,6 +27,7 @@ jobs:
     runs-on: ${{ matrix.platform }}
     outputs:
       upload_url: ${{ steps.create_release.outputs.upload_url }}
+      release_id: ${{ steps.create_release.outputs.id }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -83,6 +84,8 @@ jobs:
 
   create-update:
     needs: build
+    permissions:
+      contents: write
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -121,23 +124,31 @@ jobs:
             const maxAttempts = 30;
             
             while (attempts < maxAttempts) {
-              const release = await github.rest.repos.getReleaseByTag({
-                owner,
-                repo,
-                tag
-              });
-              
-              const assets = release.data.assets.map(asset => asset.name);
-              const missingAssets = artifacts.filter(artifact => !assets.includes(artifact));
-              
-              if (missingAssets.length === 0) {
-                console.log('All assets found!');
-                break;
+              try {
+                const releases = await github.rest.repos.listReleases({
+                  owner,
+                  repo
+                });
+                
+                const release = releases.data.find(r => r.tag_name === tag);
+                if (!release) {
+                  throw new Error('Release not found');
+                }
+                
+                const assets = release.assets.map(asset => asset.name);
+                const missingAssets = artifacts.filter(artifact => !assets.includes(artifact));
+                
+                if (missingAssets.length === 0) {
+                  console.log('All assets found!');
+                  break;
+                }
+                
+                console.log(`Waiting for assets: ${missingAssets.join(', ')}`);
+              } catch (error) {
+                console.log('Error checking release:', error.message);
               }
               
-              console.log(`Waiting for assets: ${missingAssets.join(', ')}`);
               attempts++;
-              
               if (attempts === maxAttempts) {
                 throw new Error('Timed out waiting for assets');
               }
@@ -160,11 +171,15 @@ jobs:
             const owner = context.repo.owner;
             const repo = context.repo.repo;
             
-            const release = await github.rest.repos.getReleaseByTag({
+            const releases = await github.rest.repos.listReleases({
               owner,
-              repo,
-              tag
+              repo
             });
+            
+            const release = releases.data.find(r => r.tag_name === tag);
+            if (!release) {
+              throw new Error('Release not found');
+            }
             
             const fs = require('fs');
             const path = require('path');
@@ -173,7 +188,7 @@ jobs:
               fs.mkdirSync('artifacts');
             }
             
-            for (const asset of release.data.assets) {
+            for (const asset of release.assets) {
               if (artifacts.includes(asset.name)) {
                 const response = await github.request(asset.browser_download_url);
                 fs.writeFileSync(path.join('artifacts', asset.name), Buffer.from(response.data));
