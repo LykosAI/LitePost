@@ -35,10 +35,10 @@ jobs:
         with:
           script: |
             const artifacts = [
-              'LitePost_aarch64.app.tar.gz',
-              'LitePost_x64.app.tar.gz',
+              'litepost_aarch64.app.tar.gz',
+              'litepost_x64.app.tar.gz',
               'litepost_0.1.0_amd64.AppImage',
-              'LitePost_0.1.0_x64-setup.exe'
+              'litepost_0.1.0_x64-setup.exe'
             ];
             
             const tag = '${{ inputs.tag }}';
@@ -82,20 +82,20 @@ jobs:
           declare -A signatures
           
           # Sign each artifact directly
-          if [ -f "artifacts/LitePost_x64.app.tar.gz" ]; then
-            signatures["darwin-x86_64"]=$(pnpm tauri signer sign "artifacts/LitePost_x64.app.tar.gz")
+          if [ -f "artifacts/litepost_x64.app.tar.gz" ]; then
+            signatures["darwin-x86_64"]=$(pnpm tauri signer sign "artifacts/litepost_x64.app.tar.gz")
           fi
           
-          if [ -f "artifacts/LitePost_aarch64.app.tar.gz" ]; then
-            signatures["darwin-aarch64"]=$(pnpm tauri signer sign "artifacts/LitePost_aarch64.app.tar.gz")
+          if [ -f "artifacts/litepost_aarch64.app.tar.gz" ]; then
+            signatures["darwin-aarch64"]=$(pnpm tauri signer sign "artifacts/litepost_aarch64.app.tar.gz")
           fi
           
           if [ -f "artifacts/litepost_0.1.0_amd64.AppImage" ]; then
             signatures["linux-x86_64"]=$(pnpm tauri signer sign "artifacts/litepost_0.1.0_amd64.AppImage")
           fi
           
-          if [ -f "artifacts/LitePost_0.1.0_x64-setup.exe" ]; then
-            signatures["windows-x86_64"]=$(pnpm tauri signer sign "artifacts/LitePost_0.1.0_x64-setup.exe")
+          if [ -f "artifacts/litepost_0.1.0_x64-setup.exe" ]; then
+            signatures["windows-x86_64"]=$(pnpm tauri signer sign "artifacts/litepost_0.1.0_x64-setup.exe")
           fi
 
           # Create latest.json with collected signatures
@@ -106,11 +106,11 @@ jobs:
             "platforms": {
               "darwin-x86_64": {
                 "signature": "'${signatures["darwin-x86_64"]}'",
-                "url": "https://github.com/LykosAI/LitePost/releases/download/${{ inputs.tag }}/LitePost_x64.app.tar.gz"
+                "url": "https://github.com/LykosAI/LitePost/releases/download/${{ inputs.tag }}/litepost_x64.app.tar.gz"
               },
               "darwin-aarch64": {
                 "signature": "'${signatures["darwin-aarch64"]}'",
-                "url": "https://github.com/LykosAI/LitePost/releases/download/${{ inputs.tag }}/LitePost_aarch64.app.tar.gz"
+                "url": "https://github.com/LykosAI/LitePost/releases/download/${{ inputs.tag }}/litepost_aarch64.app.tar.gz"
               },
               "linux-x86_64": {
                 "signature": "'${signatures["linux-x86_64"]}'",
@@ -118,7 +118,7 @@ jobs:
               },
               "windows-x86_64": {
                 "signature": "'${signatures["windows-x86_64"]}'",
-                "url": "https://github.com/LykosAI/LitePost/releases/download/${{ inputs.tag }}/LitePost_0.1.0_x64-setup.exe"
+                "url": "https://github.com/LykosAI/LitePost/releases/download/${{ inputs.tag }}/litepost_0.1.0_x64-setup.exe"
               }
             }
           }' > latest.json
