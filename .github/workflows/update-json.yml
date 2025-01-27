@@ -122,8 +122,8 @@ jobs:
               return 1
             fi
             
-            # Extract signature
-            local sig=$(echo "$output" | grep -oP 'signature: \K.*' || echo "")
+            # Extract signature - now handling multiline output
+            local sig=$(echo "$output" | awk '/Public signature:/{getline; print}' || echo "")
             if [ -z "$sig" ]; then
               echo "Failed to extract signature from output:"
               echo "$output"
