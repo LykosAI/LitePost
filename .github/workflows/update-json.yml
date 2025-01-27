@@ -98,21 +98,21 @@ jobs:
           # Sign artifacts and collect signatures
           declare -A signatures
           
-          # Sign each artifact and extract signature from JSON output
+          # Sign each artifact and extract signature from output
           if [ -f "artifacts/litepost_x64.app.tar.gz" ]; then
-            signatures["darwin-x86_64"]=$(pnpm tauri signer sign --password "$TAURI_KEY_PASSWORD" --json "artifacts/litepost_x64.app.tar.gz" | jq -r '.signature')
+            signatures["darwin-x86_64"]=$(pnpm tauri signer sign --password "$TAURI_KEY_PASSWORD" "artifacts/litepost_x64.app.tar.gz" | grep -oP 'Public signature: \K.*')
           fi
           
           if [ -f "artifacts/litepost_aarch64.app.tar.gz" ]; then
-            signatures["darwin-aarch64"]=$(pnpm tauri signer sign --password "$TAURI_KEY_PASSWORD" --json "artifacts/litepost_aarch64.app.tar.gz" | jq -r '.signature')
+            signatures["darwin-aarch64"]=$(pnpm tauri signer sign --password "$TAURI_KEY_PASSWORD" "artifacts/litepost_aarch64.app.tar.gz" | grep -oP 'Public signature: \K.*')
           fi
           
           if [ -f "artifacts/litepost_0.1.0_amd64.AppImage" ]; then
-            signatures["linux-x86_64"]=$(pnpm tauri signer sign --password "$TAURI_KEY_PASSWORD" --json "artifacts/litepost_0.1.0_amd64.AppImage" | jq -r '.signature')
+            signatures["linux-x86_64"]=$(pnpm tauri signer sign --password "$TAURI_KEY_PASSWORD" "artifacts/litepost_0.1.0_amd64.AppImage" | grep -oP 'Public signature: \K.*')
           fi
           
           if [ -f "artifacts/litepost_0.1.0_x64-setup.exe" ]; then
-            signatures["windows-x86_64"]=$(pnpm tauri signer sign --password "$TAURI_KEY_PASSWORD" --json "artifacts/litepost_0.1.0_x64-setup.exe" | jq -r '.signature')
+            signatures["windows-x86_64"]=$(pnpm tauri signer sign --password "$TAURI_KEY_PASSWORD" "artifacts/litepost_0.1.0_x64-setup.exe" | grep -oP 'Public signature: \K.*')
           fi
 
           # Create latest.json with collected signatures
