@@ -4,7 +4,7 @@ export interface Response {
   headers: Record<string, string>
   body: string
   error?: string
-  redirectChain?: {
+  redirectChain: {
     url: string
     status: number
     statusText: string

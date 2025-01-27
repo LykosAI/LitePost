@@ -201,6 +201,17 @@ export function ResponsePanel({
   const [rawResponse, setRawResponse] = useState<string>("")
   const { jsonViewer } = useSettings()
 
+  // Add debug logging
+  useEffect(() => {
+    if (response) {
+      console.log('Response in ResponsePanel:', {
+        hasRedirectChain: !!response.redirectChain,
+        redirectChainLength: response.redirectChain?.length,
+        fullResponse: response
+      });
+    }
+  }, [response]);
+
   useEffect(() => {
     if (response?.body) {
       try {
@@ -427,29 +438,43 @@ export function ResponsePanel({
               <div className="space-y-3 mb-2">
                 {response.redirectChain.map((redirect, index) => (
                   <div key={index} className="relative bg-muted rounded-md p-1.5">
-                    <CopyButton 
-                      content={`URL: ${redirect.url}\nStatus: ${redirect.statusText}\n\nHeaders:\n${
-                        Object.entries(redirect.headers)
-                          .map(([key, value]) => `${key}: ${value}`)
-                          .join('\n')
-                      }${
-                        redirect.cookies?.length 
-                          ? `\n\nCookies:\n${redirect.cookies.join('\n')}` 
-                          : ''
-                      }`}
-                      className="absolute right-2 top-2 z-10"
-                    />
                     <div className="flex justify-between items-center mb-1.5">
-                      <div className="text-sm font-medium">
-                        {index + 1}. {redirect.url}
+                      <div className="flex-1 min-w-0 pr-10">
+                        <div className="text-sm font-medium truncate">
+                          {index + 1}. {redirect.url}
+                        </div>
+                        <div className="text-xs text-muted-foreground mt-0.5">
+                          Status: {redirect.statusText}
+                        </div>
                       </div>
-                      <div className="text-xs text-muted-foreground">
-                        Status: {redirect.statusText}
-                      </div>
+                      <CopyButton 
+                        content={`URL: ${redirect.url}\nStatus: ${redirect.statusText}\n\nHeaders:\n${
+                          Object.entries(redirect.headers)
+                            .map(([key, value]) => `${key}: ${value}`)
+                            .join('\n')
+                        }${
+                          redirect.cookies?.length 
+                            ? `\n\nCookies:\n${redirect.cookies.join('\n')}` 
+                            : ''
+                        }`}
+                        className="absolute right-2 top-2"
+                      />
                     </div>
                     <SyntaxHighlighter
                       language="text"
-                      style={oneDark}
+                      style={{
+                        ...oneDark,
+                        'pre[class*="language-"]': {
+                          ...oneDark['pre[class*="language-"]'],
+                          background: 'transparent',
+                          margin: 0,
+                          padding: 0,
+                        },
+                        'code[class*="language-"]': {
+                          ...oneDark['code[class*="language-"]'],
+                          background: 'transparent',
+                        },
+                      }}
                       customStyle={{
                         margin: 0,
                         padding: '0.25rem',

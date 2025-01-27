@@ -1,6 +1,6 @@
 import { Window } from '@tauri-apps/api/window'
 import { Button } from './ui/button'
-import { X, Minus, Square, Settings, Beaker, FolderOpen } from 'lucide-react'
+import { X, Minus, Square } from 'lucide-react'
 import icon from '../assets/icon_1024.png'
 import { SettingsPanel } from './SettingsPanel'
 import { EnvironmentPanel } from './EnvironmentPanel'
@@ -72,58 +72,28 @@ export function TitleBar({ currentRequest, onRequestSelect }: TitleBarProps) {
             </div>
           )}
 
-          <EnvironmentPanel 
-            open={isEnvironmentPanelOpen} 
-            onOpenChange={setIsEnvironmentPanelOpen}
-            trigger={
-              renderTooltip("Manage environments",
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  aria-label="Manage environments"
-                  className="h-10 w-10 rounded-none hover:bg-muted"
-                >
-                  <Beaker className="h-4 w-4" />
-                </Button>
-              )
-            }
-          />
+          {renderTooltip("Manage environments",
+            <EnvironmentPanel 
+              open={isEnvironmentPanelOpen} 
+              onOpenChange={setIsEnvironmentPanelOpen} 
+            />
+          )}
 
-          <SettingsPanel 
-            open={isSettingsPanelOpen} 
-            onOpenChange={setIsSettingsPanelOpen}
-            trigger={
-              renderTooltip("Settings",
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  aria-label="Settings"
-                  className="h-10 w-10 rounded-none hover:bg-muted"
-                >
-                  <Settings className="h-4 w-4" />
-                </Button>
-              )
-            }
-          />
+          {renderTooltip("Settings",
+            <SettingsPanel 
+              open={isSettingsPanelOpen} 
+              onOpenChange={setIsSettingsPanelOpen} 
+            />
+          )}
 
-          <CollectionsPanel 
-            open={isCollectionsPanelOpen}
-            onOpenChange={setIsCollectionsPanelOpen}
-            currentRequest={currentRequest}
-            onRequestSelect={onRequestSelect}
-            trigger={
-              renderTooltip("Collections",
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  aria-label="Collections"
-                  className="h-10 w-10 rounded-none hover:bg-muted"
-                >
-                  <FolderOpen className="h-4 w-4" />
-                </Button>
-              )
-            }
-          />
+          {renderTooltip("Collections",
+            <CollectionsPanel 
+              open={isCollectionsPanelOpen}
+              onOpenChange={setIsCollectionsPanelOpen}
+              currentRequest={currentRequest}
+              onRequestSelect={onRequestSelect}
+            />
+          )}
 
           {renderTooltip("Minimize",
             <Button
@@ -141,7 +111,6 @@ export function TitleBar({ currentRequest, onRequestSelect }: TitleBarProps) {
             <Button
               variant="ghost"
               size="sm"
-              aria-label="Maximize"
               className="h-10 w-10 rounded-none hover:bg-muted"
               onClick={() => appWindow.toggleMaximize()}
             >
@@ -153,7 +122,6 @@ export function TitleBar({ currentRequest, onRequestSelect }: TitleBarProps) {
             <Button
               variant="ghost"
               size="sm"
-              aria-label="Close"
               className="h-10 w-10 rounded-none hover:bg-red-500 hover:text-white"
               onClick={() => appWindow.close()}
             >

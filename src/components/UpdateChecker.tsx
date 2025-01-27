@@ -1,8 +1,7 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { check, type Update } from '@tauri-apps/plugin-updater';
 import { relaunch } from '@tauri-apps/plugin-process';
 import { toast } from 'sonner';
-import { Button } from './ui/button';
 import { Progress } from './ui/progress';
 
 const toastStyles = {
@@ -48,10 +47,8 @@ export async function checkForUpdatesManually() {
 }
 
 async function installUpdateManually(update: Update) {
-  let isInstalling = false;
   let toastId: string | number = '';
   try {
-    isInstalling = true;
     let downloaded = 0;
     let contentLength = 0;
 
@@ -89,8 +86,6 @@ async function installUpdateManually(update: Update) {
       id: toastId,
       ...toastStyles,
     });
-  } finally {
-    isInstalling = false;
   }
 }
 

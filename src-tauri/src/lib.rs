@@ -341,6 +341,7 @@ async fn send_request(
 pub fn run() {
     let cookie_jar = Arc::new(reqwest::cookie::Jar::default());
     let client = Client::builder()
+        .redirect(reqwest::redirect::Policy::none())
         .cookie_provider(Arc::clone(&cookie_jar))
         .build()
         .unwrap();

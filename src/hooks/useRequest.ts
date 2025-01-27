@@ -115,7 +115,7 @@ export function useRequest(onHistoryUpdate: (item: HistoryItem) => void) {
 
       console.log('Sending request with options:', options);
       const response = await invoke<ResponseData>('send_request', { options })
-      console.log('Received response:', response);
+      console.log('Raw response from Rust:', response);
 
       // Add to history
       onHistoryUpdate({
@@ -129,6 +129,13 @@ export function useRequest(onHistoryUpdate: (item: HistoryItem) => void) {
         contentType: tab.contentType,
         auth: tab.auth
       })
+
+      // Debug logging for redirect chain
+      console.log('Redirect chain from Rust:', {
+        hasRedirectChain: !!response.redirect_chain,
+        redirectChainLength: response.redirect_chain?.length,
+        redirectChain: response.redirect_chain
+      });
 
       const mappedResponse = {
         status: response.status,
@@ -150,7 +157,11 @@ export function useRequest(onHistoryUpdate: (item: HistoryItem) => void) {
         size: response.size
       }
 
-      console.log('Mapped response:', mappedResponse);
+      console.log('Mapped response with redirects:', {
+        hasRedirectChain: !!mappedResponse.redirectChain,
+        redirectChainLength: mappedResponse.redirectChain?.length,
+        redirectChain: mappedResponse.redirectChain
+      });
       return mappedResponse
     } catch (error) {
       console.error('Request error:', error)
@@ -159,7 +170,10 @@ export function useRequest(onHistoryUpdate: (item: HistoryItem) => void) {
         statusText: "Error",
         headers: {},
         body: "",
-        error: typeof error === 'string' ? error : error instanceof Error ? error.message : "An error occurred"
+        error: typeof error === 'string' ? error : error instanceof Error ? error.message : "An error occurred",
+        redirectChain: [],
+        cookies: [],
+        is_base64: false
       }
     }
   }
