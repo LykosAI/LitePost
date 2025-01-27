@@ -37,11 +37,12 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
+            const version = '${{ inputs.tag }}'.replace(/^v/, '');
             const artifacts = [
               'litepost_aarch64.app.tar.gz',
               'litepost_x64.app.tar.gz',
-              'litepost_0.1.0_amd64.AppImage',
-              'litepost_0.1.0_x64-setup.exe'
+              `litepost_${version}_amd64.AppImage`,
+              `litepost_${version}_x64-setup.exe`
             ];
             
             const tag = '${{ inputs.tag }}';
@@ -174,11 +175,11 @@ jobs:
               },
               "linux-x86_64": {
                 "signature": "'${signatures["linux-x86_64"]}'",
-                "url": "https://github.com/LykosAI/LitePost/releases/download/${{ inputs.tag }}/litepost_${VERSION}_amd64.AppImage"
+                "url": "https://github.com/LykosAI/LitePost/releases/download/${{ inputs.tag }}/litepost_'${VERSION}'_amd64.AppImage"
               },
               "windows-x86_64": {
                 "signature": "'${signatures["windows-x86_64"]}'",
-                "url": "https://github.com/LykosAI/LitePost/releases/download/${{ inputs.tag }}/litepost_${VERSION}_x64-setup.exe"
+                "url": "https://github.com/LykosAI/LitePost/releases/download/${{ inputs.tag }}/litepost_'${VERSION}'_x64-setup.exe"
               }
             }
           }' > latest.json
