@@ -324,7 +324,7 @@ export function RequestPanel({
             <TabsTrigger value="auth">Auth</TabsTrigger>
             <TabsTrigger value="headers">Headers</TabsTrigger>
             <TabsTrigger value="body">Body</TabsTrigger>
-            <TabsTrigger value="cookies">Cookies</TabsTrigger>
+            <TabsTrigger value="cookies" data-testid="cookies-tab">Cookies</TabsTrigger>
             <TabsTrigger value="tests">Tests</TabsTrigger>
             <TabsTrigger value="code">Code</TabsTrigger>
           </TabsList>
@@ -418,7 +418,7 @@ export function RequestPanel({
               </div>
             </div>
           </TabsContent>
-          <TabsContent value="cookies" className="h-full p-4 pt-2 data-[state=active]:flex data-[state=active]:flex-col">
+          <TabsContent value="cookies" data-testid="cookies-content" className="h-full p-4 pt-2 data-[state=active]:flex data-[state=active]:flex-col">
             <div className="space-y-4">
               <div className="grid grid-cols-[1fr,1fr,auto] gap-2">
                 {cookies.map((cookie, index) => (

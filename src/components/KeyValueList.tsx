@@ -70,6 +70,7 @@ export function KeyValueList<T extends { key: string; value: string; enabled: bo
               size="icon"
               onClick={() => removeItem(index)}
               disabled={disabled}
+              aria-label="trash"
             >
               <Trash2 className="h-4 w-4" />
             </Button>

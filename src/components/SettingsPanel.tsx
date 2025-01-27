@@ -6,13 +6,14 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet"
 import { Button } from "@/components/ui/button"
-import { Settings } from "lucide-react"
+import { Settings, RotateCw } from "lucide-react"
 import { Label } from "@/components/ui/label"
 import { Slider } from "@/components/ui/slider"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
 import { useSettings } from "@/store/settings"
-import { forwardRef } from "react"
+import { forwardRef, useState } from "react"
+import { checkForUpdatesManually } from "./UpdateChecker"
 
 interface SettingsPanelProps {
   open: boolean
@@ -22,6 +23,16 @@ interface SettingsPanelProps {
 export const SettingsPanel = forwardRef<HTMLButtonElement, SettingsPanelProps>(
   ({ open, onOpenChange }, ref) => {
     const { jsonViewer, updateJSONViewerSettings } = useSettings()
+    const [isCheckingUpdate, setIsCheckingUpdate] = useState(false)
+
+    const handleCheckUpdate = async () => {
+      setIsCheckingUpdate(true)
+      try {
+        await checkForUpdatesManually()
+      } finally {
+        setIsCheckingUpdate(false)
+      }
+    }
 
     return (
       <Sheet open={open} onOpenChange={onOpenChange}>
@@ -44,6 +55,33 @@ export const SettingsPanel = forwardRef<HTMLButtonElement, SettingsPanelProps>(
           </SheetHeader>
           <ScrollArea className="h-[calc(100vh-5rem)] pr-4">
             <div className="space-y-6 py-6">
+              {/* Updates Section */}
+              <div className="space-y-4">
+                <div>
+                  <h3 className="text-lg font-medium text-foreground">Updates</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Check for and install application updates.
+                  </p>
+                </div>
+                <Separator className="bg-border" />
+                <div className="flex items-center justify-between">
+                  <div className="space-y-1">
+                    <Label className="text-foreground">Application Updates</Label>
+                    <p className="text-xs text-muted-foreground">
+                      LitePost automatically checks for updates daily.
+                    </p>
+                  </div>
+                  <Button 
+                    variant="outline"
+                    onClick={handleCheckUpdate}
+                    disabled={isCheckingUpdate}
+                  >
+                    <RotateCw className={`h-4 w-4 mr-2 ${isCheckingUpdate ? 'animate-spin' : ''}`} />
+                    {isCheckingUpdate ? 'Checking...' : 'Check Now'}
+                  </Button>
+                </div>
+              </div>
+
               {/* JSON Viewer Settings Section */}
               <div className="space-y-4">
                 <div>

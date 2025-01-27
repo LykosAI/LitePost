@@ -39,10 +39,10 @@
     "updater": {
       "active": true,
       "endpoints": [
-        "https://github.com/LykosAI/LitePost/releases/latest/download/latest.json"
+        "https://gist.githubusercontent.com/mohnjiles/546f0f1b3ff1f09808bd563f41a144df/raw/5a8e78fb3e7f11fa308dc11e3a071c54dd4b2ae1/test.json"
       ],
-      "dialog": false,
-      "pubkey": "UpRSVY2U3R1RUpjSEQrQ0lTNUtLQVZXaGxhMUZsajA1MXEK"
+      "dialog": true,
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDRDQjA2Q0EwQTQ3QjI3MDQKUldRRUozdWtvR3l3VEVvYTVZa0tKNDFvUHVrd0FJUnZ1MTNsSFVMSkF6aCtaM3JhMTJhOVRqNnUK"
     }
   }
 }

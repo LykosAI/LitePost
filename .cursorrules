@@ -9,6 +9,7 @@ Frontend:
 - React Router for navigation
 - React Syntax Highlighter for code display
 - React Resizable Panels for UI layout
+- Vitest and jsdom for testing
 
 Backend (Tauri):
 - Rust-based desktop framework

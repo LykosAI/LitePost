@@ -1,93 +1,118 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { check, type Update } from '@tauri-apps/plugin-updater';
 import { relaunch } from '@tauri-apps/plugin-process';
 import { toast } from 'sonner';
 import { Button } from './ui/button';
 import { Progress } from './ui/progress';
 
+const toastStyles = {
+  classNames: {
+    toast: 'bg-secondary border border-border',
+    description: 'text-secondary-foreground',
+    actionButton: 'bg-primary text-primary-foreground hover:bg-primary/90',
+    closeButton: 'text-foreground hover:text-foreground/80',
+  },
+};
+
+// Export the check function for use in settings
+export async function checkForUpdatesManually() {
+  try {
+    console.log('Checking for updates...');
+    const update = await check();
+    console.log('Update check result:', update);
+    if (update) {
+      toast.message('Update Available', {
+        description: `Version ${update.version || 'unknown'} is available. ${update.body || ''}`,
+        action: {
+          label: 'Install Now',
+          onClick: () => installUpdateManually(update),
+        },
+        duration: 10000,
+        ...toastStyles,
+      });
+      return update;
+    } else {
+      toast.success('You are using the latest version.', toastStyles);
+      return null;
+    }
+  } catch (error) {
+    console.error('Failed to check for updates:', error);
+    if (error instanceof Error) {
+      console.error('Error name:', error.name);
+      console.error('Error message:', error.message);
+      console.error('Error stack:', error.stack);
+    }
+    toast.error('Failed to check for updates', toastStyles);
+    throw error;
+  }
+}
+
+async function installUpdateManually(update: Update) {
+  let isInstalling = false;
+  let toastId: string | number = '';
+  try {
+    isInstalling = true;
+    let downloaded = 0;
+    let contentLength = 0;
+
+    toastId = toast.loading('Installing update...', {
+      description: <Progress value={0} className="w-full mt-2" />,
+      ...toastStyles,
+    });
+
+    await update.downloadAndInstall((event) => {
+      switch (event.event) {
+        case 'Started':
+          contentLength = event.data.contentLength || 0;
+          break;
+        case 'Progress':
+          downloaded += event.data.chunkLength || 0;
+          const progress = Math.round((downloaded / contentLength) * 100);
+          toast.loading('Installing update...', {
+            id: toastId,
+            description: <Progress value={progress} className="w-full mt-2" />,
+            ...toastStyles,
+          });
+          break;
+        case 'Finished':
+          toast.success('Update downloaded successfully. Relaunching...', { 
+            id: toastId,
+            ...toastStyles,
+          });
+          relaunch();
+          break;
+      }
+    });
+  } catch (error) {
+    console.error('Failed to install update:', error);
+    toast.error('Failed to install update', { 
+      id: toastId,
+      ...toastStyles,
+    });
+  } finally {
+    isInstalling = false;
+  }
+}
+
 export function UpdateChecker() {
-  const [updateAvailable, setUpdateAvailable] = useState<Update | null>(null);
-  const [isInstalling, setIsInstalling] = useState(false);
-  const [downloadProgress, setDownloadProgress] = useState(0);
+  const lastCheckRef = useRef<number>(0);
 
   const checkForUpdates = async () => {
-    try {
-      const update = await check();
-      if (update) {
-        setUpdateAvailable(update);
-        toast.message('Update Available', {
-          description: `Version ${update.version || 'unknown'} is available. ${update.body || ''}`,
-          action: {
-            label: 'Install Now',
-            onClick: () => installUpdate(update),
-          },
-        });
-      }
-    } catch (error) {
-      console.error('Failed to check for updates:', error);
-      toast.error('Failed to check for updates');
+    // Prevent duplicate checks within 5 seconds
+    const now = Date.now();
+    if (now - lastCheckRef.current < 5000) {
+      return;
     }
-  };
+    lastCheckRef.current = now;
 
-  const installUpdate = async (update: Update) => {
-    try {
-      setIsInstalling(true);
-      let downloaded = 0;
-      let contentLength = 0;
-
-      await update.downloadAndInstall((event) => {
-        switch (event.event) {
-          case 'Started':
-            contentLength = event.data.contentLength || 0;
-            break;
-          case 'Progress':
-            downloaded += event.data.chunkLength || 0;
-            setDownloadProgress(Math.round((downloaded / contentLength) * 100));
-            break;
-          case 'Finished':
-            toast.success('Update downloaded successfully. Relaunching...');
-            relaunch();
-            break;
-        }
-      });
-    } catch (error) {
-      console.error('Failed to install update:', error);
-      toast.error('Failed to install update');
-    } finally {
-      setIsInstalling(false);
-      setDownloadProgress(0);
-    }
+    await checkForUpdatesManually();
   };
 
   useEffect(() => {
-    // Check for updates when component mounts
     checkForUpdates();
-
-    // Check for updates every 24 hours
     const interval = setInterval(checkForUpdates, 24 * 60 * 60 * 1000);
     return () => clearInterval(interval);
   }, []);
 
-  if (!updateAvailable) return null;
-
-  return (
-    <div className="fixed bottom-4 right-4 flex flex-col gap-2 bg-card p-4 rounded-lg shadow-lg min-w-[300px]">
-      <div className="flex items-center justify-between">
-        <div className="flex flex-col">
-          <span className="text-sm font-medium">Version {updateAvailable.version || 'unknown'}</span>
-          <span className="text-xs text-muted-foreground">{updateAvailable.body || ''}</span>
-        </div>
-        <Button
-          size="sm"
-          onClick={() => installUpdate(updateAvailable)}
-          disabled={isInstalling}
-        >
-          {isInstalling ? 'Installing...' : 'Install Update'}
-        </Button>
-      </div>
-      {isInstalling && (
-        <Progress value={downloadProgress} className="w-full" />
-      )}
-    </div>
-  );
+  return null;
 } 
