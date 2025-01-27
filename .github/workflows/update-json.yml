@@ -97,19 +97,19 @@ jobs:
           
           # Sign each artifact directly
           if [ -f "artifacts/litepost_x64.app.tar.gz" ]; then
-            signatures["darwin-x86_64"]=$(pnpm tauri signer sign "artifacts/litepost_x64.app.tar.gz")
+            signatures["darwin-x86_64"]=$(pnpm tauri signer sign --password "$TAURI_KEY_PASSWORD" "artifacts/litepost_x64.app.tar.gz")
           fi
           
           if [ -f "artifacts/litepost_aarch64.app.tar.gz" ]; then
-            signatures["darwin-aarch64"]=$(pnpm tauri signer sign "artifacts/litepost_aarch64.app.tar.gz")
+            signatures["darwin-aarch64"]=$(pnpm tauri signer sign --password "$TAURI_KEY_PASSWORD" "artifacts/litepost_aarch64.app.tar.gz")
           fi
           
           if [ -f "artifacts/litepost_0.1.0_amd64.AppImage" ]; then
-            signatures["linux-x86_64"]=$(pnpm tauri signer sign "artifacts/litepost_0.1.0_amd64.AppImage")
+            signatures["linux-x86_64"]=$(pnpm tauri signer sign --password "$TAURI_KEY_PASSWORD" "artifacts/litepost_0.1.0_amd64.AppImage")
           fi
           
           if [ -f "artifacts/litepost_0.1.0_x64-setup.exe" ]; then
-            signatures["windows-x86_64"]=$(pnpm tauri signer sign "artifacts/litepost_0.1.0_x64-setup.exe")
+            signatures["windows-x86_64"]=$(pnpm tauri signer sign --password "$TAURI_KEY_PASSWORD" "artifacts/litepost_0.1.0_x64-setup.exe")
           fi
 
           # Create latest.json with collected signatures
