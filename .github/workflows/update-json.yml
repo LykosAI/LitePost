@@ -96,7 +96,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           # Extract version from tag (remove 'v' prefix)
-          VERSION=${INPUT_TAG#v}
+          VERSION="${{ inputs.tag }}"
+          VERSION=${VERSION#v}
           echo "Using version: $VERSION"
           echo "Artifact directory contents:"
           ls -la artifacts/
@@ -108,8 +109,8 @@ jobs:
           if [ -f "artifacts/litepost_x64.app.tar.gz" ]; then
             echo "Signing macOS x64 artifact..."
             { set +x; } 2>/dev/null  # Disable command echoing
-            output=$(pnpm tauri signer sign --password "$TAURI_KEY_PASSWORD" "artifacts/litepost_x64.app.tar.gz" 2>&1)
-            signatures["darwin-x86_64"]=$(echo "$output" | awk -F': ' '/Public signature/{print $2}')
+            output=$(pnpm tauri signer sign -p "$TAURI_KEY_PASSWORD" "artifacts/litepost_x64.app.tar.gz")
+            signatures["darwin-x86_64"]=$(echo "$output" | grep -oP 'signature: \K.*')
             set -x  # Re-enable command echoing
             echo "macOS x64 signing completed (signature ${#signatures["darwin-x86_64"]} chars)"
           fi
@@ -117,8 +118,8 @@ jobs:
           if [ -f "artifacts/litepost_aarch64.app.tar.gz" ]; then
             echo "Signing macOS aarch64 artifact..."
             { set +x; } 2>/dev/null
-            output=$(pnpm tauri signer sign --password "$TAURI_KEY_PASSWORD" "artifacts/litepost_aarch64.app.tar.gz" 2>&1)
-            signatures["darwin-aarch64"]=$(echo "$output" | awk -F': ' '/Public signature/{print $2}')
+            output=$(pnpm tauri signer sign -p "$TAURI_KEY_PASSWORD" "artifacts/litepost_aarch64.app.tar.gz")
+            signatures["darwin-aarch64"]=$(echo "$output" | grep -oP 'signature: \K.*')
             set -x
             echo "macOS aarch64 signing completed (signature ${#signatures["darwin-aarch64"]} chars)"
           fi
@@ -126,8 +127,8 @@ jobs:
           if [ -f "artifacts/litepost_${VERSION}_amd64.AppImage" ]; then
             echo "Signing Linux artifact..."
             { set +x; } 2>/dev/null
-            output=$(pnpm tauri signer sign --password "$TAURI_KEY_PASSWORD" "artifacts/litepost_${VERSION}_amd64.AppImage" 2>&1)
-            signatures["linux-x86_64"]=$(echo "$output" | awk -F': ' '/Public signature/{print $2}')
+            output=$(pnpm tauri signer sign -p "$TAURI_KEY_PASSWORD" "artifacts/litepost_${VERSION}_amd64.AppImage")
+            signatures["linux-x86_64"]=$(echo "$output" | grep -oP 'signature: \K.*')
             set -x
             echo "Linux signing completed (signature ${#signatures["linux-x86_64"]} chars)"
           fi
@@ -135,8 +136,8 @@ jobs:
           if [ -f "artifacts/litepost_${VERSION}_x64-setup.exe" ]; then
             echo "Signing Windows artifact..."
             { set +x; } 2>/dev/null
-            output=$(pnpm tauri signer sign --password "$TAURI_KEY_PASSWORD" "artifacts/litepost_${VERSION}_x64-setup.exe" 2>&1)
-            signatures["windows-x86_64"]=$(echo "$output" | awk -F': ' '/Public signature/{print $2}')
+            output=$(pnpm tauri signer sign -p "$TAURI_KEY_PASSWORD" "artifacts/litepost_${VERSION}_x64-setup.exe")
+            signatures["windows-x86_64"]=$(echo "$output" | grep -oP 'signature: \K.*')
             set -x
             echo "Windows signing completed (signature ${#signatures["windows-x86_64"]} chars)"
           fi
