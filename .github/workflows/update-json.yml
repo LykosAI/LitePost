@@ -67,8 +67,20 @@ jobs:
             
             for (const asset of release.assets) {
               if (artifacts.includes(asset.name)) {
-                const response = await github.request(asset.browser_download_url);
-                fs.writeFileSync(path.join('artifacts', asset.name), Buffer.from(response.data));
+                // Download using the GitHub API
+                const response = await github.rest.repos.getReleaseAsset({
+                  owner,
+                  repo,
+                  asset_id: asset.id,
+                  headers: {
+                    accept: 'application/octet-stream'
+                  }
+                });
+                
+                fs.writeFileSync(
+                  path.join('artifacts', asset.name), 
+                  Buffer.from(response.data)
+                );
               }
             }
 
