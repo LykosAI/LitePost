@@ -105,46 +105,57 @@ jobs:
           # Sign artifacts and collect signatures
           declare -A signatures
           
+          # Function to handle signing and capture both stdout and stderr
+          sign_artifact() {
+            local file=$1
+            local platform=$2
+            echo "Attempting to sign $file for $platform..."
+            echo "Current directory: $(pwd)"
+            echo "File exists: $(test -f "$file" && echo "yes" || echo "no")"
+            echo "File size: $(stat -f%z "$file" 2>/dev/null || stat -c%s "$file" 2>/dev/null || echo "unknown")"
+            echo "TAURI_KEY_PASSWORD is set: $(test -n "$TAURI_KEY_PASSWORD" && echo "yes" || echo "no")"
+            
+            # Capture both stdout and stderr
+            if ! output=$(pnpm tauri signer sign -p "$TAURI_KEY_PASSWORD" "$file" 2>&1); then
+              echo "Error during signing:"
+              echo "$output"
+              return 1
+            fi
+            
+            # Extract signature
+            local sig=$(echo "$output" | grep -oP 'signature: \K.*' || echo "")
+            if [ -z "$sig" ]; then
+              echo "Failed to extract signature from output:"
+              echo "$output"
+              return 1
+            fi
+            
+            signatures[$platform]="$sig"
+            echo "$platform signing completed (signature ${#sig} chars)"
+            return 0
+          }
+          
           # Sign each artifact and extract signature from output
           if [ -f "artifacts/litepost_x64.app.tar.gz" ]; then
-            echo "Signing macOS x64 artifact..."
-            { set +x; } 2>/dev/null  # Disable command echoing
-            output=$(pnpm tauri signer sign -p "$TAURI_KEY_PASSWORD" "artifacts/litepost_x64.app.tar.gz")
-            signatures["darwin-x86_64"]=$(echo "$output" | grep -oP 'signature: \K.*')
-            set -x  # Re-enable command echoing
-            echo "macOS x64 signing completed (signature ${#signatures["darwin-x86_64"]} chars)"
+            sign_artifact "artifacts/litepost_x64.app.tar.gz" "darwin-x86_64" || echo "Failed to sign macOS x64 artifact"
           fi
           
           if [ -f "artifacts/litepost_aarch64.app.tar.gz" ]; then
-            echo "Signing macOS aarch64 artifact..."
-            { set +x; } 2>/dev/null
-            output=$(pnpm tauri signer sign -p "$TAURI_KEY_PASSWORD" "artifacts/litepost_aarch64.app.tar.gz")
-            signatures["darwin-aarch64"]=$(echo "$output" | grep -oP 'signature: \K.*')
-            set -x
-            echo "macOS aarch64 signing completed (signature ${#signatures["darwin-aarch64"]} chars)"
+            sign_artifact "artifacts/litepost_aarch64.app.tar.gz" "darwin-aarch64" || echo "Failed to sign macOS aarch64 artifact"
           fi
           
           if [ -f "artifacts/litepost_${VERSION}_amd64.AppImage" ]; then
-            echo "Signing Linux artifact..."
-            { set +x; } 2>/dev/null
-            output=$(pnpm tauri signer sign -p "$TAURI_KEY_PASSWORD" "artifacts/litepost_${VERSION}_amd64.AppImage")
-            signatures["linux-x86_64"]=$(echo "$output" | grep -oP 'signature: \K.*')
-            set -x
-            echo "Linux signing completed (signature ${#signatures["linux-x86_64"]} chars)"
+            sign_artifact "artifacts/litepost_${VERSION}_amd64.AppImage" "linux-x86_64" || echo "Failed to sign Linux artifact"
           fi
           
           if [ -f "artifacts/litepost_${VERSION}_x64-setup.exe" ]; then
-            echo "Signing Windows artifact..."
-            { set +x; } 2>/dev/null
-            output=$(pnpm tauri signer sign -p "$TAURI_KEY_PASSWORD" "artifacts/litepost_${VERSION}_x64-setup.exe")
-            signatures["windows-x86_64"]=$(echo "$output" | grep -oP 'signature: \K.*')
-            set -x
-            echo "Windows signing completed (signature ${#signatures["windows-x86_64"]} chars)"
+            sign_artifact "artifacts/litepost_${VERSION}_x64-setup.exe" "windows-x86_64" || echo "Failed to sign Windows artifact"
           fi
           
           echo "Collected signatures (lengths):"
           for key in "${!signatures[@]}"; do
             echo "$key: ${#signatures[$key]} characters"
+            echo "First 50 chars of signature: ${signatures[$key]:0:50}..."
           done
 
           # Create latest.json with collected signatures
