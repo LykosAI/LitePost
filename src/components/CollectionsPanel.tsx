@@ -4,6 +4,7 @@ import {
   SheetHeader,
   SheetTitle,
   SheetTrigger,
+  SheetDescription,
 } from "@/components/ui/sheet"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -166,6 +167,7 @@ export const CollectionsPanel = forwardRef<HTMLButtonElement, CollectionsPanelPr
             variant="ghost"
             size="sm"
             className="h-10 w-10 rounded-none hover:bg-muted"
+            aria-label="Open Collections Panel"
           >
             <Folder className="h-4 w-4" />
           </Button>
@@ -176,6 +178,9 @@ export const CollectionsPanel = forwardRef<HTMLButtonElement, CollectionsPanelPr
         >
           <SheetHeader>
             <SheetTitle className="text-foreground">Collections</SheetTitle>
+            <SheetDescription>
+              Manage your saved API requests and collections
+            </SheetDescription>
           </SheetHeader>
           <div className="flex flex-col h-[calc(100vh-5rem)]">
             <div className="flex items-center justify-between py-6">
@@ -192,6 +197,7 @@ export const CollectionsPanel = forwardRef<HTMLButtonElement, CollectionsPanelPr
                   className="hidden"
                   accept=".json"
                   onChange={handleImport}
+                  aria-label="Import Collections"
                 />
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
@@ -252,6 +258,11 @@ export const CollectionsPanel = forwardRef<HTMLButtonElement, CollectionsPanelPr
                           variant="ghost" 
                           size="sm"
                           className="h-6 w-6 p-0 hover:bg-muted/50"
+                          aria-label={
+                            expandedCollections.has(collection.id) 
+                              ? `Collapse Collection ${collection.name}` 
+                              : `Expand Collection ${collection.name}`
+                          }
                         >
                           {expandedCollections.has(collection.id) ? (
                             <ChevronDown className="h-4 w-4" />
@@ -264,6 +275,7 @@ export const CollectionsPanel = forwardRef<HTMLButtonElement, CollectionsPanelPr
                           onChange={(e) => updateCollection(collection.id, { name: e.target.value })}
                           onClick={(e) => e.stopPropagation()}
                           className="h-8 bg-background text-foreground"
+                          aria-label={`Collection Name ${collection.name}`}
                         />
                       </div>
                       <div className="flex items-center gap-2">
@@ -273,6 +285,7 @@ export const CollectionsPanel = forwardRef<HTMLButtonElement, CollectionsPanelPr
                             size="sm"
                             onClick={() => handleSaveCurrentRequest(collection.id)}
                             className="h-8"
+                            aria-label="Save Current Request"
                           >
                             <Save className="h-4 w-4" />
                           </Button>
@@ -306,6 +319,7 @@ export const CollectionsPanel = forwardRef<HTMLButtonElement, CollectionsPanelPr
                           }}
                           className="h-8"
                           title="Restore all requests"
+                          aria-label="Restore All Requests"
                         >
                           <RotateCw className="h-4 w-4" />
                         </Button>
@@ -314,6 +328,7 @@ export const CollectionsPanel = forwardRef<HTMLButtonElement, CollectionsPanelPr
                           size="sm"
                           onClick={() => deleteCollection(collection.id)}
                           className="h-8 text-destructive-foreground hover:text-destructive-foreground hover:bg-destructive"
+                          aria-label={`Delete Collection ${collection.name}`}
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>

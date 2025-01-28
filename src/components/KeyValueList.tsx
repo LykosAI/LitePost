@@ -9,6 +9,7 @@ interface KeyValueListProps<T extends { key: string; value: string; enabled: boo
   keyPlaceholder?: string
   valuePlaceholder?: string
   disabled?: boolean
+  envIndex?: number
 }
 
 export function KeyValueList<T extends { key: string; value: string; enabled: boolean }>({
@@ -16,7 +17,8 @@ export function KeyValueList<T extends { key: string; value: string; enabled: bo
   onItemsChange,
   keyPlaceholder = "Name",
   valuePlaceholder = "Value",
-  disabled = false
+  disabled = false,
+  envIndex
 }: KeyValueListProps<T>) {
   const updateItem = (index: number, field: keyof T, value: string | boolean) => {
     const newItems = [...items]

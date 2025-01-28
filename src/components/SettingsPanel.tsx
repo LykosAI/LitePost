@@ -4,6 +4,7 @@ import {
   SheetHeader,
   SheetTitle,
   SheetTrigger,
+  SheetDescription,
 } from "@/components/ui/sheet"
 import { Button } from "@/components/ui/button"
 import { Settings, RotateCw } from "lucide-react"
@@ -42,6 +43,7 @@ export const SettingsPanel = forwardRef<HTMLButtonElement, SettingsPanelProps>(
             variant="ghost"
             size="sm"
             className="h-10 w-10 rounded-none hover:bg-muted"
+            aria-label="Settings"
           >
             <Settings className="h-4 w-4" />
           </Button>
@@ -52,6 +54,9 @@ export const SettingsPanel = forwardRef<HTMLButtonElement, SettingsPanelProps>(
         >
           <SheetHeader>
             <SheetTitle className="text-foreground">Settings</SheetTitle>
+            <SheetDescription>
+              Configure application settings and preferences
+            </SheetDescription>
           </SheetHeader>
           <ScrollArea className="h-[calc(100vh-5rem)] pr-4">
             <div className="space-y-6 py-6">

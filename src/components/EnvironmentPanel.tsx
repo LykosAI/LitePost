@@ -1,6 +1,7 @@
 import {
   Sheet,
   SheetContent,
+  SheetDescription,
   SheetHeader,
   SheetTitle,
   SheetTrigger,
@@ -35,6 +36,7 @@ export const EnvironmentPanel = forwardRef<HTMLButtonElement, EnvironmentPanelPr
         >
           <SheetHeader>
             <SheetTitle className="text-foreground">Environment Manager</SheetTitle>
+            <SheetDescription>Manage your environment variables and configurations</SheetDescription>
           </SheetHeader>
           <div className="h-[calc(100vh-5rem)] pr-4 overflow-y-auto">
             <div className="py-6">

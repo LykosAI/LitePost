@@ -1,4 +1,4 @@
-import { vi, beforeAll, afterAll, afterEach } from 'vitest'
+import { vi, beforeAll, afterAll, afterEach, beforeEach } from 'vitest'
 import '@testing-library/jest-dom'
 import { expect } from 'vitest'
 import * as matchers from '@testing-library/jest-dom/matchers'
@@ -42,4 +42,21 @@ beforeAll(() => {
 
 afterAll(() => {
   console.error = originalError
+})
+
+// Mock ResizeObserver
+class ResizeObserver {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+}
+
+// Add missing window APIs
+window.ResizeObserver = ResizeObserver
+window.URL.createObjectURL = vi.fn()
+window.URL.revokeObjectURL = vi.fn()
+
+// Reset all mocks before each test
+beforeEach(() => {
+  vi.clearAllMocks()
 }) 

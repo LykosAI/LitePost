@@ -7,7 +7,7 @@ interface JSONViewerSettings {
   maxAutoExpandObjectSize: number
 }
 
-interface SettingsState {
+export interface SettingsState {
   jsonViewer: JSONViewerSettings
   updateJSONViewerSettings: (settings: Partial<JSONViewerSettings>) => void
 }

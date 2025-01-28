@@ -14,16 +14,16 @@ jobs:
         include:
           - platform: 'macos-latest'
             args: '--target aarch64-apple-darwin'
-            artifact_name: 'LitePost_aarch64.app.tar.gz'
+            artifact_name: 'litepost_aarch64.app.tar.gz'
           - platform: 'macos-latest'
             args: '--target x86_64-apple-darwin'
-            artifact_name: 'LitePost_x64.app.tar.gz'
+            artifact_name: 'litepost_x64.app.tar.gz'
           - platform: 'ubuntu-22.04'
             args: ''
-            artifact_name: 'litepost_0.1.0_amd64.AppImage'
+            artifact_name: 'litepost_${{ github.ref_name }}_amd64.AppImage'
           - platform: 'windows-latest'
             args: ''
-            artifact_name: 'LitePost_0.1.0_x64-setup.exe'
+            artifact_name: 'litepost_${{ github.ref_name }}_x64-setup.exe'
     runs-on: ${{ matrix.platform }}
     steps:
       - name: Checkout

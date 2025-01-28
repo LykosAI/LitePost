@@ -74,7 +74,7 @@ export function EnvironmentManager() {
           </Select>
         </div>
 
-        {environments.map((env) => (
+        {environments.map((env, index) => (
           <div key={env.id} className="space-y-4 p-4 rounded-lg border border-border bg-card/50 shadow-sm">
             <div className="flex items-center gap-2">
               <Input
@@ -93,6 +93,7 @@ export function EnvironmentManager() {
             </div>
             
             <KeyValueList
+              envIndex={index}
               items={Object.entries(env.variables).map(([key, value]) => ({ 
                 key, 
                 value,
