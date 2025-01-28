@@ -146,4 +146,26 @@ export interface Cookie {
   expires?: Date
   secure?: boolean
   httpOnly?: boolean
+}
+
+export interface Collection {
+  id: string
+  name: string
+  description?: string
+  requests: {
+    id: string
+    name: string
+    method: string
+    url: string
+    rawUrl: string
+    params: URLParam[]
+    headers: Header[]
+    body: string
+    contentType: string
+    auth: AuthConfig
+    cookies: Cookie[]
+    testScripts: TestScript[]
+    testAssertions: TestAssertion[]
+    testResults: TestResult | null
+  }[]
 } 
