@@ -43,15 +43,28 @@ The built applications will be available in `src-tauri/target/release/bundle/`.
 
 ```
 litepost/
-├── src/                    # React frontend source
-│   ├── components/         # React components
-│   ├── hooks/             # Custom React hooks
-│   └── types/             # TypeScript type definitions
-├── src-tauri/             # Rust backend source
-│   ├── src/               # Rust source code
-│   └── capabilities/      # Tauri capability configurations
-└── public/                # Static assets
+├── src/                     # React frontend source
+│   ├── components/          # React components
+│   │   └── ui/              # Reusable UI components (shadcn/ui)
+│   ├── hooks/               # Custom React hooks
+│   ├── store/               # Zustand state management
+│   ├── utils/               # Utility functions
+│   ├── types/               # TypeScript type definitions
+│   └── test/                # Test files
+├── src-tauri/               # Rust backend source
+│   ├── src/                 # Rust source code
+│   └── capabilities/        # Tauri capability configurations
+├── public/                  # Static assets
+├── coverage/                # Test coverage reports
+└── dist/                    # Production build output
 ```
+
+Key directories:
+- `src/components/`: React components organized by feature
+- `src/hooks/`: Custom hooks for API requests, state management, etc.
+- `src/store/`: Zustand stores for collections, environments, and settings
+- `src/test/`: Unit tests using Vitest and React Testing Library
+- `src-tauri/`: Rust backend with HTTP client and file system operations
 
 ## Features 🚀
 
@@ -99,6 +112,107 @@ litepost/
   - Response time validation
 - Test execution with results display
 
+## Testing 🧪
+
+The project uses Vitest for testing. Here are the available test commands:
+
+```bash
+# Run all tests
+pnpm test
+
+# Run tests in watch mode (useful during development)
+pnpm test:watch
+
+# Run tests with coverage report
+pnpm test:coverage
+
+# Run tests for a specific file
+pnpm test RequestUrlBar
+```
+
+The test suite currently includes:
+- Unit tests for React components using React Testing Library
+- Component mocking (e.g., Radix UI components)
+- Event handling tests
+- State management tests
+- Coverage reporting with v8
+
+Coverage reports can be found in:
+- Terminal output (text format)
+- `coverage/` directory (HTML and JSON formats)
+
+### Planned Test Improvements 🎯
+
+We plan to add:
+- Integration tests for API request/response flows
+- End-to-end tests for critical user journeys
+- Performance testing for large responses
+- Cross-platform compatibility tests
+
+### Writing Tests 📝
+
+Tests are located in `src/test/` and follow the naming convention `*.test.tsx`. Each test file should:
+- Import necessary testing utilities from `vitest` and `@testing-library/react`
+- Mock external dependencies when needed
+- Use React Testing Library's best practices for component testing
+
+Example test structure:
+```typescript
+import { describe, it, expect, vi } from 'vitest'
+import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { YourComponent } from '@/components/YourComponent'
+
+describe('YourComponent', () => {
+  interface SetupOptions {
+    initialValue?: string
+    isDisabled?: boolean
+  }
+
+  const setup = (options: SetupOptions = {}) => {
+    const user = userEvent.setup()
+    const props = {
+      value: options.initialValue || '',
+      isDisabled: options.isDisabled || false,
+      onChange: vi.fn(),
+      onSubmit: vi.fn(),
+    }
+
+    const utils = render(<YourComponent {...props} />)
+
+    return {
+      user,
+      ...utils,
+      ...props,
+    }
+  }
+
+  it('renders with default props', () => {
+    setup()
+    expect(screen.getByRole('textbox')).toBeInTheDocument()
+    expect(screen.getByRole('button')).toBeEnabled()
+  })
+
+  it('handles user input and submission', async () => {
+    const { user, onChange, onSubmit } = setup()
+    
+    const input = screen.getByRole('textbox')
+    const button = screen.getByRole('button')
+    
+    await user.type(input, 'Hello')
+    expect(onChange).toHaveBeenCalledWith('Hello')
+    
+    await user.click(button)
+    expect(onSubmit).toHaveBeenCalled()
+  })
+
+  it('respects disabled state', () => {
+    setup({ isDisabled: true })
+    expect(screen.getByRole('textbox')).toBeDisabled()
+    expect(screen.getByRole('button')).toBeDisabled()
+  })
+})
+```
 ## Contributing 🤝
 
 1. Fork the repository
