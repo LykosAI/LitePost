@@ -12,7 +12,9 @@ import { Label } from "@/components/ui/label"
 import { Slider } from "@/components/ui/slider"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
-import { useSettings } from "@/store/settings"
+import { useSettingsStore } from "@/store/settings"
+import { useThemeStore, ThemeColor } from "@/store/theme"
+import { useThemeClass } from "@/hooks/useThemeClass"
 import { forwardRef, useState } from "react"
 import { checkForUpdatesManually } from "./UpdateChecker"
 
@@ -23,7 +25,9 @@ interface SettingsPanelProps {
 
 export const SettingsPanel = forwardRef<HTMLButtonElement, SettingsPanelProps>(
   ({ open, onOpenChange }, ref) => {
-    const { jsonViewer, updateJSONViewerSettings } = useSettings()
+    const { jsonViewer, updateJSONViewerSettings } = useSettingsStore()
+    const { color: themeColor, setColor: setThemeColor } = useThemeStore()
+    const themeClass = useThemeClass()
     const [isCheckingUpdate, setIsCheckingUpdate] = useState(false)
 
     const handleCheckUpdate = async () => {
@@ -49,7 +53,7 @@ export const SettingsPanel = forwardRef<HTMLButtonElement, SettingsPanelProps>(
           </Button>
         </SheetTrigger>
         <SheetContent 
-          className="dark w-[400px] sm:w-[540px] border-l border-border bg-background text-foreground [&_button>svg]:text-foreground [&_.close-button]:hover:bg-muted/60"
+          className={`${themeClass} w-[400px] sm:w-[540px] border-l border-border bg-background text-foreground [&_button>svg]:text-foreground [&_.close-button]:hover:bg-muted/60`}
           side="right"
         >
           <SheetHeader>
@@ -60,6 +64,42 @@ export const SettingsPanel = forwardRef<HTMLButtonElement, SettingsPanelProps>(
           </SheetHeader>
           <ScrollArea className="h-[calc(100vh-5rem)] pr-4">
             <div className="space-y-6 py-6">
+              {/* Theme Section */}
+              <div className="space-y-4">
+                <div>
+                  <h3 className="text-lg font-medium text-foreground">Theme</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Customize the application appearance.
+                  </p>
+                </div>
+                <Separator className="bg-border" />
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <div className="grid grid-cols-4 gap-4">
+                      {[
+                        { id: 'blue', label: 'Blue', color: 'hsl(217.2 91% 75%)' },
+                        { id: 'green', label: 'Green', color: 'hsl(142.1 85% 40%)' },
+                        { id: 'purple', label: 'Purple', color: 'hsl(270 85% 60%)' },
+                        { id: 'black', label: 'OLED', color: 'hsl(0 0% 0%)' },
+                      ].map(({ id, label, color }) => (
+                        <button
+                          key={id}
+                          onClick={() => setThemeColor(id as ThemeColor)}
+                          className={`group flex flex-col items-center gap-2 p-2 rounded-lg transition-colors
+                            ${themeColor === id ? 'bg-accent' : 'hover:bg-muted'}`}
+                        >
+                          <div 
+                            className="w-12 h-12 rounded-full transition-transform group-hover:scale-110"
+                            style={{ backgroundColor: color }}
+                          />
+                          <span className="text-sm font-medium">{label}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               {/* Updates Section */}
               <div className="space-y-4">
                 <div>
@@ -112,7 +152,7 @@ export const SettingsPanel = forwardRef<HTMLButtonElement, SettingsPanelProps>(
                       onValueChange={([value]) =>
                         updateJSONViewerSettings({ maxAutoExpandDepth: value })
                       }
-                      className="[&_[role=slider]]:bg-blue-500 [&_[role=slider]]:border-blue-500 [&_[data-orientation=horizontal]]:bg-muted"
+                      className="[&_[role=slider]]:bg-primary [&_[role=slider]]:border-primary [&_[data-orientation=horizontal]]:bg-muted"
                     />
                     <p className="text-xs text-muted-foreground">
                       Maximum nesting depth to automatically expand in JSON responses.
@@ -133,7 +173,7 @@ export const SettingsPanel = forwardRef<HTMLButtonElement, SettingsPanelProps>(
                       onValueChange={([value]) =>
                         updateJSONViewerSettings({ maxAutoExpandArraySize: value })
                       }
-                      className="[&_[role=slider]]:bg-blue-500 [&_[role=slider]]:border-blue-500 [&_[data-orientation=horizontal]]:bg-muted"
+                      className="[&_[role=slider]]:bg-primary [&_[role=slider]]:border-primary [&_[data-orientation=horizontal]]:bg-muted"
                     />
                     <p className="text-xs text-muted-foreground">
                       Arrays larger than this size will be collapsed by default.
@@ -154,7 +194,7 @@ export const SettingsPanel = forwardRef<HTMLButtonElement, SettingsPanelProps>(
                       onValueChange={([value]) =>
                         updateJSONViewerSettings({ maxAutoExpandObjectSize: value })
                       }
-                      className="[&_[role=slider]]:bg-blue-500 [&_[role=slider]]:border-blue-500 [&_[data-orientation=horizontal]]:bg-muted"
+                      className="[&_[role=slider]]:bg-primary [&_[role=slider]]:border-primary [&_[data-orientation=horizontal]]:bg-muted"
                     />
                     <p className="text-xs text-muted-foreground">
                       Objects with more properties than this will be collapsed by default.
@@ -169,19 +209,6 @@ export const SettingsPanel = forwardRef<HTMLButtonElement, SettingsPanelProps>(
                   <h3 className="text-lg font-medium text-foreground">Request Defaults</h3>
                   <p className="text-sm text-muted-foreground">
                     Configure default settings for new requests.
-                  </p>
-                </div>
-                <Separator className="bg-border" />
-                <div className="text-sm text-muted-foreground italic">
-                  Coming soon...
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                <div>
-                  <h3 className="text-lg font-medium text-foreground">Theme</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Customize the application appearance.
                   </p>
                 </div>
                 <Separator className="bg-border" />

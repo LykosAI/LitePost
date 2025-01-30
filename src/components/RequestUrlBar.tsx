@@ -8,6 +8,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { useThemeClass } from "@/hooks/useThemeClass"
 
 const HTTP_METHODS = ["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"]
 
@@ -30,18 +31,20 @@ export function RequestUrlBar({
   onSend,
   onSave,
 }: RequestUrlBarProps) {
+  const themeClass = useThemeClass()
+
   return (
     <div className="flex gap-2 p-4 pb-2">
       <Select value={method} onValueChange={onMethodChange}>
         <SelectTrigger className="w-[120px] bg-background border-input focus:ring-0 focus-visible:ring-1">
           <SelectValue placeholder="Method" />
         </SelectTrigger>
-        <SelectContent className="bg-gray-800 border-border">
+        <SelectContent className={`${themeClass} bg-background border-border`}>
           {HTTP_METHODS.map((m) => (
             <SelectItem 
               key={m} 
               value={m}
-              className="hover:bg-muted focus:bg-muted text-white"
+              className="hover:bg-accent focus:bg-accent text-foreground"
             >
               {m}
             </SelectItem>
@@ -60,7 +63,11 @@ export function RequestUrlBar({
         }}
         className="flex-1"
       />
-      <Button variant="outline" onClick={onSave}>
+      <Button 
+        variant="outline" 
+        onClick={onSave}
+        data-testid="save-button"
+      >
         <Save className="h-4 w-4 mr-2" />
         Save
       </Button>

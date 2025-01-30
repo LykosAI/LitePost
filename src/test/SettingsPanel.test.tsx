@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, act } from '@testing-library/react'
 import { SettingsPanel } from '@/components/SettingsPanel'
-import { useSettings } from '@/store/settings'
+import { useSettingsStore } from '@/store/settings'
 import type { SettingsState } from '@/store/settings'
 import { checkForUpdatesManually } from '@/components/UpdateChecker'
 

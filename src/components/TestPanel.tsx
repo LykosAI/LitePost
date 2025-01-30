@@ -225,7 +225,7 @@ export function TestPanel({
                       })
                     }
                   >
-                    <SelectTrigger className="w-[140px] bg-background border-input focus:ring-0 focus-visible:ring-1">
+                    <SelectTrigger className="w-[140px] bg-background border-input focus:ring-0 focus-visible:ring-1" aria-label="Type">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent className="dark bg-background border-border">
@@ -259,7 +259,7 @@ export function TestPanel({
                       })
                     }
                   >
-                    <SelectTrigger className="w-[140px] bg-background border-input focus:ring-0 focus-visible:ring-1">
+                    <SelectTrigger className="w-[140px] bg-background border-input focus:ring-0 focus-visible:ring-1" aria-label="Operator">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent className="dark bg-background border-border">

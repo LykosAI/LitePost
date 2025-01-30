@@ -23,6 +23,7 @@ import {
 import { useState, forwardRef, useRef } from "react"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
+import { useThemeClass } from "@/hooks/useThemeClass"
 
 const methodColors: Record<string, string> = {
   GET: "bg-blue-500/10 text-blue-500",
@@ -58,6 +59,7 @@ export const CollectionsPanel = forwardRef<HTMLButtonElement, CollectionsPanelPr
 
     const [expandedCollections, setExpandedCollections] = useState<Set<string>>(new Set())
     const fileInputRef = useRef<HTMLInputElement>(null)
+    const themeClass = useThemeClass()
 
     const toggleCollection = (id: string) => {
       setExpandedCollections(prev => {
@@ -173,7 +175,7 @@ export const CollectionsPanel = forwardRef<HTMLButtonElement, CollectionsPanelPr
           </Button>
         </SheetTrigger>
         <SheetContent 
-          className="dark w-[600px] sm:w-[800px] sm:max-w-none border-l border-border bg-background text-foreground [&_button>svg]:text-foreground [&_.close-button]:hover:bg-muted/60"
+          className={`${themeClass} w-[600px] sm:w-[800px] sm:max-w-none border-l border-border bg-background text-foreground [&_button>svg]:text-foreground [&_.close-button]:hover:bg-muted/60`}
           side="right"
         >
           <SheetHeader>

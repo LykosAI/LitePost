@@ -6,6 +6,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { useThemeClass } from "@/hooks/useThemeClass"
 
 const CONTENT_TYPES = [
   "application/json",
@@ -28,18 +29,20 @@ export function RequestBodyEditor({
   onBodyChange,
   onContentTypeChange,
 }: RequestBodyEditorProps) {
+  const themeClass = useThemeClass()
+
   return (
     <div className="flex flex-col gap-2 h-full">
       <Select value={contentType} onValueChange={onContentTypeChange}>
         <SelectTrigger className="bg-background border-input focus:ring-0 focus-visible:ring-1">
           <SelectValue placeholder="Content Type" />
         </SelectTrigger>
-        <SelectContent className="bg-slate-800 border-border">
+        <SelectContent className={`${themeClass} bg-background border-border`}>
           {CONTENT_TYPES.map((type) => (
             <SelectItem 
               key={type} 
               value={type}
-              className="hover:bg-muted focus:bg-muted text-white"
+              className="hover:bg-accent focus:bg-accent text-foreground"
             >
               {type}
             </SelectItem>

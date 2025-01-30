@@ -1,35 +1,13 @@
 import { Card } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Button } from "@/components/ui/button"
-import { Plus, Trash2, Save } from "lucide-react"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Textarea } from "@/components/ui/textarea"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import React, { useEffect, useState, useMemo } from "react"
+import { useEffect, useState } from "react"
 import { AuthConfig, URLParam, Header, Cookie, TestScript, TestAssertion, TestResult, Response } from "@/types"
-import { CODE_SNIPPETS } from "@/utils/codeSnippets"
 import { getRequestNameFromUrl } from "@/utils/url"
-import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
-import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism'
-import { CopyButton } from "./CopyButton"
 import { KeyValueList } from "./KeyValueList"
 import { AuthConfigurator } from "./AuthConfigurator"
 import { TestPanel } from "./TestPanel"
 import { runTests } from "@/utils/testRunner"
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog"
 import { useCollectionStore } from "@/store/collections"
 import { RequestUrlBar } from "./RequestUrlBar"
 import { SaveRequestDialog } from "./SaveRequestDialog"
@@ -37,14 +15,6 @@ import { RequestBodyEditor } from "./RequestBodyEditor"
 import { CodeSnippetViewer } from "./CodeSnippetViewer"
 import { CookieEditor } from "./CookieEditor"
 
-const HTTP_METHODS = ["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"]
-const CONTENT_TYPES = [
-  "application/json",
-  "application/x-www-form-urlencoded",
-  "text/plain",
-  "text/html",
-  "multipart/form-data",
-]
 
 interface RequestPanelProps {
   method: string
@@ -101,26 +71,8 @@ export function RequestPanel({
   onTestResultsChange,
   onSend,
 }: RequestPanelProps) {
-  const [selectedLanguage, setSelectedLanguage] = useState(CODE_SNIPPETS[0].value)
   const { collections, addRequest, addCollection } = useCollectionStore()
   const [saveDialogOpen, setSaveDialogOpen] = useState(false)
-  const [newCollectionName, setNewCollectionName] = useState('')
-  const [isAddingCollection, setIsAddingCollection] = useState(false)
-  
-  const codeSnippet = useMemo(() => {
-    const generator = CODE_SNIPPETS.find(s => s.value === selectedLanguage)?.generator
-    if (!generator) return ''
-    
-    return generator({
-      method,
-      url,
-      headers,
-      body,
-      contentType,
-      auth,
-      cookies,
-    })
-  }, [selectedLanguage, method, url, headers, body, contentType, auth, cookies])
 
   // Add keyboard event handler
   useEffect(() => {
@@ -142,21 +94,6 @@ export function RequestPanel({
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [loading, onSend])
-
-  const updateCookie = (index: number, field: keyof Cookie, value: string | boolean) => {
-    const newCookies = [...cookies];
-    newCookies[index] = { ...newCookies[index], [field]: value };
-    onCookiesChange(newCookies);
-  };
-
-  const removeCookie = (index: number) => {
-    const newCookies = cookies.filter((_, i) => i !== index);
-    onCookiesChange(newCookies);
-  };
-
-  const addCookie = () => {
-    onCookiesChange([...cookies, { name: '', value: '' }]);
-  };
 
   const handleSaveToCollection = (collectionId: string) => {
     const requestData = {
@@ -180,8 +117,11 @@ export function RequestPanel({
   }
 
   const handleAddCollection = (name: string) => {
-    // Create request data object
-    const requestData = {
+    // Create new collection and get its ID
+    const newCollection = addCollection(name)
+    
+    // Add request to the new collection
+    addRequest(newCollection, {
       name: getRequestNameFromUrl(url),
       method,
       url,
@@ -195,13 +135,9 @@ export function RequestPanel({
       testScripts,
       testAssertions,
       testResults
-    }
+    })
     
-    // Add collection and get its ID
-    const collectionId = addCollection(name)
-    
-    // Add request to the new collection
-    addRequest(collectionId, requestData)
+    setSaveDialogOpen(false)
   }
 
   const handleRunTests = async () => {

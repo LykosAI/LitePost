@@ -5,6 +5,7 @@ import { Label } from "@/components/ui/label"
 import { useEnvironmentStore } from "@/store/environments"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { KeyValueList } from "./KeyValueList"
+import { useThemeClass } from "@/hooks/useThemeClass"
 
 export function EnvironmentManager() {
   const {
@@ -15,6 +16,7 @@ export function EnvironmentManager() {
     deleteEnvironment,
     setActiveEnvironment,
   } = useEnvironmentStore()
+  const themeClass = useThemeClass()
 
   const handleAddEnvironment = () => {
     addEnvironment("New Environment")
@@ -59,13 +61,13 @@ export function EnvironmentManager() {
             <SelectTrigger className="w-full bg-background text-foreground">
               <SelectValue placeholder="No environment selected" />
             </SelectTrigger>
-            <SelectContent className="dark bg-popover text-popover-foreground">
-              <SelectItem value="null">None</SelectItem>
+            <SelectContent className={`${themeClass} bg-background border-border`}>
+              <SelectItem value="null" className="hover:bg-accent focus:bg-accent text-foreground">None</SelectItem>
               {environments.map((env) => (
                 <SelectItem 
                   key={env.id} 
                   value={env.id}
-                  className="hover:bg-accent/50"
+                  className="hover:bg-accent focus:bg-accent text-foreground"
                 >
                   {env.name}
                 </SelectItem>

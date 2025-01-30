@@ -18,7 +18,6 @@ export function KeyValueList<T extends { key: string; value: string; enabled: bo
   keyPlaceholder = "Name",
   valuePlaceholder = "Value",
   disabled = false,
-  envIndex
 }: KeyValueListProps<T>) {
   const updateItem = (index: number, field: keyof T, value: string | boolean) => {
     const newItems = [...items]

@@ -9,11 +9,13 @@ export interface Response {
     status: number
     statusText: string
     headers: Record<string, string>
-    cookies?: string[]
+    cookies?: Cookie[]
     timing?: ResponseTiming
     size?: ResponseSize
   }[]
-  cookies?: string[]
+  cookies?: Cookie[]
+  cookieStrings?: string[]  // Original cookie strings for display
+  redirectCookieStrings?: string[][]  // Original cookie strings for each redirect
   is_base64?: boolean
   timing?: ResponseTiming
   size?: ResponseSize

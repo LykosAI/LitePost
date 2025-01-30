@@ -12,6 +12,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { useThemeClass } from "@/hooks/useThemeClass"
 
 interface CodeSnippetViewerProps {
   method: string
@@ -33,6 +34,7 @@ export function CodeSnippetViewer({
   cookies,
 }: CodeSnippetViewerProps) {
   const [selectedLanguage, setSelectedLanguage] = useState(CODE_SNIPPETS[0].value)
+  const themeClass = useThemeClass()
 
   const codeSnippet = useMemo(() => {
     const generator = CODE_SNIPPETS.find(s => s.value === selectedLanguage)?.generator
@@ -57,12 +59,12 @@ export function CodeSnippetViewer({
             <SelectTrigger className="w-[200px] bg-background border-input focus:ring-0 focus-visible:ring-1">
               <SelectValue placeholder="Select Language" />
             </SelectTrigger>
-            <SelectContent className="bg-gray-800 border-border">
+            <SelectContent className={`${themeClass} bg-background border-border`}>
               {CODE_SNIPPETS.map((lang) => (
                 <SelectItem
                   key={lang.value}
                   value={lang.value}
-                  className="hover:bg-muted focus:bg-muted text-white"
+                  className="hover:bg-accent focus:bg-accent text-foreground"
                 >
                   {lang.label}
                 </SelectItem>

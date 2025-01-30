@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
+import { loadFromFile, saveToFile } from '@/utils/persistence'
 
 export interface Environment {
   id: string
@@ -7,7 +8,7 @@ export interface Environment {
   variables: { [key: string]: string }
 }
 
-interface EnvironmentStore {
+interface EnvironmentState {
   environments: Environment[]
   activeEnvironmentId: string | null
   addEnvironment: (name: string) => void
@@ -17,41 +18,59 @@ interface EnvironmentStore {
   getVariable: (key: string) => string | undefined
 }
 
-export const useEnvironmentStore = create<EnvironmentStore>()(
+const ENVIRONMENTS_FILE = 'environments.json'
+const defaultData = {
+  environments: [],
+  activeEnvironmentId: null
+}
+
+export const useEnvironmentStore = create<EnvironmentState>()(
   persist(
     (set, get) => ({
-      environments: [],
-      activeEnvironmentId: null,
-
-      addEnvironment: (name) => set((state) => ({
-        environments: [...state.environments, {
+      ...defaultData,
+      addEnvironment: (name) => {
+        const newEnvironment: Environment = {
           id: crypto.randomUUID(),
           name,
           variables: {}
-        }]
-      })),
-
-      updateEnvironment: (id, updates) => set((state) => ({
-        environments: state.environments.map(env => 
-          env.id === id ? { ...env, ...updates } : env
-        )
-      })),
-
-      deleteEnvironment: (id) => set((state) => ({
-        environments: state.environments.filter(env => env.id !== id),
-        activeEnvironmentId: state.activeEnvironmentId === id ? null : state.activeEnvironmentId
-      })),
-
-      setActiveEnvironment: (id) => set({ activeEnvironmentId: id }),
-
+        }
+        set((state) => ({
+          environments: [...state.environments, newEnvironment]
+        }))
+      },
+      updateEnvironment: (id, updates) => {
+        set((state) => ({
+          environments: state.environments.map(env =>
+            env.id === id ? { ...env, ...updates } : env
+          )
+        }))
+      },
+      deleteEnvironment: (id) => {
+        set((state) => ({
+          environments: state.environments.filter(env => env.id !== id),
+          activeEnvironmentId: state.activeEnvironmentId === id ? null : state.activeEnvironmentId
+        }))
+      },
+      setActiveEnvironment: (id) => {
+        set({ activeEnvironmentId: id })
+      },
       getVariable: (key) => {
-        const state = get()
-        const activeEnv = state.environments.find(env => env.id === state.activeEnvironmentId)
+        const activeEnv = get().environments.find(env => env.id === get().activeEnvironmentId)
         return activeEnv?.variables[key]
       }
     }),
     {
-      name: 'environment-storage'
+      name: 'environment-storage',
+      storage: {
+        getItem: async () => {
+          const data = await loadFromFile<EnvironmentState>(ENVIRONMENTS_FILE, defaultData)
+          return data
+        },
+        setItem: async (_, value) => {
+          await saveToFile(ENVIRONMENTS_FILE, value)
+        },
+        removeItem: () => {}
+      }
     }
   )
-) 
+)

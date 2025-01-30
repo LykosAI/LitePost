@@ -10,6 +10,7 @@ import { useEnvironmentStore } from '@/store/environments'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip'
 import { useState } from 'react'
 import { Tab } from '@/types'
+import { useThemeClass } from '@/hooks/useThemeClass'
 
 interface TitleBarProps {
   currentRequest?: Tab
@@ -22,6 +23,7 @@ export function TitleBar({ currentRequest, onRequestSelect }: TitleBarProps) {
   const [isEnvironmentPanelOpen, setIsEnvironmentPanelOpen] = useState(false)
   const [isCollectionsPanelOpen, setIsCollectionsPanelOpen] = useState(false)
   const [isSettingsPanelOpen, setIsSettingsPanelOpen] = useState(false)
+  const themeClass = useThemeClass()
   
   const showTooltips = !isEnvironmentPanelOpen && !isSettingsPanelOpen
 
@@ -56,13 +58,13 @@ export function TitleBar({ currentRequest, onRequestSelect }: TitleBarProps) {
                 <SelectTrigger className="w-[200px] h-7 text-sm bg-background/10 border-border/20">
                   <SelectValue placeholder="No environment" />
                 </SelectTrigger>
-                <SelectContent className="bg-primary border-border/20">
-                  <SelectItem value="null" className="text-primary-foreground hover:bg-primary-foreground/10 hover:text-primary-foreground focus:bg-primary-foreground/10 focus:text-primary-foreground">None</SelectItem>
+                <SelectContent className={`${themeClass} bg-background border-border`}>
+                  <SelectItem value="null" className="hover:bg-accent focus:bg-accent text-foreground">None</SelectItem>
                   {environments.map((env) => (
                     <SelectItem 
                       key={env.id} 
                       value={env.id}
-                      className="text-primary-foreground hover:bg-primary-foreground/10 hover:text-primary-foreground focus:bg-primary-foreground/10 focus:text-primary-foreground"
+                      className="hover:bg-accent focus:bg-accent text-foreground"
                     >
                       {env.name}
                     </SelectItem>
@@ -111,6 +113,7 @@ export function TitleBar({ currentRequest, onRequestSelect }: TitleBarProps) {
             <Button
               variant="ghost"
               size="sm"
+              aria-label="Maximize"
               className="h-10 w-10 rounded-none hover:bg-muted"
               onClick={() => appWindow.toggleMaximize()}
             >
@@ -122,6 +125,7 @@ export function TitleBar({ currentRequest, onRequestSelect }: TitleBarProps) {
             <Button
               variant="ghost"
               size="sm"
+              aria-label="Close"
               className="h-10 w-10 rounded-none hover:bg-red-500 hover:text-white"
               onClick={() => appWindow.close()}
             >

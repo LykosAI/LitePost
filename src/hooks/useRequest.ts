@@ -147,11 +147,45 @@ export function useRequest(onHistoryUpdate: (item: HistoryItem) => void) {
           status: redirect.status,
           statusText: redirect.status_text,
           headers: redirect.headers,
-          cookies: redirect.cookies,
+          cookies: redirect.cookies?.map(cookieStr => {
+            const parts = cookieStr.split(';').map(part => part.trim())
+            const [nameValue, ...attributes] = parts
+            const [name, value] = nameValue.split('=').map(s => s.trim())
+            const cookie: any = { name, value }
+            
+            attributes.forEach(attr => {
+              const [key, val] = attr.split('=').map(s => s.trim())
+              if (key.toLowerCase() === 'path') cookie.path = val
+              if (key.toLowerCase() === 'domain') cookie.domain = val
+              if (key.toLowerCase() === 'expires') cookie.expires = new Date(val)
+              if (key.toLowerCase() === 'secure') cookie.secure = true
+              if (key.toLowerCase() === 'httponly') cookie.httpOnly = true
+            })
+            
+            return cookie
+          }),
           timing: redirect.timing,
           size: redirect.size
         })),
-        cookies: response.cookies,
+        cookies: response.cookies.map(cookieStr => {
+          const parts = cookieStr.split(';').map(part => part.trim())
+          const [nameValue, ...attributes] = parts
+          const [name, value] = nameValue.split('=').map(s => s.trim())
+          const cookie: any = { name, value }
+          
+          attributes.forEach(attr => {
+            const [key, val] = attr.split('=').map(s => s.trim())
+            if (key.toLowerCase() === 'path') cookie.path = val
+            if (key.toLowerCase() === 'domain') cookie.domain = val
+            if (key.toLowerCase() === 'expires') cookie.expires = new Date(val)
+            if (key.toLowerCase() === 'secure') cookie.secure = true
+            if (key.toLowerCase() === 'httponly') cookie.httpOnly = true
+          })
+          
+          return cookie
+        }),
+        cookieStrings: response.cookies.map(cookieStr => cookieStr),  // Keep original strings for display
+        redirectCookieStrings: response.redirect_chain.map(redirect => redirect.cookies || []),  // Keep original strings for display
         is_base64: response.is_base64,
         timing: response.timing,
         size: response.size

@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
+import { loadFromFile, saveToFile, convertDates } from '@/utils/persistence'
 import { Tab } from '@/types'
 import { exportToPostman, importFromPostman } from '@/utils/collection-converter'
 
@@ -31,7 +32,11 @@ export interface SavedRequest {
   updatedAt: Date
 }
 
-interface CollectionStore {
+const COLLECTIONS_FILE = 'collections.json'
+
+const defaultData = { collections: [] }
+
+interface CollectionState {
   collections: Collection[]
   addCollection: (name: string, description?: string, id?: string) => string
   updateCollection: (id: string, updates: Partial<Collection>) => void
@@ -39,122 +44,124 @@ interface CollectionStore {
   addRequest: (collectionId: string, request: Omit<SavedRequest, 'id' | 'createdAt' | 'updatedAt'>) => void
   updateRequest: (collectionId: string, requestId: string, updates: Partial<SavedRequest>) => void
   deleteRequest: (collectionId: string, requestId: string) => void
-  importCollections: (collections: Collection[]) => void
+  importCollections: (newCollections: Collection[]) => void
   exportCollections: () => string
   exportToPostman: () => string
-  importFromPostman: (json: string) => void
+  importFromPostman: (json: string) => Promise<void>
 }
 
-export const useCollectionStore = create<CollectionStore>()(
+export const useCollectionStore = create<CollectionState>()(
   persist(
     (set, get) => ({
       collections: [],
-
       addCollection: (name, description, id) => {
         const collectionId = id || crypto.randomUUID()
+        const newCollection: Collection = {
+          id: collectionId,
+          name,
+          description,
+          requests: [],
+          createdAt: new Date(),
+          updatedAt: new Date()
+        }
         set((state) => ({
-          collections: [...state.collections, {
-            id: collectionId,
-            name,
-            description,
-            requests: [],
-            createdAt: new Date(),
-            updatedAt: new Date()
-          }]
+          collections: [...state.collections, newCollection]
         }))
         return collectionId
       },
-
-      updateCollection: (id, updates) => set((state) => ({
-        collections: state.collections.map(collection => 
-          collection.id === id 
-            ? { 
-                ...collection, 
-                ...updates, 
-                updatedAt: new Date() 
-              } 
-            : collection
-        )
-      })),
-
-      deleteCollection: (id) => set((state) => ({
-        collections: state.collections.filter(collection => collection.id !== id)
-      })),
-
-      addRequest: (collectionId, request) => set((state) => ({
-        collections: state.collections.map(collection =>
-          collection.id === collectionId
-            ? {
-                ...collection,
-                requests: [...collection.requests, {
-                  ...request,
-                  id: crypto.randomUUID(),
-                  createdAt: new Date(),
+      updateCollection: (id, updates) => {
+        set((state) => ({
+          collections: state.collections.map(collection =>
+            collection.id === id
+              ? {
+                  ...collection,
+                  ...updates,
                   updatedAt: new Date()
-                }],
-                updatedAt: new Date()
-              }
-            : collection
-        )
-      })),
-
-      updateRequest: (collectionId, requestId, updates) => set((state) => ({
-        collections: state.collections.map(collection =>
-          collection.id === collectionId
-            ? {
-                ...collection,
-                requests: collection.requests.map(request =>
-                  request.id === requestId
-                    ? { ...request, ...updates, updatedAt: new Date() }
-                    : request
-                ),
-                updatedAt: new Date()
-              }
-            : collection
-        )
-      })),
-
-      deleteRequest: (collectionId, requestId) => set((state) => ({
-        collections: state.collections.map(collection =>
-          collection.id === collectionId
-            ? {
-                ...collection,
-                requests: collection.requests.filter(request => request.id !== requestId),
-                updatedAt: new Date()
-              }
-            : collection
-        )
-      })),
-
-      importCollections: (collections) => set((state) => ({
-        collections: [
-          ...state.collections.filter(
-            c => !collections.some(newCol => newCol.id === c.id)
+                }
+              : collection
+          )
+        }))
+      },
+      deleteCollection: (id) => {
+        set((state) => ({
+          collections: state.collections.filter(collection => collection.id !== id)
+        }))
+      },
+      addRequest: (collectionId, request) => {
+        set((state) => ({
+          collections: state.collections.map(collection =>
+            collection.id === collectionId
+              ? {
+                  ...collection,
+                  requests: [
+                    ...collection.requests,
+                    {
+                      ...request,
+                      id: crypto.randomUUID(),
+                      createdAt: new Date(),
+                      updatedAt: new Date()
+                    }
+                  ],
+                  updatedAt: new Date()
+                }
+              : collection
+          )
+        }))
+      },
+      updateRequest: (collectionId, requestId, updates) => {
+        set((state) => ({
+          collections: state.collections.map(collection =>
+            collection.id === collectionId
+              ? {
+                  ...collection,
+                  requests: collection.requests.map(request =>
+                    request.id === requestId
+                      ? { ...request, ...updates, updatedAt: new Date() }
+                      : request
+                  ),
+                  updatedAt: new Date()
+                }
+              : collection
+          )
+        }))
+      },
+      deleteRequest: (collectionId, requestId) => {
+        set((state) => ({
+          collections: state.collections.map(collection =>
+            collection.id === collectionId
+              ? {
+                  ...collection,
+                  requests: collection.requests.filter(request => request.id !== requestId),
+                  updatedAt: new Date()
+                }
+              : collection
+          )
+        }))
+      },
+      importCollections: (newCollections) => {
+        const merged = [
+          ...get().collections.filter(
+            c => !newCollections.some(newCol => newCol.id === c.id)
           ),
-          ...collections
+          ...convertDates<Collection[]>(newCollections)
         ]
-      })),
-
-      exportCollections: () => JSON.stringify(get().collections, null, 2),
-
-      exportToPostman: () => JSON.stringify(exportToPostman(get().collections), null, 2),
-
-      importFromPostman: (json) => {
+        set({ collections: merged })
+      },
+      exportCollections: () => {
+        return JSON.stringify(get().collections, null, 2)
+      },
+      exportToPostman: () => {
+        return JSON.stringify(exportToPostman(get().collections), null, 2)
+      },
+      importFromPostman: async (json) => {
         try {
           const postmanCollections = JSON.parse(json)
-          const collections = importFromPostman(
-            Array.isArray(postmanCollections) 
-              ? postmanCollections 
+          const imported = importFromPostman(
+            Array.isArray(postmanCollections)
+              ? postmanCollections
               : [postmanCollections]
           )
-          set((state) => ({
-            collections: [
-              ...state.collections.filter(
-                c => !collections.some(newCol => newCol.id === c.id)
-              ),
-              ...collections
-            ]
-          }))
+          get().importCollections(imported)
         } catch (error) {
           console.error('Failed to import Postman collection:', error)
           throw new Error('Invalid Postman collection format')
@@ -162,7 +169,31 @@ export const useCollectionStore = create<CollectionStore>()(
       }
     }),
     {
-      name: 'collection-storage'
+      name: 'collection-storage',
+      storage: {
+        getItem: async () => {
+          const data = await loadFromFile<{ collections: Collection[] }>(
+            COLLECTIONS_FILE, 
+            defaultData
+          )
+          const collections = data?.collections ? convertDates<Collection[]>(data.collections) : []
+          return { state: { collections } }
+        },
+        setItem: async (_, value) => {
+          const collections = value.state.collections.map(c => ({
+            ...c,
+            createdAt: c.createdAt.toISOString(),
+            updatedAt: c.updatedAt.toISOString(),
+            requests: c.requests.map(r => ({
+              ...r,
+              createdAt: r.createdAt.toISOString(),
+              updatedAt: r.updatedAt.toISOString()
+            }))
+          }))
+          await saveToFile(COLLECTIONS_FILE, { collections })
+        },
+        removeItem: () => {}
+      }
     }
   )
 ) 

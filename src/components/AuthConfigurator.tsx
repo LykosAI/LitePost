@@ -1,6 +1,7 @@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Input } from "@/components/ui/input"
 import { AuthConfig, AuthType } from "@/types"
+import { useThemeClass } from "@/hooks/useThemeClass"
 
 interface AuthConfiguratorProps {
   auth: AuthConfig
@@ -15,18 +16,20 @@ const AUTH_TYPES = [
 ]
 
 export function AuthConfigurator({ auth, onAuthChange }: AuthConfiguratorProps) {
+  const themeClass = useThemeClass()
+
   return (
     <div className="space-y-4">
       <Select value={auth.type} onValueChange={(value: AuthType) => onAuthChange({ ...auth, type: value })}>
         <SelectTrigger className="w-[200px] bg-background border-input focus:ring-0 focus-visible:ring-1">
           <SelectValue placeholder="Authentication Type" />
         </SelectTrigger>
-        <SelectContent className="bg-gray-800 border-border">
+        <SelectContent className={`${themeClass} bg-background border-border`}>
           {AUTH_TYPES.map((type) => (
             <SelectItem
               key={type.value}
               value={type.value}
-              className="hover:bg-muted focus:bg-muted text-white"
+              className="hover:bg-accent focus:bg-accent text-foreground"
             >
               {type.label}
             </SelectItem>
@@ -77,11 +80,11 @@ export function AuthConfigurator({ auth, onAuthChange }: AuthConfiguratorProps) 
             <SelectTrigger className="w-[200px] bg-background border-input focus:ring-0 focus-visible:ring-1">
               <SelectValue placeholder="Add to" />
             </SelectTrigger>
-            <SelectContent className="bg-gray-800 border-border">
-              <SelectItem value="header" className="hover:bg-muted focus:bg-muted text-white">
+            <SelectContent className={`${themeClass} bg-background border-border`}>
+              <SelectItem value="header" className="hover:bg-accent focus:bg-accent text-foreground">
                 Header
               </SelectItem>
-              <SelectItem value="query" className="hover:bg-muted focus:bg-muted text-white">
+              <SelectItem value="query" className="hover:bg-accent focus:bg-accent text-foreground">
                 Query Parameter
               </SelectItem>
             </SelectContent>

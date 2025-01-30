@@ -2,192 +2,19 @@ import { Card } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Response } from "@/types"
-import { useEffect, useState, memo, useMemo } from "react"
+import { useEffect, useState } from "react"
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism'
-import { ChevronRight, ChevronDown, ZoomIn, ZoomOut, RotateCw } from "lucide-react"
-import { Button } from "./ui/button"
-import { useSettings } from "@/store/settings"
+import { useSettingsStore } from "@/store/settings"
 import { CopyButton } from "./CopyButton"
+import { CollapsibleJSON } from "./CollapsibleJSON"
+import { ImageViewer } from "./ImageViewer"
+import { HeadersView } from "./HeadersView"
+import { TimingView } from "./TimingView"
+import { Send } from "lucide-react"
 
 interface ResponsePanelProps {
   response: Response | null
-}
-
-interface CollapsibleJSONProps {
-  data: any
-  level?: number
-  isExpanded?: boolean
-  maxAutoExpandDepth?: number
-  maxAutoExpandArraySize?: number
-  maxAutoExpandObjectSize?: number
-}
-
-// Memoize the JSON node to prevent unnecessary re-renders
-const CollapsibleJSON = memo(function CollapsibleJSON({ 
-  data, 
-  level = 0, 
-  isExpanded = true,
-  maxAutoExpandDepth = 2,
-  maxAutoExpandArraySize = 10,
-  maxAutoExpandObjectSize = 5
-}: CollapsibleJSONProps) {
-  const shouldAutoExpand = () => {
-    if (level >= maxAutoExpandDepth) return false
-    
-    const isObject = typeof data === 'object' && data !== null
-    if (!isObject) return true
-
-    const entries = Object.entries(data)
-    if (Array.isArray(data) && entries.length > maxAutoExpandArraySize) return false
-    if (!Array.isArray(data) && entries.length > maxAutoExpandObjectSize) return false
-
-    return true
-  }
-
-  const [expanded, setExpanded] = useState(isExpanded && shouldAutoExpand())
-  const isObject = typeof data === 'object' && data !== null
-  const isArray = Array.isArray(data)
-
-  if (!isObject) {
-    return (
-      <span className={typeof data === 'string' ? 'text-green-400' : 'text-blue-400'}>
-        {JSON.stringify(data)}
-      </span>
-    )
-  }
-
-  const entries = Object.entries(data)
-  const isEmpty = entries.length === 0
-
-  if (isEmpty) {
-    return <span>{isArray ? '[]' : '{}'}</span>
-  }
-
-  const toggleExpand = (e: React.MouseEvent) => {
-    e.stopPropagation()
-    setExpanded(!expanded)
-  }
-
-  return (
-    <div className="relative" style={{ paddingLeft: level > 0 ? '0.5rem' : 0 }}>
-      <div className="flex items-center gap-0.5 cursor-pointer hover:bg-muted/50 rounded px-0.5" onClick={toggleExpand}>
-        <Button variant="ghost" size="icon" className="h-4 w-4 p-0">
-          {expanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
-        </Button>
-        <span>{isArray ? '[' : '{'}</span>
-        {!expanded && (
-          <span className="text-muted-foreground text-xs ml-1">
-            {isArray ? `${entries.length} items` : `${entries.length} properties`}
-          </span>
-        )}
-      </div>
-      {expanded && (
-        <div className="pl-3 border-l border-muted-foreground/20">
-          {entries.map(([key, value]) => (
-            <div key={key} className="flex items-start py-0.5">
-              <div className="flex-1 flex">
-                <span className="text-yellow-400 whitespace-nowrap">
-                  {!isArray && `"${key}"`}{isArray && key}
-                </span>
-                <span className="mx-1">:</span>
-                <div className="flex-1 min-w-0">
-                  <CollapsibleJSON 
-                    data={value} 
-                    level={level + 1} 
-                    maxAutoExpandDepth={maxAutoExpandDepth}
-                    maxAutoExpandArraySize={maxAutoExpandArraySize}
-                    maxAutoExpandObjectSize={maxAutoExpandObjectSize}
-                  />
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-      <div className={expanded ? "pl-3" : ""}>
-        <span>{isArray ? ']' : '}'}</span>
-      </div>
-    </div>
-  )
-})
-
-interface ImageViewerProps {
-  src: string
-  contentType: string
-  isBase64?: boolean
-}
-
-function ImageViewer({ src, contentType, isBase64 }: ImageViewerProps) {
-  const [zoom, setZoom] = useState(1)
-  const [rotation, setRotation] = useState(0)
-
-  const handleZoomIn = () => setZoom(prev => Math.min(prev + 0.25, 3))
-  const handleZoomOut = () => setZoom(prev => Math.max(prev - 0.25, 0.25))
-  const handleRotate = () => setRotation(prev => (prev + 90) % 360)
-
-  // Convert binary to data URL
-  const dataUrl = useMemo(() => {
-    console.log('ImageViewer props:', { src: src.slice(0, 100) + '...', contentType, isBase64 });
-    
-    try {
-      if (contentType.startsWith('image/svg')) {
-        // For SVG, we need to unescape the quotes and properly encode the XML
-        const unescapedSvg = src.replace(/\\"/g, '"');
-        return `data:${contentType};charset=utf-8,${encodeURIComponent(unescapedSvg)}`
-      } else if (isBase64) {
-        // For base64 encoded binary images
-        return `data:${contentType};base64,${src}`
-      } else {
-        // Legacy fallback for binary string (can be removed later)
-        const byteArray = new Uint8Array(new ArrayBuffer(src.length));
-        for (let i = 0; i < src.length; i++) {
-          byteArray[i] = src.charCodeAt(i) & 0xff;
-        }
-        const blob = new Blob([byteArray], { type: contentType });
-        return URL.createObjectURL(blob);
-      }
-    } catch (e) {
-      console.error('Failed to create image URL:', e);
-      return null;
-    }
-  }, [src, contentType, isBase64]);
-
-  if (!dataUrl) {
-    return <div className="text-sm text-red-400">Failed to load image</div>
-  }
-
-  return (
-    <div className="relative flex flex-col items-center">
-      <div className="sticky top-0 z-10 flex gap-2 mb-2 bg-background/80 backdrop-blur p-2 rounded-md">
-        <Button variant="outline" size="sm" onClick={handleZoomIn}>
-          <ZoomIn className="h-4 w-4" />
-        </Button>
-        <Button variant="outline" size="sm" onClick={handleZoomOut}>
-          <ZoomOut className="h-4 w-4" />
-        </Button>
-        <Button variant="outline" size="sm" onClick={handleRotate}>
-          <RotateCw className="h-4 w-4" />
-        </Button>
-        <span className="text-sm text-muted-foreground self-center">
-          {Math.round(zoom * 100)}%
-        </span>
-      </div>
-      <div className="flex items-center justify-center min-h-[200px]">
-        <img
-          src={dataUrl}
-          alt="Response"
-          style={{
-            transform: `scale(${zoom}) rotate(${rotation}deg)`,
-            transition: 'transform 0.2s ease',
-            maxWidth: '100%',
-            height: 'auto'
-          }}
-          className="max-w-full"
-        />
-      </div>
-    </div>
-  )
 }
 
 export function ResponsePanel({ 
@@ -199,7 +26,7 @@ export function ResponsePanel({
   const [responseFormat, setResponseFormat] = useState<"json" | "xml" | "html" | "image" | "other">("other")
   const [parsedJSON, setParsedJSON] = useState<any>(null)
   const [rawResponse, setRawResponse] = useState<string>("")
-  const { jsonViewer } = useSettings()
+  const { jsonViewer } = useSettingsStore()
 
   // Add debug logging
   useEffect(() => {
@@ -269,6 +96,24 @@ export function ResponsePanel({
       setActiveTab("response")
     }
   }, [response, activeTab])
+
+  if (!response) {
+    return (
+      <Card className="h-full flex flex-col">
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center space-y-4">
+            <div className="flex justify-center">
+              <Send className="h-12 w-12 text-muted-foreground/50" />
+            </div>
+            <div className="space-y-2">
+              <h3 className="text-lg font-medium text-muted-foreground/70">No response yet</h3>
+              <p className="text-sm text-muted-foreground/50">Send a request to see the response here</p>
+            </div>
+          </div>
+        </div>
+      </Card>
+    )
+  }
 
   return (
     <Card className="h-full flex flex-col">
@@ -411,25 +256,13 @@ export function ResponsePanel({
         )}
         <TabsContent value="headers" className="flex-1 mt-0 px-4 pt-2 min-h-0">
           <ScrollArea className="h-full [&_[data-radix-scroll-area-thumb]]:bg-accent [&_[data-radix-scroll-area-thumb]]:hover:bg-accent/80">
-            <div className="relative bg-muted rounded-md p-1.5 mb-2">
-              {response?.headers && (
-                <CopyButton 
-                  content={Object.entries(response.headers)
-                    .map(([key, value]) => `${key}: ${value}`)
-                    .join('\n')}
-                  className="absolute right-2 top-2 z-10"
-                />
-              )}
-              {response ? (
-                <pre className="text-sm font-mono whitespace-pre-wrap break-all">
-                  {Object.entries(response.headers)
-                    .map(([key, value]) => `${key}: ${value}`)
-                    .join('\n')}
-                </pre>
-              ) : (
+            {response ? (
+              <HeadersView headers={response.headers} />
+            ) : (
+              <div className="relative bg-muted rounded-md p-1.5 mb-2">
                 <pre className="text-sm">No headers yet</pre>
-              )}
-            </div>
+              </div>
+            )}
           </ScrollArea>
         </TabsContent>
         {response?.redirectChain && response.redirectChain.length > 0 && (
@@ -494,7 +327,19 @@ export function ResponsePanel({
                         <div className="text-xs font-medium mb-1">Cookies Set:</div>
                         <SyntaxHighlighter
                           language="text"
-                          style={oneDark}
+                          style={{
+                            ...oneDark,
+                            'pre[class*="language-"]': {
+                              ...oneDark['pre[class*="language-"]'],
+                              background: 'transparent',
+                              margin: 0,
+                              padding: 0,
+                            },
+                            'code[class*="language-"]': {
+                              ...oneDark['code[class*="language-"]'],
+                              background: 'transparent',
+                            },
+                          }}
                           customStyle={{
                             margin: 0,
                             padding: '0.25rem',
@@ -505,7 +350,7 @@ export function ResponsePanel({
                           }}
                           wrapLongLines
                         >
-                          {redirect.cookies.join('\n')}
+                          {(response.redirectCookieStrings?.[index] ?? redirect.cookies ?? []).join('\n')}
                         </SyntaxHighlighter>
                       </div>
                     )}
@@ -520,7 +365,7 @@ export function ResponsePanel({
             <div className="relative bg-muted rounded-md p-1.5 mb-2">
               {response?.cookies && response.cookies.length > 0 && (
                 <CopyButton 
-                  content={response.cookies.join('\n')}
+                  content={(response.cookieStrings ?? response.cookies ?? []).join('\n')}
                   className="absolute right-2 top-2 z-10"
                 />
               )}
@@ -529,7 +374,19 @@ export function ResponsePanel({
                   <div className="text-xs font-medium mb-1.5">All Cookies:</div>
                   <SyntaxHighlighter
                     language="text"
-                    style={oneDark}
+                    style={{
+                      ...oneDark,
+                      'pre[class*="language-"]': {
+                        ...oneDark['pre[class*="language-"]'],
+                        background: 'transparent',
+                        margin: 0,
+                        padding: 0,
+                      },
+                      'code[class*="language-"]': {
+                        ...oneDark['code[class*="language-"]'],
+                        background: 'transparent',
+                      },
+                    }}
                     customStyle={{
                       margin: 0,
                       padding: '0.25rem',
@@ -540,7 +397,7 @@ export function ResponsePanel({
                     }}
                     wrapLongLines
                   >
-                    {response.cookies.join('\n')}
+                    {(response.cookieStrings ?? response.cookies ?? []).join('\n')}
                   </SyntaxHighlighter>
                 </div>
               ) : (
@@ -552,38 +409,7 @@ export function ResponsePanel({
         {response?.timing && (
           <TabsContent value="timing" className="flex-1 mt-0 px-4 pt-2 min-h-0">
             <ScrollArea className="h-full [&_[data-radix-scroll-area-thumb]]:bg-accent [&_[data-radix-scroll-area-thumb]]:hover:bg-accent/80">
-              <div className="relative bg-muted rounded-md p-4 mb-2 space-y-3">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm font-medium">Total Time</span>
-                  <span className="text-sm">{Math.round(response.timing.total)}ms</span>
-                </div>
-                {response.timing.dns !== undefined && (
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm flex items-center gap-1">
-                      DNS Lookup
-                      <span className="text-xs text-muted-foreground cursor-help relative group">
-                        (?)
-                        <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 p-2 bg-popover text-popover-foreground text-xs rounded-md shadow-md opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 w-64 z-[1000]">
-                          DNS lookup time is approximated and may include other connection overhead.
-                        </div>
-                      </span>
-                    </span>
-                    <span className="text-sm">{Math.round(response.timing.dns)}ms</span>
-                  </div>
-                )}
-                {response.timing.first_byte !== undefined && (
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm">Time to First Byte</span>
-                    <span className="text-sm">{Math.round(response.timing.first_byte)}ms</span>
-                  </div>
-                )}
-                {response.timing.download !== undefined && (
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm">Download</span>
-                    <span className="text-sm">{Math.round(response.timing.download)}ms</span>
-                  </div>
-                )}
-              </div>
+              <TimingView timing={response.timing} />
             </ScrollArea>
           </TabsContent>
         )}

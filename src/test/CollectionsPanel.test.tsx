@@ -50,26 +50,6 @@ describe('CollectionsPanel', () => {
     }
   ]
 
-  const mockCurrentRequest: Tab = {
-    id: 'current-req',
-    name: 'Current Request',
-    method: 'POST',
-    url: 'https://api.test.com',
-    rawUrl: 'https://api.test.com',
-    params: [],
-    headers: [],
-    body: '{"test": true}',
-    contentType: 'application/json',
-    auth: { type: 'none' },
-    cookies: [],
-    loading: false,
-    response: null,
-    isEditing: false,
-    testScripts: [],
-    testAssertions: [],
-    testResults: null
-  }
-
   interface SetupOptions {
     currentRequest?: Tab;
   }
@@ -242,7 +222,6 @@ describe('CollectionsPanel', () => {
 
   it('exports collections in LitePost format when "LitePost Format" is selected', async () => {
     const { exportCollections, user } = setup()
-    const mockBlob = new Blob(['{}'], { type: 'application/json' })
     mockCreateObjectURL.mockReturnValueOnce('blob:mock-url')
     
     // Open the export dropdown
@@ -262,7 +241,6 @@ describe('CollectionsPanel', () => {
 
   it('exports collections in Postman format when "Postman Format" is selected', async () => {
     const { exportToPostman, user } = setup()
-    const mockBlob = new Blob(['{}'], { type: 'application/json' })
     mockCreateObjectURL.mockReturnValueOnce('blob:mock-url')
     
     // Open the export dropdown

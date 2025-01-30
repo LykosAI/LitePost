@@ -9,6 +9,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Collection } from "@/types"
+import { useThemeClass } from "@/hooks/useThemeClass"
 
 interface SaveRequestDialogProps {
   open: boolean
@@ -27,6 +28,7 @@ export function SaveRequestDialog({
 }: SaveRequestDialogProps) {
   const [newCollectionName, setNewCollectionName] = useState('')
   const [isAddingCollection, setIsAddingCollection] = useState(false)
+  const themeClass = useThemeClass()
 
   const handleAddCollection = () => {
     if (!newCollectionName.trim()) return
@@ -37,7 +39,7 @@ export function SaveRequestDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="dark bg-background border-border">
+      <DialogContent className={`${themeClass} bg-background border-border`}>
         <DialogHeader>
           <DialogTitle className="text-foreground">Save to Collection</DialogTitle>
         </DialogHeader>

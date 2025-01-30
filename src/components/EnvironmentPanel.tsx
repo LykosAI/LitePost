@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button"
 import { Beaker } from "lucide-react"
 import { EnvironmentManager } from "./EnvironmentManager"
 import { forwardRef } from "react"
+import { useThemeClass } from "@/hooks/useThemeClass"
 
 interface EnvironmentPanelProps {
   open: boolean
@@ -18,6 +19,8 @@ interface EnvironmentPanelProps {
 
 export const EnvironmentPanel = forwardRef<HTMLButtonElement, EnvironmentPanelProps>(
   ({ open, onOpenChange }, ref) => {
+    const themeClass = useThemeClass()
+    
     return (
       <Sheet open={open} onOpenChange={onOpenChange}>
         <SheetTrigger asChild>
@@ -31,7 +34,7 @@ export const EnvironmentPanel = forwardRef<HTMLButtonElement, EnvironmentPanelPr
           </Button>
         </SheetTrigger>
         <SheetContent 
-          className="dark w-[600px] sm:w-[800px] sm:max-w-none border-l border-border bg-background text-foreground [&_button>svg]:text-foreground [&_.close-button]:hover:bg-muted/60"
+          className={`${themeClass} w-[600px] sm:w-[800px] sm:max-w-none border-l border-border bg-background text-foreground [&_button>svg]:text-foreground [&_.close-button]:hover:bg-muted/60`}
           side="right"
         >
           <SheetHeader>

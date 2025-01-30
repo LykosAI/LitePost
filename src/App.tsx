@@ -8,6 +8,7 @@ import { useTabs } from "./hooks/useTabs"
 import { useUrlParams } from "./hooks/useUrlParams"
 import { useRequest } from "./hooks/useRequest"
 import { useHistory } from "./hooks/useHistory"
+import { useThemeClass } from "./hooks/useThemeClass"
 import { HistoryItem, Tab } from "./types"
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels"
 import { Toaster } from "sonner"
@@ -16,6 +17,7 @@ import { UpdateChecker } from './components/UpdateChecker'
 
 function App() {
   const { history, addHistoryItem, removeHistoryItem, clearHistory } = useHistory()
+  const themeClass = useThemeClass()
   const { 
     tabs, 
     activeTab, 
@@ -99,7 +101,7 @@ function App() {
   }
 
   return (
-    <div className="dark h-screen overflow-hidden">
+    <div className={`${themeClass} h-screen overflow-hidden`}>
       <Toaster theme="dark" position="bottom-right" />
       <div className="h-full flex flex-col bg-background text-foreground min-w-0">
         <TitleBar 
