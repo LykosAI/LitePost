@@ -4,7 +4,7 @@ import { getRequestNameFromUrl } from '@/utils/url'
 
 const DEFAULT_HEADERS = [
   { key: "Accept", value: "application/json", enabled: true },
-  { key: "User-Agent", value: "LitePost/0.1.0", enabled: true },
+  { key: "User-Agent", value: "LitePost/0.2.0", enabled: true },
   { key: "Accept-Language", value: "en-US,en;q=0.9", enabled: true },
   { key: "Cache-Control", value: "no-cache", enabled: false },
   { key: "Content-Type", value: "application/json", enabled: false }
