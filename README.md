@@ -2,6 +2,53 @@
 
 A lightweight, cross-platform API testing application built with Tauri, React, and TypeScript.
 
+<div align="center">
+
+### 📥 Download LitePost
+
+<table>
+<tr>
+<td align="center" colspan="3">
+<h1>🪟</h1>
+<b>Windows</b><br/>
+<sub>64-bit Installer</sub><br/>
+<a href="https://github.com/LykosAI/LitePost/releases/latest/download/litepost_x64-setup.exe">
+⬇️ Download
+</a>
+</td>
+</tr>
+<tr>
+<td align="center">
+<h1>🍎</h1>
+<b>macOS</b> <sup><code>beta</code></sup><br/>
+<sub>Apple Silicon</sub><br/>
+<a href="https://github.com/LykosAI/LitePost/releases/latest/download/litepost_aarch64.app.tar.gz">
+⬇️ Download
+</a>
+</td>
+<td align="center">
+<h1>🍎</h1>
+<b>macOS</b> <sup><code>beta</code></sup><br/>
+<sub>Intel Processor</sub><br/>
+<a href="https://github.com/LykosAI/LitePost/releases/latest/download/litepost_x64.app.tar.gz">
+⬇️ Download
+</a>
+</td>
+<td align="center">
+<h1>🐧</h1>
+<b>Linux</b> <sup><code>beta</code></sup><br/>
+<sub>AppImage (64-bit)</sub><br/>
+<a href="https://github.com/LykosAI/LitePost/releases/latest/download/litepost_amd64.AppImage">
+⬇️ Download
+</a>
+</td>
+</tr>
+</table>
+
+> 🔄 All downloads are automatically updated to the latest version. [View all releases](https://github.com/LykosAI/LitePost/releases)
+
+</div>
+
 ## Prerequisites
 
 - [Node.js](https://nodejs.org/) (v18 or later)
