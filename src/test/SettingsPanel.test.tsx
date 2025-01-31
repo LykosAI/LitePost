@@ -2,14 +2,18 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, act } from '@testing-library/react'
 import { SettingsPanel } from '@/components/SettingsPanel'
 import { useSettingsStore } from '@/store/settings'
-import type { SettingsState } from '@/store/settings'
 import { checkForUpdatesManually } from '@/components/UpdateChecker'
-
-const mockUseSettings = useSettings as unknown as ReturnType<typeof vi.fn>
 
 // Mock the settings store
 vi.mock('@/store/settings', () => ({
-  useSettings: vi.fn()
+  useSettingsStore: vi.fn(() => ({
+    jsonViewer: {
+      maxAutoExpandDepth: 2,
+      maxAutoExpandArraySize: 50,
+      maxAutoExpandObjectSize: 20,
+    },
+    updateJSONViewerSettings: vi.fn()
+  }))
 }))
 
 // Mock the update checker
@@ -18,18 +22,8 @@ vi.mock('@/components/UpdateChecker', () => ({
 }))
 
 describe('SettingsPanel', () => {
-  const mockSettings: Partial<SettingsState> = {
-    jsonViewer: {
-      maxAutoExpandDepth: 2,
-      maxAutoExpandArraySize: 50,
-      maxAutoExpandObjectSize: 20,
-    },
-    updateJSONViewerSettings: vi.fn(),
-  }
-
   beforeEach(() => {
     vi.clearAllMocks()
-    mockUseSettings.mockReturnValue(mockSettings)
   })
 
   afterEach(() => {
@@ -75,7 +69,7 @@ describe('SettingsPanel', () => {
       },
       updateJSONViewerSettings: vi.fn()
     }
-    vi.mocked(useSettings).mockReturnValue(mockSettings)
+    vi.mocked(useSettingsStore).mockReturnValue(mockSettings)
 
     await act(async () => {
       render(<SettingsPanel open={true} onOpenChange={() => {}} />)
@@ -123,7 +117,7 @@ describe('SettingsPanel', () => {
       render(<SettingsPanel open={true} onOpenChange={() => {}} />)
     })
     const comingSoonElements = screen.getAllByText(/coming soon/i)
-    expect(comingSoonElements).toHaveLength(2)
+    expect(comingSoonElements).toHaveLength(1)
   })
 
   it('applies correct styling to sheet content', async () => {

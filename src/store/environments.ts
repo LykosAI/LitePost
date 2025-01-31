@@ -18,8 +18,13 @@ interface EnvironmentState {
   getVariable: (key: string) => string | undefined
 }
 
+interface PersistedEnvironmentState {
+  environments: Environment[]
+  activeEnvironmentId: string | null
+}
+
 const ENVIRONMENTS_FILE = 'environments.json'
-const defaultData = {
+const defaultData: PersistedEnvironmentState = {
   environments: [],
   activeEnvironmentId: null
 }
@@ -63,11 +68,11 @@ export const useEnvironmentStore = create<EnvironmentState>()(
       name: 'environment-storage',
       storage: {
         getItem: async () => {
-          const data = await loadFromFile<EnvironmentState>(ENVIRONMENTS_FILE, defaultData)
-          return data
+          const data = await loadFromFile<PersistedEnvironmentState>(ENVIRONMENTS_FILE, defaultData)
+          return { state: data }
         },
         setItem: async (_, value) => {
-          await saveToFile(ENVIRONMENTS_FILE, value)
+          await saveToFile(ENVIRONMENTS_FILE, value.state as PersistedEnvironmentState)
         },
         removeItem: () => {}
       }

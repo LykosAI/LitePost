@@ -10,7 +10,8 @@ vi.mock('lucide-react', () => ({
   ChevronDown: () => <div data-testid="chevron-down" />,
   ZoomIn: () => <div data-testid="zoom-in" />,
   ZoomOut: () => <div data-testid="zoom-out" />,
-  RotateCw: () => <div data-testid="rotate-cw" />
+  RotateCw: () => <div data-testid="rotate-cw" />,
+  Send: () => <div data-testid="send" />
 }))
 
 // Mock react-syntax-highlighter
@@ -39,7 +40,7 @@ vi.mock('@/components/CopyButton', () => ({
 
 // Mock settings store
 vi.mock('@/store/settings', () => ({
-  useSettings: () => ({
+  useSettingsStore: () => ({
     jsonViewer: {
       maxAutoExpandDepth: 2,
       maxAutoExpandArraySize: 10,

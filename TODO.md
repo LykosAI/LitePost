@@ -197,3 +197,131 @@ The most critical missing features that would significantly improve usability ar
 1. Nested Collection Organization - for better request organization
 2. Advanced Cookie Management - for better session handling across domains
 3. Collection-level Testing - for automated API testing workflows
+
+
+Based on the codebase, here are some quality-of-life and nice-to-have features that could enhance the user experience:
+
+1. **Request Templates**
+```typescript:src/components/RequestPanel.tsx
+// Add a new button next to Save to create/use templates
+<RequestUrlBar
+  method={method}
+  url={url}
+  loading={loading}
+  onMethodChange={onMethodChange}
+  onUrlChange={onUrlChange}
+  onSend={onSend}
+  onSave={onSave}
+  onTemplate={() => setTemplateDialogOpen(true)} // New prop
+/>
+```
+
+2. **Environment Variable Preview**
+- Show resolved environment variables inline in the URL/headers/body
+- Add a toggle to switch between raw and resolved views
+
+3. **Request Chaining**
+- Allow requests to use previous response data
+- Add variables like `{{prevResponse.body.id}}` that get replaced at runtime
+
+4. **Bulk Operations**
+```typescript:src/components/CollectionsPanel.tsx
+// Add bulk import/export/delete for requests within collections
+const handleBulkExport = (collectionId: string) => {
+  const collection = collections.find(c => c.id === collectionId);
+  // Export logic
+}
+```
+
+5. **Request History Search Improvements**
+- Add filters by status code, date range, collection
+- Add ability to save searches
+- Group by domain/endpoint
+
+6. **Response Diffs**
+- Allow comparing responses between two requests
+- Highlight changes in JSON/headers
+
+7. **Request Queue/Batch Requests**
+- Queue multiple requests to run in sequence
+- Run collection requests as a batch
+
+8. **Advanced Auth**
+- OAuth 2.0 flow support
+- Token management/refresh
+- Session handling
+
+9. **Response Transformations**
+```typescript:src/types.ts
+interface ResponseTransform {
+  id: string;
+  name: string;
+  type: 'json' | 'xml' | 'text';
+  script: string;
+}
+```
+
+10. **Request Documentation**
+- Add markdown documentation to requests
+- Generate API documentation from collections
+
+11. **Performance Metrics**
+- Track timing details (DNS, TLS, TTFB)
+- Show historical performance graphs
+
+12. **Cookie Manager**
+- Domain-based cookie management
+- Import/export cookies
+- Cookie jar feature
+
+13. **WebSocket Support**
+```typescript:src/components/WebSocketPanel.tsx
+interface WebSocketPanelProps {
+  url: string;
+  onMessage: (data: any) => void;
+  onSend: (data: any) => void;
+}
+```
+
+14. **Request Scheduling**
+- Schedule requests to run at specific times
+- Periodic health checks
+
+15. **Response Validation**
+- JSON Schema validation
+- Custom validation rules
+- Contract testing
+
+16. **Local Mock Server**
+```typescript:src/services/mockServer.ts
+interface MockRoute {
+  method: string;
+  path: string;
+  response: any;
+  statusCode: number;
+  delay?: number;
+}
+```
+
+17. **Request Sharing**
+- Generate shareable links
+- Export as curl/wget commands
+- Team collaboration features
+
+18. **Advanced Testing**
+- Load testing capabilities
+- Test scenarios/flows
+- Response time assertions
+
+19. **Security Testing**
+- Basic security checks
+- Headers analysis
+- SSL/TLS verification
+
+20. **UI Improvements**
+- Customizable themes
+- Keyboard shortcuts
+- Split view modes
+- Request tabs reordering
+
+

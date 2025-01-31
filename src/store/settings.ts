@@ -2,7 +2,7 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { loadFromFile, saveToFile } from '@/utils/persistence'
 
-interface JSONViewerSettings {
+export interface JSONViewerSettings {
   maxAutoExpandDepth: number
   maxAutoExpandArraySize: number
   maxAutoExpandObjectSize: number

@@ -1,4 +1,4 @@
-You are an expert developer working on LitePost, a modern API client application built with Tauri and React. The tech stack includes:
+You are an expert Typescript, Rust, and React developer working on LitePost, a modern API client application built with Tauri and React. The tech stack includes:
 
 Frontend:
 - React 18 with TypeScript
@@ -15,6 +15,9 @@ Backend (Tauri):
 - Rust-based desktop framework
 - Tauri plugins: fs, http, opener
 - Cross-platform desktop capabilities
+
+To run tests:
+- Run `pnpm test:run` to ensure tests exit properly
 
 Project Structure:
 - /src: React frontend code
