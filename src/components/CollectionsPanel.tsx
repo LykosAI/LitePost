@@ -161,8 +161,8 @@ export const CollectionsPanel = forwardRef<HTMLButtonElement, CollectionsPanelPr
                 console.error('Failed to import Postman collections:', error)
               }
               toast.error(
-                error instanceof Error 
-                  ? error.message 
+                error instanceof Error
+                  ? error.message
                   : 'Invalid Postman collection format'
               )
             }
@@ -212,8 +212,8 @@ export const CollectionsPanel = forwardRef<HTMLButtonElement, CollectionsPanelPr
             <Folder className="h-4 w-4" />
           </Button>
         </SheetTrigger>
-        <SheetContent 
-          className={`${themeClass} w-[600px] sm:w-[800px] sm:max-w-none border-l border-border bg-background text-foreground [&_button>svg]:text-foreground [&_.close-button]:hover:bg-muted/60`}
+        <SheetContent
+          className={`${themeClass} w-[600px] sm:w-[800px] sm:max-w-none border-l border-border/30 bg-background/95 backdrop-blur-xl text-foreground [&_button>svg]:text-foreground [&_.close-button]:hover:bg-muted/60`}
           side="right"
         >
           <SheetHeader>
@@ -289,7 +289,7 @@ export const CollectionsPanel = forwardRef<HTMLButtonElement, CollectionsPanelPr
               <div className="space-y-4">
                 {collections.map((collection) => (
                   <CollectionCard
-                    key={collection.id} 
+                    key={collection.id}
                     collection={collection}
                     currentRequest={currentRequest}
                     isExpanded={expandedCollections.has(collection.id)}

@@ -11,7 +11,7 @@ import { CollapsibleJSON } from "./CollapsibleJSON"
 import { ImageViewer } from "./ImageViewer"
 import { HeadersView } from "./HeadersView"
 import { TimingView } from "./TimingView"
-import { Send } from "lucide-react"
+import { Send, ArrowUpRight } from "lucide-react"
 import { ResponseStreamer } from "./ResponseStreamer"
 
 interface ResponsePanelProps {
@@ -20,18 +20,16 @@ interface ResponsePanelProps {
   onCancelStream?: () => void
 }
 
-export function ResponsePanel({ 
+export function ResponsePanel({
   response,
   streamingResponse,
   onCancelStream
 }: ResponsePanelProps) {
   // If streaming is active, show the streaming component instead
   if (streamingResponse) {
-    return <ResponseStreamer streaming={streamingResponse} onCancel={onCancelStream || (() => {})} />
+    return <ResponseStreamer streaming={streamingResponse} onCancel={onCancelStream || (() => { })} />
   }
-  
-  const isErrorStatus = response?.status && response.status >= 400
-  const statusClass = isErrorStatus ? "text-red-400 font-medium" : "text-muted-foreground"
+
   const [activeTab, setActiveTab] = useState("response")
   const [responseFormat, setResponseFormat] = useState<"json" | "xml" | "html" | "image" | "other">("other")
   const [parsedJSON, setParsedJSON] = useState<any>(null)
@@ -89,17 +87,34 @@ export function ResponsePanel({
     }
   }, [response, activeTab])
 
+  // Status badge helper
+  const getStatusBadge = () => {
+    if (!response || response.error) return null
+    const status = response.status || 0
+    let badgeClass = 'status-badge '
+    if (status >= 200 && status < 300) badgeClass += 'status-success'
+    else if (status >= 300 && status < 400) badgeClass += 'status-redirect'
+    else if (status >= 400) badgeClass += 'status-error'
+    else badgeClass += 'status-info'
+    return <span className={badgeClass}>{response.statusText}</span>
+  }
+
   if (!response) {
     return (
       <Card className="h-full flex flex-col">
         <div className="flex-1 flex items-center justify-center">
-          <div className="text-center space-y-4">
-            <div className="flex justify-center">
-              <Send className="h-12 w-12 text-muted-foreground/50" />
+          <div className="text-center space-y-5">
+            <div className="relative flex justify-center">
+              <div className="relative">
+                <Send className="h-14 w-14 text-muted-foreground/20 rotate-[-15deg]" />
+                <ArrowUpRight className="h-5 w-5 text-primary/30 absolute -top-1 -right-1 animate-pulse-soft" />
+              </div>
             </div>
             <div className="space-y-2">
-              <h3 className="text-lg font-medium text-muted-foreground/70">No response yet</h3>
-              <p className="text-sm text-muted-foreground/50">Send a request to see the response here</p>
+              <h3 className="text-base font-medium text-muted-foreground/50">No response yet</h3>
+              <p className="text-sm text-muted-foreground/30">
+                Send a request to see the response here
+              </p>
             </div>
           </div>
         </div>
@@ -111,7 +126,7 @@ export function ResponsePanel({
     <Card className="h-full flex flex-col">
       <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full flex flex-col">
         <div className="flex flex-col gap-2 ps-4 pt-3 pb-1">
-          <div className="flex flex-wrap gap-2 items-center justify-between">
+          <div className="flex flex-wrap gap-3 items-center justify-between">
             <TabsList>
               <TabsTrigger value="response">Response</TabsTrigger>
               {responseFormat === "html" && <TabsTrigger value="preview">Preview</TabsTrigger>}
@@ -124,16 +139,16 @@ export function ResponsePanel({
               {response?.timing && <TabsTrigger value="timing">Timing</TabsTrigger>}
             </TabsList>
             {response && !response.error && (
-              <div className="flex flex-wrap gap-4 ps-1 pe-4 text-sm">
-                <span className={statusClass}>Status: {response.statusText}</span>
+              <div className="flex flex-wrap gap-3 items-center pe-4">
+                {getStatusBadge()}
                 {response.timing && (
-                  <span className="text-muted-foreground">
-                    Time: {Math.round(response.timing.total)}ms
+                  <span className="text-xs text-muted-foreground font-mono">
+                    {Math.round(response.timing.total)}ms
                   </span>
                 )}
                 {response.size && (
-                  <span className="text-muted-foreground">
-                    Size: {(response.size.total / 1024).toFixed(1)}KB
+                  <span className="text-xs text-muted-foreground font-mono">
+                    {(response.size.total / 1024).toFixed(1)}KB
                   </span>
                 )}
               </div>
@@ -141,30 +156,30 @@ export function ResponsePanel({
           </div>
         </div>
         <TabsContent value="response" className="flex-1 mt-0 px-4 pt-2 min-h-0">
-          <ScrollArea className="h-full pr-3 [&_[data-radix-scroll-area-thumb]]:bg-accent [&_[data-radix-scroll-area-thumb]]:hover:bg-accent/80">
-            <div className="relative bg-muted rounded-md p-1.5 mb-2">
+          <ScrollArea className="h-full pr-3 [&_[data-radix-scroll-area-thumb]]:bg-accent/30 [&_[data-radix-scroll-area-thumb]]:hover:bg-accent/50">
+            <div className="relative bg-muted/40 rounded-lg p-3 mb-2 border border-border/20">
               {response?.body && !response.error && (
-                <CopyButton 
+                <CopyButton
                   content={response.body}
                   className="absolute right-2 top-2 z-10"
                 />
               )}
               {response?.error ? (
-                <pre className="text-sm text-red-400 break-all overflow-wrap-anywhere">
+                <pre className="text-sm text-red-400 break-all overflow-wrap-anywhere font-mono">
                   Error: {response.error}
                 </pre>
               ) : response ? (
                 responseFormat === "json" ? (
-                  <div className="text-sm break-all">
-                    <CollapsibleJSON 
+                  <div className="text-sm break-all font-mono">
+                    <CollapsibleJSON
                       data={parsedJSON}
                       {...jsonViewer}
                     />
                   </div>
                 ) : responseFormat === "image" ? (
-                  <ImageViewer 
-                    src={response.body} 
-                    contentType={response.headers['content-type'] || 'image/png'} 
+                  <ImageViewer
+                    src={response.body}
+                    contentType={response.headers['content-type'] || 'image/png'}
                     isBase64={response.is_base64}
                   />
                 ) : (
@@ -188,7 +203,7 @@ export function ResponsePanel({
                       margin: 0,
                       padding: '0.25rem',
                       background: 'transparent',
-                      fontSize: '0.875rem',
+                      fontSize: '0.8125rem',
                       minWidth: 'auto',
                       wordBreak: 'break-all',
                       overflowWrap: 'anywhere',
@@ -200,7 +215,7 @@ export function ResponsePanel({
                   </SyntaxHighlighter>
                 )
               ) : (
-                <pre className="text-sm">
+                <pre className="text-sm font-mono text-muted-foreground">
                   No response yet
                 </pre>
               )}
@@ -209,17 +224,17 @@ export function ResponsePanel({
         </TabsContent>
         {responseFormat === "html" && (
           <TabsContent value="preview" className="flex-1 mt-0 px-4 pt-2 min-h-0">
-            <ScrollArea className="h-full [&_[data-radix-scroll-area-thumb]]:bg-accent [&_[data-radix-scroll-area-thumb]]:hover:bg-accent/80">
-              <div className="relative bg-white rounded-md mb-2 h-[calc(100vh-10rem)]">
+            <ScrollArea className="h-full [&_[data-radix-scroll-area-thumb]]:bg-accent/30 [&_[data-radix-scroll-area-thumb]]:hover:bg-accent/50">
+              <div className="relative bg-white rounded-lg mb-2 h-[calc(100vh-10rem)] border border-border/20">
                 {response?.body && (
-                  <CopyButton 
+                  <CopyButton
                     content={response.body}
                     className="absolute right-2 top-2 z-10"
                   />
                 )}
                 <iframe
                   srcDoc={response?.body || ""}
-                  className="w-full h-full rounded-md"
+                  className="w-full h-full rounded-lg"
                   sandbox="allow-same-origin"
                   referrerPolicy="no-referrer"
                   loading="lazy"
@@ -231,15 +246,15 @@ export function ResponsePanel({
         )}
         {responseFormat !== "other" && (
           <TabsContent value="raw" className="flex-1 mt-0 px-4 pt-2 min-h-0">
-            <ScrollArea className="h-full pr-3 [&_[data-radix-scroll-area-thumb]]:bg-accent [&_[data-radix-scroll-area-thumb]]:hover:bg-accent/80">
-              <div className="relative bg-muted rounded-md p-1.5 mb-2">
+            <ScrollArea className="h-full pr-3 [&_[data-radix-scroll-area-thumb]]:bg-accent/30 [&_[data-radix-scroll-area-thumb]]:hover:bg-accent/50">
+              <div className="relative bg-muted/40 rounded-lg p-3 mb-2 border border-border/20">
                 {rawResponse && (
-                  <CopyButton 
+                  <CopyButton
                     content={rawResponse}
                     className="absolute right-2 top-2 z-10"
                   />
                 )}
-                <pre className="text-sm font-mono whitespace-pre-wrap break-all">
+                <pre className="text-sm font-mono whitespace-pre-wrap break-all text-muted-foreground">
                   {rawResponse}
                 </pre>
               </div>
@@ -247,22 +262,22 @@ export function ResponsePanel({
           </TabsContent>
         )}
         <TabsContent value="headers" className="flex-1 mt-0 px-4 pt-2 min-h-0">
-          <ScrollArea className="h-full [&_[data-radix-scroll-area-thumb]]:bg-accent [&_[data-radix-scroll-area-thumb]]:hover:bg-accent/80">
+          <ScrollArea className="h-full [&_[data-radix-scroll-area-thumb]]:bg-accent/30 [&_[data-radix-scroll-area-thumb]]:hover:bg-accent/50">
             {response ? (
               <HeadersView headers={response.headers} />
             ) : (
-              <div className="relative bg-muted rounded-md p-1.5 mb-2">
-                <pre className="text-sm">No headers yet</pre>
+              <div className="relative bg-muted/40 rounded-lg p-3 mb-2 border border-border/20">
+                <pre className="text-sm font-mono text-muted-foreground">No headers yet</pre>
               </div>
             )}
           </ScrollArea>
         </TabsContent>
         {response?.redirectChain && response.redirectChain.length > 0 && (
           <TabsContent value="redirects" className="flex-1 mt-0 px-4 pt-2 min-h-0">
-            <ScrollArea className="h-full [&_[data-radix-scroll-area-thumb]]:bg-accent [&_[data-radix-scroll-area-thumb]]:hover:bg-accent/80">
+            <ScrollArea className="h-full [&_[data-radix-scroll-area-thumb]]:bg-accent/30 [&_[data-radix-scroll-area-thumb]]:hover:bg-accent/50">
               <div className="space-y-3 mb-2">
                 {response.redirectChain.map((redirect, index) => (
-                  <div key={index} className="relative bg-muted rounded-md p-1.5">
+                  <div key={index} className="relative bg-muted/40 rounded-lg p-3 border border-border/20">
                     <div className="flex justify-between items-center mb-1.5">
                       <div className="flex-1 min-w-0 pr-10">
                         <div className="text-sm font-medium truncate">
@@ -272,16 +287,14 @@ export function ResponsePanel({
                           Status: {redirect.statusText}
                         </div>
                       </div>
-                      <CopyButton 
-                        content={`URL: ${redirect.url}\nStatus: ${redirect.statusText}\n\nHeaders:\n${
-                          Object.entries(redirect.headers)
-                            .map(([key, value]) => `${key}: ${value}`)
-                            .join('\n')
-                        }${
-                          redirect.cookies?.length 
-                            ? `\n\nCookies:\n${redirect.cookies.join('\n')}` 
+                      <CopyButton
+                        content={`URL: ${redirect.url}\nStatus: ${redirect.statusText}\n\nHeaders:\n${Object.entries(redirect.headers)
+                          .map(([key, value]) => `${key}: ${value}`)
+                          .join('\n')
+                          }${redirect.cookies?.length
+                            ? `\n\nCookies:\n${redirect.cookies.join('\n')}`
                             : ''
-                        }`}
+                          }`}
                         className="absolute right-2 top-2"
                       />
                     </div>
@@ -304,7 +317,7 @@ export function ResponsePanel({
                         margin: 0,
                         padding: '0.25rem',
                         background: 'transparent',
-                        fontSize: '0.875rem',
+                        fontSize: '0.8125rem',
                         minWidth: 'auto',
                         wordBreak: 'break-all'
                       }}
@@ -336,7 +349,7 @@ export function ResponsePanel({
                             margin: 0,
                             padding: '0.25rem',
                             background: 'transparent',
-                            fontSize: '0.875rem',
+                            fontSize: '0.8125rem',
                             minWidth: 'auto',
                             wordBreak: 'break-all'
                           }}
@@ -353,17 +366,17 @@ export function ResponsePanel({
           </TabsContent>
         )}
         <TabsContent value="cookies" className="flex-1 mt-0 px-4 pt-2 min-h-0">
-          <ScrollArea className="h-full [&_[data-radix-scroll-area-thumb]]:bg-accent [&_[data-radix-scroll-area-thumb]]:hover:bg-accent/80">
-            <div className="relative bg-muted rounded-md p-1.5 mb-2">
+          <ScrollArea className="h-full [&_[data-radix-scroll-area-thumb]]:bg-accent/30 [&_[data-radix-scroll-area-thumb]]:hover:bg-accent/50">
+            <div className="relative bg-muted/40 rounded-lg p-3 mb-2 border border-border/20">
               {response?.cookies && response.cookies.length > 0 && (
-                <CopyButton 
+                <CopyButton
                   content={(response.cookieStrings ?? response.cookies ?? []).join('\n')}
                   className="absolute right-2 top-2 z-10"
                 />
               )}
               {response?.cookies?.length ? (
                 <div>
-                  <div className="text-xs font-medium mb-1.5">All Cookies:</div>
+                  <div className="text-xs font-medium mb-1.5 text-muted-foreground">All Cookies:</div>
                   <SyntaxHighlighter
                     language="text"
                     style={{
@@ -383,7 +396,7 @@ export function ResponsePanel({
                       margin: 0,
                       padding: '0.25rem',
                       background: 'transparent',
-                      fontSize: '0.875rem',
+                      fontSize: '0.8125rem',
                       minWidth: 'auto',
                       wordBreak: 'break-all'
                     }}
@@ -393,14 +406,14 @@ export function ResponsePanel({
                   </SyntaxHighlighter>
                 </div>
               ) : (
-                <pre className="text-sm">No cookies</pre>
+                <pre className="text-sm font-mono text-muted-foreground/50">No cookies</pre>
               )}
             </div>
           </ScrollArea>
         </TabsContent>
         {response?.timing && (
           <TabsContent value="timing" className="flex-1 mt-0 px-4 pt-2 min-h-0">
-            <ScrollArea className="h-full [&_[data-radix-scroll-area-thumb]]:bg-accent [&_[data-radix-scroll-area-thumb]]:hover:bg-accent/80">
+            <ScrollArea className="h-full [&_[data-radix-scroll-area-thumb]]:bg-accent/30 [&_[data-radix-scroll-area-thumb]]:hover:bg-accent/50">
               <TimingView timing={response.timing} />
             </ScrollArea>
           </TabsContent>
@@ -408,4 +421,4 @@ export function ResponsePanel({
       </Tabs>
     </Card>
   )
-} 
+}

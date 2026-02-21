@@ -89,7 +89,7 @@ export function RequestPanel({
       : streaming
 
     onStreamingStateChange?.(updatedStreamingState, streaming ? cancelStream : null)
-    
+
     // Set local error state
     if (streaming?.error) {
       setStreamingError(streaming.error)
@@ -101,7 +101,7 @@ export function RequestPanel({
       }
     }
   }, [streaming, cancelStream, resetStream, onStreamingStateChange])
-  
+
   // Reset error state when starting a new request
   useEffect(() => {
     if (isStreaming) {
@@ -118,7 +118,7 @@ export function RequestPanel({
         const activeElement = document.activeElement
         const isInTextArea = activeElement?.tagName === 'TEXTAREA'
         const isContentEditable = activeElement?.hasAttribute('contenteditable')
-        
+
         if (!isInTextArea && !isContentEditable) {
           e.preventDefault()
           onSend()
@@ -146,7 +146,7 @@ export function RequestPanel({
       testAssertions,
       testResults
     }
-    
+
     addRequest(collectionId, requestData)
     setSaveDialogOpen(false)
   }
@@ -154,7 +154,7 @@ export function RequestPanel({
   const handleAddCollection = (name: string) => {
     // Create new collection and get its ID
     const newCollection = addCollection(name)
-    
+
     // Add request to the new collection
     addRequest(newCollection, {
       name: getRequestNameFromUrl(url),
@@ -171,7 +171,7 @@ export function RequestPanel({
       testAssertions,
       testResults
     })
-    
+
     setSaveDialogOpen(false)
   }
 
@@ -193,10 +193,10 @@ export function RequestPanel({
           searchParams.append(param.key, param.value || '')
         }
       })
-      
+
       // Check if URL already has query parameters
       const hasQueryParams = finalUrl.includes('?')
-      
+
       // Append params to URL
       if (hasQueryParams) {
         finalUrl = `${finalUrl}&${searchParams.toString()}`
@@ -204,20 +204,20 @@ export function RequestPanel({
         finalUrl = `${finalUrl}?${searchParams.toString()}`
       }
     }
-    
+
     // Prepare headers with auth
     const preparedHeaders: Record<string, string> = {}
     const headersWithAuth = applyAuthToRequest(headers, auth)
-    
+
     headersWithAuth.forEach((header: Header) => {
       if (header.enabled && header.key) {
         preparedHeaders[header.key] = header.value || ''
       }
     })
-    
+
     // Prepare cookies
     const preparedCookies = cookies.filter(cookie => cookie.name)
-    
+
     return {
       finalUrl,
       preparedHeaders,
@@ -228,18 +228,18 @@ export function RequestPanel({
 
   const handleStreamRequest = async () => {
     if (loading) return
-    
+
     // Reset previous streaming errors
     setStreamingError(null)
-    
+
     // If currently streaming, cancel it
     if (isStreaming) {
       await cancelStream()
       return
     }
-    
+
     const { finalUrl, preparedHeaders, preparedBody, preparedCookies } = prepareRequestData()
-    
+
     try {
       await startStream({
         method,
@@ -269,10 +269,10 @@ export function RequestPanel({
         onSave={() => setSaveDialogOpen(true)}
         onStreamSSE={handleStreamRequest}
       />
-      
+
       {streamingError && (
-        <div className="px-4 py-2 text-sm bg-red-900/20 text-red-400 border-b border-border">
-          Error: {streamingError}
+        <div className="mx-4 mt-1 px-3 py-2 text-sm bg-red-500/10 text-red-400 rounded-lg border border-red-500/20">
+          ⚠ {streamingError}
         </div>
       )}
 
@@ -284,8 +284,11 @@ export function RequestPanel({
         collections={collections}
       />
 
+      {/* Gradient separator */}
+      <div className="gradient-line mx-4 opacity-30" />
+
       <Tabs defaultValue="params" className="flex-1 flex flex-col min-h-0">
-        <div className="flex justify-between items-center ps-4 pt-1">
+        <div className="flex justify-between items-center ps-4 pt-2">
           <TabsList>
             <TabsTrigger value="params">Params</TabsTrigger>
             <TabsTrigger value="auth">Auth</TabsTrigger>

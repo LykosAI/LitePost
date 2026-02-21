@@ -18,9 +18,9 @@ import { UpdateChecker } from './components/UpdateChecker'
 function App() {
   const { history, addHistoryItem, removeHistoryItem, clearHistory } = useHistory()
   const themeClass = useThemeClass()
-  const { 
-    tabs, 
-    activeTab, 
+  const {
+    tabs,
+    activeTab,
     currentTab,
     setActiveTab,
     addTab,
@@ -50,7 +50,7 @@ function App() {
       const urlParts = currentTab.rawUrl.split('?')
       const baseUrl = urlParts[0]
       const enabledParams = currentTab.params.filter(p => p.enabled && p.key)
-      
+
       if (enabledParams.length === 0) {
         // Only update URL if we have no params and there's a query string
         if (urlParts.length > 1) {
@@ -102,10 +102,16 @@ function App() {
 
   return (
     <div className={`${themeClass} h-screen overflow-hidden`}>
-      <Toaster theme="dark" position="bottom-right" />
+      <Toaster
+        theme="dark"
+        position="bottom-right"
+        toastOptions={{
+          className: 'bg-card border-border/40 text-foreground shadow-xl backdrop-blur-xl',
+        }}
+      />
       <div className="h-full flex flex-col bg-background text-foreground min-w-0">
-        <TitleBar 
-          currentRequest={currentTab} 
+        <TitleBar
+          currentRequest={currentTab}
           onRequestSelect={(request) => {
             setTabs((prev: Tab[]) => [...prev, request])
             setActiveTab(request.id)
@@ -114,18 +120,18 @@ function App() {
         <div className="flex-1 min-h-0 min-w-0">
           <PanelGroup direction="horizontal">
             <Panel defaultSize={20} minSize={15}>
-              <div className="h-full p-4">
-                <HistoryPanel 
-                  history={history} 
-                  onSelect={handleHistorySelect} 
+              <div className="h-full p-3 pr-0">
+                <HistoryPanel
+                  history={history}
+                  onSelect={handleHistorySelect}
                   onRemove={removeHistoryItem}
                   onClear={clearHistory}
                 />
               </div>
             </Panel>
-            <PanelResizeHandle className="w-1.5 bg-border hover:bg-accent transition-colors cursor-col-resize" />
+            <PanelResizeHandle className="w-1 mx-0.5 rounded-full bg-transparent hover:bg-primary/30 active:bg-primary/50 transition-colors cursor-col-resize" />
             <Panel minSize={50}>
-              <div className="h-full p-4 flex flex-col gap-4 min-w-0">
+              <div className="h-full p-3 pl-0 flex flex-col gap-3 min-w-0">
                 <div className="min-w-0">
                   <TabBar
                     tabs={tabs}
@@ -157,9 +163,9 @@ function App() {
                         testResults={currentTab.testResults}
                         onMethodChange={(method) => updateTab(currentTab.id, { method })}
                         onUrlChange={(rawUrl) => {
-                          updateTab(currentTab.id, { 
-                            rawUrl, 
-                            url: rawUrl, 
+                          updateTab(currentTab.id, {
+                            rawUrl,
+                            url: rawUrl,
                             name: getRequestNameFromUrl(rawUrl)
                           })
                         }}
@@ -181,7 +187,7 @@ function App() {
                         onSend={() => handleSend(currentTab.id)}
                       />
                     </Panel>
-                    <PanelResizeHandle className="h-1.5 bg-border hover:bg-accent transition-colors cursor-row-resize" />
+                    <PanelResizeHandle className="h-1 my-0.5 rounded-full bg-transparent hover:bg-primary/30 active:bg-primary/50 transition-colors cursor-row-resize" />
                     <Panel>
                       <ResponsePanel
                         response={currentTab.response}

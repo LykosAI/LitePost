@@ -24,7 +24,7 @@ export function TitleBar({ currentRequest, onRequestSelect }: TitleBarProps) {
   const [isCollectionsPanelOpen, setIsCollectionsPanelOpen] = useState(false)
   const [isSettingsPanelOpen, setIsSettingsPanelOpen] = useState(false)
   const themeClass = useThemeClass()
-  
+
   const showTooltips = !isEnvironmentPanelOpen && !isSettingsPanelOpen
 
   const renderTooltip = (content: string, children: React.ReactNode) => {
@@ -43,28 +43,34 @@ export function TitleBar({ currentRequest, onRequestSelect }: TitleBarProps) {
 
   return (
     <TooltipProvider delayDuration={0} disableHoverableContent>
-      <div data-tauri-drag-region className="h-10 flex justify-between items-center bg-background border-b">
-        <div data-tauri-drag-region className="flex-1 px-2 flex items-center gap-2">
-          <img src={icon} alt="LitePost" className="h-6 w-6 rounded-lg" />
-          <span className="text-xl font-semibold">LitePost</span>
+      <div data-tauri-drag-region className="relative h-11 flex justify-between items-center bg-background/80 backdrop-blur-md border-b border-border/30">
+        {/* Subtle gradient accent line at the very top */}
+        <div className="absolute top-0 left-0 right-0 gradient-line opacity-40" />
+
+        <div data-tauri-drag-region className="flex-1 px-3 flex items-center gap-2.5">
+          <div className="relative">
+            <img src={icon} alt="LitePost" className="h-6 w-6 rounded-lg shadow-sm" />
+            <div className="absolute -inset-0.5 rounded-lg bg-primary/10 blur-sm -z-10" />
+          </div>
+          <span className="text-base font-semibold tracking-tight bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text">LitePost</span>
         </div>
-        <div className="flex items-center gap-2 px-2">
+        <div className="flex items-center gap-1.5 px-2">
           {renderTooltip("Switch environment",
             <div>
               <Select
                 value={activeEnvironmentId || "null"}
                 onValueChange={(value) => setActiveEnvironment(value === "null" ? null : value)}
               >
-                <SelectTrigger className="w-[200px] h-7 text-sm bg-background/10 border-border/20">
+                <SelectTrigger className="w-[180px] h-7 text-xs bg-secondary/40 border-border/30 hover:bg-secondary/60 transition-colors">
                   <SelectValue placeholder="No environment" />
                 </SelectTrigger>
-                <SelectContent className={`${themeClass} bg-background border-border`}>
-                  <SelectItem value="null" className="hover:bg-accent focus:bg-accent text-foreground">None</SelectItem>
+                <SelectContent className={`${themeClass} bg-popover border-border/40 backdrop-blur-xl shadow-xl`}>
+                  <SelectItem value="null" className="hover:bg-accent/10 focus:bg-accent/10 text-foreground">None</SelectItem>
                   {environments.map((env) => (
-                    <SelectItem 
-                      key={env.id} 
+                    <SelectItem
+                      key={env.id}
                       value={env.id}
-                      className="hover:bg-accent focus:bg-accent text-foreground"
+                      className="hover:bg-accent/10 focus:bg-accent/10 text-foreground"
                     >
                       {env.name}
                     </SelectItem>
@@ -74,22 +80,24 @@ export function TitleBar({ currentRequest, onRequestSelect }: TitleBarProps) {
             </div>
           )}
 
+          <div className="w-px h-5 bg-border/30 mx-0.5" />
+
           {renderTooltip("Manage environments",
-            <EnvironmentPanel 
-              open={isEnvironmentPanelOpen} 
-              onOpenChange={setIsEnvironmentPanelOpen} 
+            <EnvironmentPanel
+              open={isEnvironmentPanelOpen}
+              onOpenChange={setIsEnvironmentPanelOpen}
             />
           )}
 
           {renderTooltip("Settings",
-            <SettingsPanel 
-              open={isSettingsPanelOpen} 
-              onOpenChange={setIsSettingsPanelOpen} 
+            <SettingsPanel
+              open={isSettingsPanelOpen}
+              onOpenChange={setIsSettingsPanelOpen}
             />
           )}
 
           {renderTooltip("Collections",
-            <CollectionsPanel 
+            <CollectionsPanel
               open={isCollectionsPanelOpen}
               onOpenChange={setIsCollectionsPanelOpen}
               currentRequest={currentRequest}
@@ -97,15 +105,17 @@ export function TitleBar({ currentRequest, onRequestSelect }: TitleBarProps) {
             />
           )}
 
+          <div className="w-px h-5 bg-border/30 mx-0.5" />
+
           {renderTooltip("Minimize",
             <Button
               variant="ghost"
               size="sm"
               aria-label="Minimize"
-              className="h-10 w-10 rounded-none hover:bg-muted"
+              className="h-9 w-9 rounded-md hover:bg-muted/60"
               onClick={() => appWindow.minimize()}
             >
-              <Minus className="h-4 w-4" />
+              <Minus className="h-3.5 w-3.5" />
             </Button>
           )}
 
@@ -114,10 +124,10 @@ export function TitleBar({ currentRequest, onRequestSelect }: TitleBarProps) {
               variant="ghost"
               size="sm"
               aria-label="Maximize"
-              className="h-10 w-10 rounded-none hover:bg-muted"
+              className="h-9 w-9 rounded-md hover:bg-muted/60"
               onClick={() => appWindow.toggleMaximize()}
             >
-              <Square className="h-4 w-4" />
+              <Square className="h-3.5 w-3.5" />
             </Button>
           )}
 
@@ -126,14 +136,14 @@ export function TitleBar({ currentRequest, onRequestSelect }: TitleBarProps) {
               variant="ghost"
               size="sm"
               aria-label="Close"
-              className="h-10 w-10 rounded-none hover:bg-red-500 hover:text-white"
+              className="h-9 w-9 rounded-md hover:bg-red-500/20 hover:text-red-400 transition-colors"
               onClick={() => appWindow.close()}
             >
-              <X className="h-4 w-4" />
+              <X className="h-3.5 w-3.5" />
             </Button>
           )}
         </div>
       </div>
     </TooltipProvider>
   )
-} 
+}

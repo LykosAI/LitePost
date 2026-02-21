@@ -11,7 +11,8 @@ vi.mock('lucide-react', () => ({
   ZoomIn: () => <div data-testid="zoom-in" />,
   ZoomOut: () => <div data-testid="zoom-out" />,
   RotateCw: () => <div data-testid="rotate-cw" />,
-  Send: () => <div data-testid="send" />
+  Send: () => <div data-testid="send" />,
+  ArrowUpRight: () => <div data-testid="arrow-up-right" />
 }))
 
 // Mock react-syntax-highlighter
@@ -94,9 +95,9 @@ describe('ResponsePanel', () => {
 
   it('displays status and timing information', () => {
     render(<ResponsePanel response={mockJsonResponse} />)
-    expect(screen.getByText('Status: OK')).toBeInTheDocument()
-    expect(screen.getByText('Time: 100ms')).toBeInTheDocument()
-    expect(screen.getByText('Size: 0.2KB')).toBeInTheDocument()
+    expect(screen.getByText('OK')).toBeInTheDocument()
+    expect(screen.getByText('100ms')).toBeInTheDocument()
+    expect(screen.getByText('0.2KB')).toBeInTheDocument()
   })
 
   it('renders JSON response with collapsible viewer', async () => {
@@ -135,7 +136,7 @@ describe('ResponsePanel', () => {
       body: '<!DOCTYPE html><html><body><h1>Hello</h1></body></html>'
     }
     render(<ResponsePanel response={htmlResponse} />)
-    
+
     expect(screen.getByRole('tab', { name: 'Preview' })).toBeInTheDocument()
     expect(screen.getByTestId('syntax-highlighter')).toBeInTheDocument()
   })
@@ -148,7 +149,7 @@ describe('ResponsePanel', () => {
       is_base64: true
     }
     render(<ResponsePanel response={imageResponse} />)
-    
+
     expect(screen.getByTestId('zoom-in')).toBeInTheDocument()
     expect(screen.getByTestId('zoom-out')).toBeInTheDocument()
     expect(screen.getByTestId('rotate-cw')).toBeInTheDocument()

@@ -119,9 +119,9 @@ describe('TabBar', () => {
   it('applies correct method color classes', () => {
     setup()
     const methodColors = {
-      GET: 'bg-blue-500',
-      POST: 'bg-green-500',
-      PUT: 'bg-yellow-500'
+      GET: 'bg-sky-400',
+      POST: 'bg-emerald-400',
+      PUT: 'bg-amber-400'
     }
     mockTabs.forEach(tab => {
       const tabElement = screen.getByText(tab.name).closest('[role="tab"]')!
@@ -169,12 +169,12 @@ describe('TabBar', () => {
   it('handles tab name editing', async () => {
     const { onStopEditing, rerender } = setup()
     const user = userEvent.setup()
-    
+
     // Simulate the tab entering edit mode
-    const editingTabs = mockTabs.map(tab => 
+    const editingTabs = mockTabs.map(tab =>
       tab.id === 'tab1' ? { ...tab, isEditing: true } : tab
     )
-    
+
     rerender(
       <TabBar
         tabs={editingTabs}
@@ -196,12 +196,12 @@ describe('TabBar', () => {
   it('cancels editing on escape key', async () => {
     const { onStopEditing, rerender } = setup()
     const user = userEvent.setup()
-    
+
     // Simulate the tab entering edit mode
-    const editingTabs = mockTabs.map(tab => 
+    const editingTabs = mockTabs.map(tab =>
       tab.id === 'tab1' ? { ...tab, isEditing: true } : tab
     )
-    
+
     rerender(
       <TabBar
         tabs={editingTabs}
@@ -222,12 +222,12 @@ describe('TabBar', () => {
   it('stops editing on blur', async () => {
     const { onStopEditing, rerender } = setup()
     const user = userEvent.setup()
-    
+
     // Simulate the tab entering edit mode
-    const editingTabs = mockTabs.map(tab => 
+    const editingTabs = mockTabs.map(tab =>
       tab.id === 'tab1' ? { ...tab, isEditing: true } : tab
     )
-    
+
     rerender(
       <TabBar
         tabs={editingTabs}
@@ -260,7 +260,7 @@ describe('TabBar', () => {
   it('handles horizontal scrolling', () => {
     setup()
     const tabsList = screen.getByRole('tablist')
-    
+
     // Mock scrollLeft since it's not implemented in JSDOM
     Object.defineProperty(tabsList, 'scrollLeft', {
       configurable: true,
