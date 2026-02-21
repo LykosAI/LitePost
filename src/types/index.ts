@@ -21,6 +21,29 @@ export interface Response {
   size?: ResponseSize
 }
 
+export interface StreamingResponse {
+  status: number
+  statusText: string
+  headers: Record<string, string>
+  chunks: StreamChunk[]
+  currentContent: string
+  isComplete: boolean
+  error?: string
+  timing?: {
+    start: number
+    current: number
+    duration: number
+  }
+  streamType?: 'sse' | 'chunked' | 'unknown'
+}
+
+export interface StreamChunk {
+  id?: string
+  event?: string
+  data: string
+  timestamp: number
+}
+
 export interface ResponseTiming {
   start: number
   end: number
@@ -64,7 +87,28 @@ export interface Header {
   enabled: boolean
 }
 
-export type AuthType = 'none' | 'basic' | 'bearer' | 'api-key'
+export type AuthType = 'none' | 'basic' | 'bearer' | 'api-key' | 'oauth2'
+
+export type OAuth2GrantType = 'authorization_code' | 'client_credentials' | 'password'
+
+export interface OAuth2Config {
+  grantType: OAuth2GrantType
+  authUrl?: string
+  tokenUrl?: string
+  clientId: string
+  clientSecret?: string
+  scope?: string
+  usePkce?: boolean
+  redirectUri?: string
+  // Password grant only
+  username?: string
+  password?: string
+  // Token state (stored with request)
+  accessToken?: string
+  refreshToken?: string
+  tokenType?: string
+  expiresAt?: number
+}
 
 export interface AuthConfig {
   type: AuthType
@@ -74,6 +118,7 @@ export interface AuthConfig {
   key?: string
   value?: string
   addTo?: 'header' | 'query'
+  oauth2?: OAuth2Config
 }
 
 export interface Session {
@@ -138,6 +183,8 @@ export interface Tab {
   testScripts: TestScript[]
   testAssertions: TestAssertion[]
   testResults: TestResult | null
+  streaming?: StreamingResponse | null
+  cancelStream?: (() => void) | (() => Promise<void>)
 }
 
 export interface Cookie {
@@ -154,20 +201,26 @@ export interface Collection {
   id: string
   name: string
   description?: string
-  requests: {
-    id: string
-    name: string
-    method: string
-    url: string
-    rawUrl: string
-    params: URLParam[]
-    headers: Header[]
-    body: string
-    contentType: string
-    auth: AuthConfig
-    cookies: Cookie[]
-    testScripts: TestScript[]
-    testAssertions: TestAssertion[]
-    testResults: TestResult | null
-  }[]
-} 
+  requests: SavedRequest[]
+  createdAt?: Date
+  updatedAt?: Date
+}
+
+export interface SavedRequest {
+  id: string
+  name: string
+  method: string
+  url: string
+  rawUrl: string
+  params: URLParam[]
+  headers: Header[]
+  body: string
+  contentType: string
+  auth: AuthConfig
+  cookies: Cookie[]
+  testScripts: TestScript[]
+  testAssertions: TestAssertion[]
+  testResults: TestResult | null
+  createdAt?: Date
+  updatedAt?: Date
+}

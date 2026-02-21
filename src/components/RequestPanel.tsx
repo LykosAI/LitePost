@@ -2,7 +2,7 @@ import { Card } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { useEffect, useState } from "react"
-import { AuthConfig, URLParam, Header, Cookie, TestScript, TestAssertion, TestResult, Response } from "@/types"
+import { AuthConfig, URLParam, Header, Cookie, TestScript, TestAssertion, TestResult, Response, StreamingResponse } from "@/types"
 import { getRequestNameFromUrl } from "@/utils/url"
 import { KeyValueList } from "./KeyValueList"
 import { AuthConfigurator } from "./AuthConfigurator"
@@ -14,7 +14,8 @@ import { SaveRequestDialog } from "./SaveRequestDialog"
 import { RequestBodyEditor } from "./RequestBodyEditor"
 import { CodeSnippetViewer } from "./CodeSnippetViewer"
 import { CookieEditor } from "./CookieEditor"
-
+import { useStreamingResponse } from "@/hooks/useStreamingResponse"
+import { applyAuthToRequest } from "@/utils/auth"
 
 interface RequestPanelProps {
   method: string
@@ -41,6 +42,10 @@ interface RequestPanelProps {
   onTestScriptsChange: (scripts: TestScript[]) => void
   onTestAssertionsChange: (assertions: TestAssertion[]) => void
   onTestResultsChange: (results: TestResult | null) => void
+  onStreamingStateChange?: (
+    streaming: StreamingResponse | null,
+    cancelStream: (() => Promise<void>) | (() => void) | null
+  ) => void
   onSend: () => void
 }
 
@@ -69,16 +74,46 @@ export function RequestPanel({
   onTestScriptsChange,
   onTestAssertionsChange,
   onTestResultsChange,
+  onStreamingStateChange,
   onSend,
 }: RequestPanelProps) {
   const { collections, addRequest, addCollection } = useCollectionStore()
   const [saveDialogOpen, setSaveDialogOpen] = useState(false)
+  const { streaming, isStreaming, startStream, cancelStream, resetStream } = useStreamingResponse()
+  const [streamingError, setStreamingError] = useState<string | null>(null);
+
+  // Share streaming data with parent component
+  useEffect(() => {
+    const updatedStreamingState = streaming && streaming.isComplete && streaming.error
+      ? null // If streaming is complete with an error, send null to re-enable buttons
+      : streaming
+
+    onStreamingStateChange?.(updatedStreamingState, streaming ? cancelStream : null)
+    
+    // Set local error state
+    if (streaming?.error) {
+      setStreamingError(streaming.error)
+      // Reset streaming state
+      if (streaming.isComplete) {
+        setTimeout(() => {
+          resetStream()
+        }, 100)
+      }
+    }
+  }, [streaming, cancelStream, resetStream, onStreamingStateChange])
+  
+  // Reset error state when starting a new request
+  useEffect(() => {
+    if (isStreaming) {
+      setStreamingError(null)
+    }
+  }, [isStreaming])
 
   // Add keyboard event handler
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Check if Enter is pressed and Ctrl/Cmd is not held down (to avoid conflicts with newlines in body)
-      if (e.key === 'Enter' && !e.ctrlKey && !e.metaKey && !loading) {
+      if (e.key === 'Enter' && !e.ctrlKey && !e.metaKey && !loading && !isStreaming) {
         // Only trigger if we're not in a textarea or contenteditable element
         const activeElement = document.activeElement
         const isInTextArea = activeElement?.tagName === 'TEXTAREA'
@@ -93,7 +128,7 @@ export function RequestPanel({
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [loading, onSend])
+  }, [loading, isStreaming, onSend])
 
   const handleSaveToCollection = (collectionId: string) => {
     const requestData = {
@@ -146,17 +181,100 @@ export function RequestPanel({
     onTestResultsChange(results)
   }
 
+  // Prepare request data based on current state
+  const prepareRequestData = () => {
+    // Build URL with params
+    let finalUrl = url
+    if (params.length > 0) {
+      // Add query parameters to URL
+      const searchParams = new URLSearchParams()
+      params.forEach(param => {
+        if (param.enabled && param.key) {
+          searchParams.append(param.key, param.value || '')
+        }
+      })
+      
+      // Check if URL already has query parameters
+      const hasQueryParams = finalUrl.includes('?')
+      
+      // Append params to URL
+      if (hasQueryParams) {
+        finalUrl = `${finalUrl}&${searchParams.toString()}`
+      } else if (searchParams.toString()) {
+        finalUrl = `${finalUrl}?${searchParams.toString()}`
+      }
+    }
+    
+    // Prepare headers with auth
+    const preparedHeaders: Record<string, string> = {}
+    const headersWithAuth = applyAuthToRequest(headers, auth)
+    
+    headersWithAuth.forEach((header: Header) => {
+      if (header.enabled && header.key) {
+        preparedHeaders[header.key] = header.value || ''
+      }
+    })
+    
+    // Prepare cookies
+    const preparedCookies = cookies.filter(cookie => cookie.name)
+    
+    return {
+      finalUrl,
+      preparedHeaders,
+      preparedBody: body,
+      preparedCookies
+    }
+  }
+
+  const handleStreamRequest = async () => {
+    if (loading) return
+    
+    // Reset previous streaming errors
+    setStreamingError(null)
+    
+    // If currently streaming, cancel it
+    if (isStreaming) {
+      await cancelStream()
+      return
+    }
+    
+    const { finalUrl, preparedHeaders, preparedBody, preparedCookies } = prepareRequestData()
+    
+    try {
+      await startStream({
+        method,
+        url: finalUrl,
+        headers: preparedHeaders,
+        body: preparedBody,
+        content_type: contentType,
+        cookies: preparedCookies,
+      })
+    } catch (err) {
+      setStreamingError(err instanceof Error ? err.message : String(err))
+      // Make sure streaming state is reset
+      resetStream()
+    }
+  }
+
   return (
     <Card className="h-full flex flex-col">
       <RequestUrlBar
         method={method}
         url={url}
         loading={loading}
+        isStreaming={isStreaming}
         onMethodChange={onMethodChange}
         onUrlChange={onUrlChange}
         onSend={onSend}
         onSave={() => setSaveDialogOpen(true)}
+        onStreamSSE={handleStreamRequest}
       />
+      
+      {streamingError && (
+        <div className="px-4 py-2 text-sm bg-red-900/20 text-red-400 border-b border-border">
+          Error: {streamingError}
+        </div>
+      )}
 
       <SaveRequestDialog
         open={saveDialogOpen}

@@ -172,12 +172,22 @@ function App() {
                         onTestScriptsChange={(testScripts) => updateTab(currentTab.id, { testScripts })}
                         onTestAssertionsChange={(testAssertions) => updateTab(currentTab.id, { testAssertions })}
                         onTestResultsChange={(testResults) => updateTab(currentTab.id, { testResults })}
+                        onStreamingStateChange={(streaming, cancelStream) =>
+                          updateTab(currentTab.id, {
+                            streaming,
+                            cancelStream: cancelStream || undefined,
+                          })
+                        }
                         onSend={() => handleSend(currentTab.id)}
                       />
                     </Panel>
                     <PanelResizeHandle className="h-1.5 bg-border hover:bg-accent transition-colors cursor-row-resize" />
                     <Panel>
-                      <ResponsePanel response={currentTab.response} />
+                      <ResponsePanel
+                        response={currentTab.response}
+                        streamingResponse={currentTab.streaming}
+                        onCancelStream={currentTab.cancelStream}
+                      />
                     </Panel>
                   </PanelGroup>
                 )}

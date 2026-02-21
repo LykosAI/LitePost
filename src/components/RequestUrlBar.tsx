@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Save } from "lucide-react"
+import { Save, Wifi, Loader2, XCircle } from "lucide-react"
 import {
   Select,
   SelectContent,
@@ -16,20 +16,24 @@ interface RequestUrlBarProps {
   method: string
   url: string
   loading: boolean
+  isStreaming?: boolean
   onMethodChange: (value: string) => void
   onUrlChange: (value: string) => void
   onSend: () => void
   onSave: () => void
+  onStreamSSE?: () => void
 }
 
 export function RequestUrlBar({
   method,
   url,
   loading,
+  isStreaming = false,
   onMethodChange,
   onUrlChange,
   onSend,
   onSave,
+  onStreamSSE,
 }: RequestUrlBarProps) {
   const themeClass = useThemeClass()
 
@@ -71,9 +75,35 @@ export function RequestUrlBar({
         <Save className="h-4 w-4 mr-2" />
         Save
       </Button>
-      <Button variant="secondary" disabled={loading} onClick={onSend}>
+      <Button 
+        variant="secondary" 
+        disabled={loading || isStreaming} 
+        onClick={onSend}
+      >
+        {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
         {loading ? "Sending..." : "Send"}
       </Button>
+      {onStreamSSE && (
+        <Button
+          variant={isStreaming ? "destructive" : "outline"}
+          className="w-[140px]"
+          disabled={loading}
+          onClick={onStreamSSE}
+          title={isStreaming ? "Cancel streaming request" : "Send as streaming request (SSE)"}
+        >
+          {isStreaming ? (
+            <>
+              <XCircle className="h-4 w-4 mr-2" />
+              Cancel Stream
+            </>
+          ) : (
+            <>
+              <Wifi className="h-4 w-4 mr-2" />
+              Stream SSE
+            </>
+          )}
+        </Button>
+      )}
     </div>
   )
 } 

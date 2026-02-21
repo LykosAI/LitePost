@@ -2,6 +2,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Input } from "@/components/ui/input"
 import { AuthConfig, AuthType } from "@/types"
 import { useThemeClass } from "@/hooks/useThemeClass"
+import { OAuthConfigurator } from "./OAuthConfigurator"
 
 interface AuthConfiguratorProps {
   auth: AuthConfig
@@ -13,6 +14,7 @@ const AUTH_TYPES = [
   { value: 'basic', label: 'Basic Auth' },
   { value: 'bearer', label: 'Bearer Token' },
   { value: 'api-key', label: 'API Key' },
+  { value: 'oauth2', label: 'OAuth 2.0' },
 ]
 
 export function AuthConfigurator({ auth, onAuthChange }: AuthConfiguratorProps) {
@@ -73,8 +75,8 @@ export function AuthConfigurator({ auth, onAuthChange }: AuthConfiguratorProps) 
             value={auth.value || ''}
             onChange={(e) => onAuthChange({ ...auth, value: e.target.value })}
           />
-          <Select 
-            value={auth.addTo || 'header'} 
+          <Select
+            value={auth.addTo || 'header'}
             onValueChange={(value: 'header' | 'query') => onAuthChange({ ...auth, addTo: value })}
           >
             <SelectTrigger className="w-[200px] bg-background border-input focus:ring-0 focus-visible:ring-1">
@@ -90,6 +92,13 @@ export function AuthConfigurator({ auth, onAuthChange }: AuthConfiguratorProps) 
             </SelectContent>
           </Select>
         </div>
+      )}
+
+      {auth.type === 'oauth2' && (
+        <OAuthConfigurator
+          oauth2={auth.oauth2 || { grantType: 'authorization_code', clientId: '' }}
+          onOAuth2Change={(oauth2) => onAuthChange({ ...auth, oauth2 })}
+        />
       )}
     </div>
   )

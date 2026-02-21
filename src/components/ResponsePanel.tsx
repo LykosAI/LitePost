@@ -1,7 +1,7 @@
 import { Card } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Response } from "@/types"
+import { Response, StreamingResponse } from "@/types"
 import { useEffect, useState } from "react"
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism'
@@ -12,14 +12,24 @@ import { ImageViewer } from "./ImageViewer"
 import { HeadersView } from "./HeadersView"
 import { TimingView } from "./TimingView"
 import { Send } from "lucide-react"
+import { ResponseStreamer } from "./ResponseStreamer"
 
 interface ResponsePanelProps {
   response: Response | null
+  streamingResponse?: StreamingResponse | null
+  onCancelStream?: () => void
 }
 
 export function ResponsePanel({ 
   response,
+  streamingResponse,
+  onCancelStream
 }: ResponsePanelProps) {
+  // If streaming is active, show the streaming component instead
+  if (streamingResponse) {
+    return <ResponseStreamer streaming={streamingResponse} onCancel={onCancelStream || (() => {})} />
+  }
+  
   const isErrorStatus = response?.status && response.status >= 400
   const statusClass = isErrorStatus ? "text-red-400 font-medium" : "text-muted-foreground"
   const [activeTab, setActiveTab] = useState("response")
@@ -28,35 +38,17 @@ export function ResponsePanel({
   const [rawResponse, setRawResponse] = useState<string>("")
   const { jsonViewer } = useSettingsStore()
 
-  // Add debug logging
-  useEffect(() => {
-    if (response) {
-      console.log('Response in ResponsePanel:', {
-        hasRedirectChain: !!response.redirectChain,
-        redirectChainLength: response.redirectChain?.length,
-        fullResponse: response
-      });
-    }
-  }, [response]);
-
   useEffect(() => {
     if (response?.body) {
       try {
         const contentType = response.headers['content-type'] || ''
         const body = response.body.trim()
-        
-        console.log('Response format detection:', { 
-          contentType, 
-          bodyStart: body.slice(0, 100),
-          isBase64: response.is_base64
-        });
-        
+
         // Store raw response
         setRawResponse(response.body)
 
         // Check for Image
         if (contentType.startsWith('image/')) {
-          console.log('Detected image format');
           setResponseFormat("image")
           setParsedJSON(null)
         }
