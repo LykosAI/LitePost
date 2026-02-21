@@ -13,12 +13,15 @@ const toastStyles = {
   },
 };
 
+const shouldLogUpdaterDiagnostics =
+  typeof import.meta !== 'undefined' &&
+  Boolean(import.meta.env?.DEV) &&
+  import.meta.env?.MODE !== 'test'
+
 // Export the check function for use in settings
 export async function checkForUpdatesManually() {
   try {
-    console.log('Checking for updates...');
     const update = await check();
-    console.log('Update check result:', update);
     if (update) {
       toast.message('Update Available', {
         description: `Version ${update.version || 'unknown'} is available. ${update.body || ''}`,
@@ -35,11 +38,8 @@ export async function checkForUpdatesManually() {
       return null;
     }
   } catch (error) {
-    console.error('Failed to check for updates:', error);
-    if (error instanceof Error) {
-      console.error('Error name:', error.name);
-      console.error('Error message:', error.message);
-      console.error('Error stack:', error.stack);
+    if (shouldLogUpdaterDiagnostics) {
+      console.error('Failed to check for updates:', error);
     }
     toast.error('Failed to check for updates', toastStyles);
     throw error;
@@ -81,7 +81,9 @@ async function installUpdateManually(update: Update) {
       }
     });
   } catch (error) {
-    console.error('Failed to install update:', error);
+    if (shouldLogUpdaterDiagnostics) {
+      console.error('Failed to install update:', error);
+    }
     toast.error('Failed to install update', { 
       id: toastId,
       ...toastStyles,

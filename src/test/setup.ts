@@ -4,6 +4,23 @@ import { expect } from 'vitest'
 import * as matchers from '@testing-library/jest-dom/matchers'
 import { cleanup } from '@testing-library/react'
 
+const mockFsStorage = new Map<string, Uint8Array>()
+
+vi.mock('@tauri-apps/plugin-fs', () => ({
+  BaseDirectory: { AppData: 'AppData' },
+  mkdir: vi.fn(async () => undefined),
+  readFile: vi.fn(async (filename: string) => {
+    const stored = mockFsStorage.get(filename)
+    if (!stored) {
+      throw new Error(`File not found: ${filename}`)
+    }
+    return stored
+  }),
+  writeFile: vi.fn(async (filename: string, contents: Uint8Array) => {
+    mockFsStorage.set(filename, contents)
+  }),
+}))
+
 // Extend expect with testing-library matchers
 expect.extend(matchers)
 
@@ -31,8 +48,10 @@ Object.defineProperty(window, 'matchMedia', {
 const originalError = console.error
 beforeAll(() => {
   console.error = (...args) => {
+    const firstArg = typeof args[0] === 'string' ? args[0] : ''
     if (
-      /Warning: ReactDOM.render is no longer supported in React 18/.test(args[0])
+      /Warning: ReactDOM.render is no longer supported in React 18/.test(firstArg) ||
+      /Function components cannot be given refs/.test(firstArg)
     ) {
       return
     }
@@ -59,4 +78,5 @@ window.URL.revokeObjectURL = vi.fn()
 // Reset all mocks before each test
 beforeEach(() => {
   vi.clearAllMocks()
-}) 
+  mockFsStorage.clear()
+})

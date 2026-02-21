@@ -173,7 +173,7 @@ describe('CollectionsPanel', () => {
       method: 'POST',
       url: 'https://api.test.com',
       rawUrl: 'https://api.test.com',
-      name: 'Unnamed Request',
+      name: 'https://api.test.com',
       body: '{"test": true}',
       contentType: 'application/json',
       headers: [],

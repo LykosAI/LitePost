@@ -1,5 +1,4 @@
-import { Collection } from '@/store/collections'
-import { URLParam, Header, AuthConfig, AuthType, Cookie } from '@/types'
+import { Collection, URLParam, Header, AuthConfig, AuthType, Cookie } from '@/types'
 
 interface PostmanCollection {
   info: {
@@ -71,6 +70,8 @@ export function exportToPostman(collections: Collection[]): PostmanCollection[] 
             bearer: [{ token: request.auth.token || '' }]
           } : request.auth.type === 'api-key' ? {
             apikey: [{ key: request.auth.key || '', value: request.auth.value || '', in: request.auth.addTo || 'header' }]
+          } : request.auth.type === 'oauth2' ? {
+            oauth2: [{ addTokenTo: 'header' }]
           } : {})
         } : undefined
       }
@@ -138,6 +139,14 @@ function convertPostmanAuth(auth?: PostmanItem['request']['auth']): AuthConfig {
         value: auth.apikey?.[0]?.value,
         addTo: auth.apikey?.[0]?.in
       }
+    case 'oauth2':
+      return {
+        type: 'oauth2',
+        oauth2: {
+          grantType: 'authorization_code',
+          clientId: '',
+        }
+      }
     default:
       return { type: 'none' }
   }
@@ -178,4 +187,81 @@ function buildUrl(urlObj: PostmanItem['request']['url']): string {
   }
 
   return url.toString()
+}
+
+export function importFromOpenapi(openapiDoc: any, baseUrl: string): Collection[] {
+  const collections: Collection[] = [];
+  const title = openapiDoc.info?.title || "Imported OpenAPI Collection";
+  const description = openapiDoc.info?.description || "";
+  const newCollection: Collection = {
+    id: crypto.randomUUID(),
+    name: title,
+    description,
+    requests: [],
+    createdAt: new Date(),
+    updatedAt: new Date()
+  };
+
+  let serverUrl = baseUrl;
+
+  const paths = openapiDoc.paths || {};
+  for (const path in paths) {
+    const pathItem = paths[path];
+    for (const method in pathItem) {
+      if (["get", "post", "put", "patch", "delete", "options", "head"].includes(method.toLowerCase())) {
+        const operation = pathItem[method];
+        const name = operation.summary || `${method.toUpperCase()} ${path}`;
+        let fullUrl = path;
+        try {
+          if (serverUrl) {
+            // Ensure serverUrl ends with / to preserve base path
+            const base = serverUrl.endsWith('/') ? serverUrl : serverUrl + '/';
+            // Remove leading slash from path to prevent base path erasure
+            const cleanPath = path.startsWith('/') ? path.substring(1) : path;
+            fullUrl = new URL(cleanPath, base).toString();
+          }
+        } catch {
+          // Fallback: simple concatenation
+          fullUrl = serverUrl ? serverUrl.replace(/\/$/, '') + path : path;
+        }
+        const params = (operation.parameters || [])
+          .filter((param: any) => param.in !== "path")
+          .map((param: any) => ({
+            key: param.name,
+            value: param.schema && param.schema.default ? String(param.schema.default) : "",
+            enabled: true
+          }));
+        let contentType = "application/json";
+        let body = "";
+        if (operation.requestBody && operation.requestBody.content) {
+          const contentTypes = Object.keys(operation.requestBody.content);
+          if (contentTypes.length > 0) {
+            contentType = contentTypes[0];
+          }
+        }
+        const newRequest = {
+          id: crypto.randomUUID(),
+          name,
+          method: method.toUpperCase(),
+          url: fullUrl,
+          rawUrl: fullUrl,
+          params,
+          headers: [],
+          body,
+          contentType,
+          auth: { type: 'none' } as AuthConfig,
+          cookies: [],
+          testScripts: [],
+          testAssertions: [],
+          testResults: null,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        };
+        newCollection.requests.push(newRequest);
+      }
+    }
+  }
+
+  collections.push(newCollection);
+  return collections;
 } 

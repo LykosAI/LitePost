@@ -1,40 +1,29 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { loadFromFile, saveToFile, convertDates } from '@/utils/persistence'
-import { Tab } from '@/types'
+import { Collection, SavedRequest } from '@/types'
 import { exportToPostman, importFromPostman } from '@/utils/collection-converter'
-
-export interface Collection {
-  id: string
-  name: string
-  description?: string
-  requests: SavedRequest[]
-  createdAt: Date
-  updatedAt: Date
-}
-
-export interface SavedRequest {
-  id: string
-  name: string
-  method: string
-  url: string
-  rawUrl: string
-  params: Tab['params']
-  headers: Tab['headers']
-  body: string
-  contentType: string
-  auth: Tab['auth']
-  cookies: Tab['cookies']
-  testScripts: Tab['testScripts']
-  testAssertions: Tab['testAssertions']
-  testResults: Tab['testResults']
-  createdAt: Date
-  updatedAt: Date
-}
 
 const COLLECTIONS_FILE = 'collections.json'
 
 const defaultData = { collections: [] }
+
+const normalizeDate = (value: unknown, fallback: Date = new Date()): Date => {
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    return value
+  }
+
+  if (typeof value === 'string' || typeof value === 'number') {
+    const parsed = new Date(value)
+    if (!Number.isNaN(parsed.getTime())) {
+      return parsed
+    }
+  }
+
+  return fallback
+}
+
+const toISOStringSafe = (value: unknown): string => normalizeDate(value).toISOString()
 
 interface CollectionState {
   collections: Collection[]
@@ -139,12 +128,26 @@ export const useCollectionStore = create<CollectionState>()(
         }))
       },
       importCollections: (newCollections) => {
+        // Ensure all dates are Date objects
+        const collectionsWithDates = newCollections.map(collection => ({
+          ...collection,
+          createdAt: normalizeDate(collection.createdAt),
+          updatedAt: normalizeDate(collection.updatedAt),
+          requests: collection.requests.map(request => ({
+            ...request,
+            createdAt: normalizeDate(request.createdAt),
+            updatedAt: normalizeDate(request.updatedAt)
+          }))
+        }))
+
+        // Merge with existing collections
         const merged = [
           ...get().collections.filter(
-            c => !newCollections.some(newCol => newCol.id === c.id)
+            c => !collectionsWithDates.some(newCol => newCol.id === c.id)
           ),
-          ...convertDates<Collection[]>(newCollections)
+          ...collectionsWithDates
         ]
+
         set({ collections: merged })
       },
       exportCollections: () => {
@@ -182,12 +185,12 @@ export const useCollectionStore = create<CollectionState>()(
         setItem: async (_, value) => {
           const collections = value.state.collections.map(c => ({
             ...c,
-            createdAt: c.createdAt.toISOString(),
-            updatedAt: c.updatedAt.toISOString(),
+            createdAt: toISOStringSafe(c.createdAt),
+            updatedAt: toISOStringSafe(c.updatedAt),
             requests: c.requests.map(r => ({
               ...r,
-              createdAt: r.createdAt.toISOString(),
-              updatedAt: r.updatedAt.toISOString()
+              createdAt: toISOStringSafe(r.createdAt),
+              updatedAt: toISOStringSafe(r.updatedAt)
             }))
           }))
           await saveToFile(COLLECTIONS_FILE, { collections })

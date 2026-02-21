@@ -1,5 +1,10 @@
 import { BaseDirectory, mkdir, readFile, writeFile } from '@tauri-apps/plugin-fs'
 
+const shouldLogPersistenceErrors =
+  typeof import.meta !== 'undefined' &&
+  Boolean(import.meta.env?.DEV) &&
+  import.meta.env?.MODE !== 'test'
+
 export async function loadFromFile<T>(filename: string, defaultValue: T): Promise<T> {
   try {
     // Ensure the app data directory exists
@@ -12,8 +17,7 @@ export async function loadFromFile<T>(filename: string, defaultValue: T): Promis
     const contents = await readFile(filename, { baseDir: BaseDirectory.AppData })
     const data = JSON.parse(new TextDecoder().decode(contents))
     return data as T
-  } catch (error) {
-    console.log(`No ${filename} found, using default value`)
+  } catch {
     return defaultValue
   }
 }
@@ -27,7 +31,9 @@ export async function saveToFile(filename: string, data: unknown): Promise<void>
       { baseDir: BaseDirectory.AppData }
     )
   } catch (error) {
-    console.error(`Failed to save ${filename}:`, error)
+    if (shouldLogPersistenceErrors) {
+      console.error(`Failed to save ${filename}:`, error)
+    }
   }
 }
 

@@ -80,10 +80,12 @@ export function useRequest(onHistoryUpdate: (item: HistoryItem) => void) {
         if (tab.auth.addTo === 'header') {
           headerRecord[key] = value
         } else {
-          // Add to query parameters
           const separator = url.includes('?') ? '&' : '?'
           url += `${separator}${encodeURIComponent(key)}=${encodeURIComponent(value)}`
         }
+      } else if (tab.auth.type === 'oauth2' && tab.auth.oauth2?.accessToken) {
+        const tokenType = tab.auth.oauth2.tokenType || 'Bearer'
+        headerRecord['Authorization'] = `${tokenType} ${substituteVariables(tab.auth.oauth2.accessToken)}`
       }
 
       // Add cookies to headers with variable substitution
@@ -113,9 +115,7 @@ export function useRequest(onHistoryUpdate: (item: HistoryItem) => void) {
         }))
       }
 
-      console.log('Sending request with options:', options);
       const response = await invoke<ResponseData>('send_request', { options })
-      console.log('Raw response from Rust:', response);
 
       // Add to history
       onHistoryUpdate({
@@ -129,13 +129,6 @@ export function useRequest(onHistoryUpdate: (item: HistoryItem) => void) {
         contentType: tab.contentType,
         auth: tab.auth
       })
-
-      // Debug logging for redirect chain
-      console.log('Redirect chain from Rust:', {
-        hasRedirectChain: !!response.redirect_chain,
-        redirectChainLength: response.redirect_chain?.length,
-        redirectChain: response.redirect_chain
-      });
 
       const mappedResponse = {
         status: response.status,
@@ -191,14 +184,8 @@ export function useRequest(onHistoryUpdate: (item: HistoryItem) => void) {
         size: response.size
       }
 
-      console.log('Mapped response with redirects:', {
-        hasRedirectChain: !!mappedResponse.redirectChain,
-        redirectChainLength: mappedResponse.redirectChain?.length,
-        redirectChain: mappedResponse.redirectChain
-      });
       return mappedResponse
     } catch (error) {
-      console.error('Request error:', error)
       return {
         status: 0,
         statusText: "Error",

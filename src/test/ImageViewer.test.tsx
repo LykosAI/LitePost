@@ -65,7 +65,6 @@ describe('ImageViewer', () => {
   it('handles binary image data', () => {
     // Convert binary data to base64
     const base64Data = btoa(String.fromCharCode.apply(null, Array.from(binaryImage)))
-    console.log('Base64 data:', base64Data)
     
     render(
       <ImageViewer

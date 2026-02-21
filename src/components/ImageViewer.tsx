@@ -18,8 +18,6 @@ export function ImageViewer({ src, contentType, isBase64 }: ImageViewerProps) {
 
   // Convert binary to data URL
   const dataUrl = (() => {
-    console.log('ImageViewer props:', { src: typeof src === 'string' ? src.slice(0, 100) + '...' : 'Uint8Array', contentType, isBase64 });
-    
     try {
       if (contentType.startsWith('image/svg')) {
         // For SVG, we need to unescape the quotes and properly encode the XML
@@ -40,20 +38,16 @@ export function ImageViewer({ src, contentType, isBase64 }: ImageViewerProps) {
           let bytes: Uint8Array;
           if (src instanceof Uint8Array) {
             bytes = src;
-            console.log('Using Uint8Array directly:', bytes.length, 'bytes');
           } else {
             // Convert binary string to Uint8Array
             bytes = new Uint8Array(src.length);
             for (let i = 0; i < src.length; i++) {
               bytes[i] = src.charCodeAt(i);
             }
-            console.log('Converted string to Uint8Array:', bytes.length, 'bytes');
           }
           // Create blob directly from the Uint8Array
           const blob = new Blob([bytes.buffer], { type: contentType });
-          console.log('Created blob:', blob.size, 'bytes');
           const url = URL.createObjectURL(blob);
-          console.log('Created blob URL:', url);
           return url;
         } catch (e) {
           console.error('Failed to create blob:', e);
