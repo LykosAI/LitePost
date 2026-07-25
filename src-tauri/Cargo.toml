@@ -36,3 +36,9 @@ rand = "0.8"
 
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
 tauri-plugin-updater = "2"
+
+# macOS release builds cross-compile x86_64 on ARM runners, where pkg-config
+# can't provide OpenSSL for the foreign target — build it from source instead.
+# Scoped to macOS so Linux keeps linking the system OpenSSL.
+[target.'cfg(target_os = "macos")'.dependencies]
+openssl-sys = { version = "0.9", features = ["vendored"] }
