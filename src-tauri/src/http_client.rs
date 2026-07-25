@@ -286,7 +286,8 @@ fn perform_curl_request(
     method: String,
     url: String,
     headers: Vec<String>,
-    body: Option<Vec<u8>>,
+    // Arc so the redirect loop can re-send the body without copying it per hop
+    body: Option<std::sync::Arc<Vec<u8>>>,
     cookie_header: Option<String>,
     network: &NetworkSettings,
 ) -> Result<CurlHopResponse, String> {
@@ -594,7 +595,8 @@ pub async fn send_request(
         set_or_replace_content_type(&mut request_headers, content_type);
     }
 
-    let request_body = multipart_body.or(original_body);
+    // Arc: redirect hops share one buffer instead of cloning it each time
+    let request_body = multipart_body.or(original_body).map(std::sync::Arc::new);
     let method = options.method.to_ascii_uppercase();
     let mut current_url = options.url;
     let initial_host = Url::parse(&current_url)

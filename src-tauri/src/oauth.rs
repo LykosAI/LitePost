@@ -485,10 +485,21 @@ pub async fn oauth2_auth_code_flow(
 
         (listener, custom_uri)
     } else {
-        let listener = tokio::net::TcpListener::bind("127.0.0.1:17823")
-            .await
-            .map_err(|e| format!("Failed to bind callback server on port 17823: {}", e))?;
-        (listener, "http://localhost:17823/callback".to_string())
+        // Prefer the documented default port (users may have registered it as a
+        // redirect URI), but fall back to an ephemeral port if it's taken —
+        // e.g. a second LitePost instance. RFC 8252 §7.3 requires providers to
+        // accept any port on a loopback redirect.
+        let listener = match tokio::net::TcpListener::bind("127.0.0.1:17823").await {
+            Ok(listener) => listener,
+            Err(_) => tokio::net::TcpListener::bind("127.0.0.1:0")
+                .await
+                .map_err(|e| format!("Failed to bind callback server: {}", e))?,
+        };
+        let port = listener
+            .local_addr()
+            .map_err(|e| format!("Failed to read callback server port: {}", e))?
+            .port();
+        (listener, format!("http://localhost:{}/callback", port))
     };
 
     let pkce = if options.use_pkce.unwrap_or(false) {

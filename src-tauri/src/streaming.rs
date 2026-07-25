@@ -7,6 +7,40 @@ use tauri::Emitter;
 use crate::models::{ActiveStreams, ClientWrapper, RequestOptions, StreamChunk};
 use crate::network_utils::{build_request_headers, now_millis};
 
+/// Move all complete UTF-8 from `bytes` into `out`, leaving any trailing
+/// partial multi-byte sequence in `bytes` to be completed by the next network
+/// chunk. Genuinely invalid sequences are replaced with U+FFFD and skipped so
+/// a bad byte can never stall the stream.
+fn drain_valid_utf8(bytes: &mut Vec<u8>, out: &mut String) {
+    loop {
+        match std::str::from_utf8(bytes) {
+            Ok(valid) => {
+                out.push_str(valid);
+                bytes.clear();
+                return;
+            }
+            Err(error) => {
+                let valid_up_to = error.valid_up_to();
+                // Safety: from_utf8 just validated this prefix
+                out.push_str(unsafe { std::str::from_utf8_unchecked(&bytes[..valid_up_to]) });
+
+                match error.error_len() {
+                    // Invalid sequence: emit a replacement char, skip it, keep going
+                    Some(invalid_len) => {
+                        out.push('\u{FFFD}');
+                        bytes.drain(..valid_up_to + invalid_len);
+                    }
+                    // Truncated sequence: keep the tail for the next chunk
+                    None => {
+                        bytes.drain(..valid_up_to);
+                        return;
+                    }
+                }
+            }
+        }
+    }
+}
+
 #[tauri::command]
 pub async fn stream_sse(
     options: RequestOptions,
@@ -82,6 +116,7 @@ pub async fn stream_sse(
         .map_err(|e| e.to_string())?;
 
     let mut stream = res.bytes_stream();
+    let mut byte_buffer: Vec<u8> = Vec::new();
     let mut buffer = String::new();
     let mut current_event: Option<String> = None;
     let mut current_id: Option<String> = None;
@@ -99,7 +134,8 @@ pub async fn stream_sse(
             chunk = stream.next() => {
                 match chunk {
                     Some(Ok(bytes)) => {
-                        buffer.push_str(&String::from_utf8_lossy(&bytes));
+                        byte_buffer.extend_from_slice(&bytes);
+                        drain_valid_utf8(&mut byte_buffer, &mut buffer);
 
                         while let Some(newline_pos) = buffer.find('\n') {
                             let line = buffer[..newline_pos].trim_end_matches('\r').to_string();
@@ -146,6 +182,13 @@ pub async fn stream_sse(
                         return Err(e.to_string());
                     }
                     None => {
+                        // Stream ended: flush any bytes still waiting on a
+                        // UTF-8 continuation (now genuinely incomplete)
+                        if !byte_buffer.is_empty() {
+                            buffer.push_str(&String::from_utf8_lossy(&byte_buffer));
+                            byte_buffer.clear();
+                        }
+
                         if !current_data.is_empty() {
                             let data = current_data.join("\n");
                             let _ = window.emit(&chunk_event, StreamChunk {

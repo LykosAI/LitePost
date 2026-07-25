@@ -111,6 +111,7 @@ pub async fn ws_connect(
     );
 
     let (mut write, mut read) = ws_stream.split();
+    let mut close_emitted = false;
 
     // Main event loop
     loop {
@@ -178,6 +179,7 @@ pub async fn ws_connect(
                                 "timestamp": now_millis(),
                             }),
                         );
+                        close_emitted = true;
                         break;
                     }
                     Some(Ok(Message::Frame(_))) => {
@@ -204,14 +206,17 @@ pub async fn ws_connect(
         connections.remove(&connection_id);
     }
 
-    let _ = window.emit(
-        &closed_event,
-        serde_json::json!({
-            "reason": "Connection closed",
-            "clean": true,
-            "timestamp": now_millis(),
-        }),
-    );
+    // The server-close branch already emitted with the real close reason
+    if !close_emitted {
+        let _ = window.emit(
+            &closed_event,
+            serde_json::json!({
+                "reason": "Connection closed",
+                "clean": true,
+                "timestamp": now_millis(),
+            }),
+        );
+    }
 
     Ok(())
 }
