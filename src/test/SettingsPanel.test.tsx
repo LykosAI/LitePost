@@ -12,7 +12,14 @@ vi.mock('@/store/settings', () => ({
       maxAutoExpandArraySize: 50,
       maxAutoExpandObjectSize: 20,
     },
-    updateJSONViewerSettings: vi.fn()
+    updateJSONViewerSettings: vi.fn(),
+    network: {
+      timeout: 30,
+      connectTimeout: 10,
+      sslVerification: true,
+      proxy: '',
+    },
+    updateNetworkSettings: vi.fn(),
   }))
 }))
 
@@ -30,18 +37,9 @@ describe('SettingsPanel', () => {
     vi.clearAllMocks()
   })
 
-  it('renders trigger button correctly', () => {
+  it('does not render content when closed', () => {
     render(<SettingsPanel open={false} onOpenChange={() => {}} />)
-    expect(screen.getByRole('button', { name: 'Settings' })).toBeInTheDocument()
-  })
-
-  it('calls onOpenChange when trigger button is clicked', async () => {
-    const onOpenChange = vi.fn()
-    render(<SettingsPanel open={false} onOpenChange={onOpenChange} />)
-    await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: 'Settings' }))
-    })
-    expect(onOpenChange).toHaveBeenCalledWith(true)
+    expect(screen.queryByRole('heading', { name: 'JSON Viewer' })).not.toBeInTheDocument()
   })
 
   it('renders settings content when open is true', async () => {
@@ -67,7 +65,14 @@ describe('SettingsPanel', () => {
         maxAutoExpandArraySize: 50,
         maxAutoExpandObjectSize: 50
       },
-      updateJSONViewerSettings: vi.fn()
+      updateJSONViewerSettings: vi.fn(),
+      network: {
+        timeout: 30,
+        connectTimeout: 10,
+        sslVerification: true,
+        proxy: '',
+      },
+      updateNetworkSettings: vi.fn(),
     }
     vi.mocked(useSettingsStore).mockReturnValue(mockSettings)
 
@@ -112,12 +117,14 @@ describe('SettingsPanel', () => {
     expect(checkForUpdatesManually).toHaveBeenCalled()
   })
 
-  it('shows coming soon sections', async () => {
+  it('shows network settings section', async () => {
     await act(async () => {
       render(<SettingsPanel open={true} onOpenChange={() => {}} />)
     })
-    const comingSoonElements = screen.getAllByText(/coming soon/i)
-    expect(comingSoonElements).toHaveLength(1)
+    expect(screen.getByRole('heading', { name: 'Network' })).toBeInTheDocument()
+    expect(screen.getByText(/request timeout/i)).toBeInTheDocument()
+    expect(screen.getByText(/ssl certificate verification/i)).toBeInTheDocument()
+    expect(screen.getByText(/proxy url/i)).toBeInTheDocument()
   })
 
   it('applies correct styling to sheet content', async () => {

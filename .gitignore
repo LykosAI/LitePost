@@ -45,6 +45,13 @@ coverage
 .temp
 .cache
 
+# VitePress
+docs/.vitepress/cache
+docs/.vitepress/dist
+
+# Claude Code local settings
+.claude/settings.local.json
+
 # TypeScript
 *.tsbuildinfo
 

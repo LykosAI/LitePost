@@ -1,8 +1,31 @@
 import { useRef, useEffect } from 'react'
 import { URLParam } from '@/types'
+import { parseUrlParams } from '@/utils/url'
+
+function areParamsEqual(a: URLParam[], b: URLParam[]): boolean {
+  if (a.length !== b.length) return false
+
+  for (let i = 0; i < a.length; i++) {
+    if (a[i].key !== b[i].key || a[i].value !== b[i].value || a[i].enabled !== b[i].enabled) {
+      return false
+    }
+  }
+
+  return true
+}
 
 export function useUrlParams(url: string, onParamsChange: (params: URLParam[]) => void, currentParams: URLParam[] = []) {
   const debounceTimeout = useRef<NodeJS.Timeout | null>(null)
+  const onParamsChangeRef = useRef(onParamsChange)
+  const currentParamsRef = useRef(currentParams)
+
+  useEffect(() => {
+    onParamsChangeRef.current = onParamsChange
+  }, [onParamsChange])
+
+  useEffect(() => {
+    currentParamsRef.current = currentParams
+  }, [currentParams])
 
   useEffect(() => {
     if (debounceTimeout.current) {
@@ -11,57 +34,29 @@ export function useUrlParams(url: string, onParamsChange: (params: URLParam[]) =
 
     debounceTimeout.current = setTimeout(() => {
       try {
-        // Don't parse params if we're still typing or no query string
-        if (!url.includes('?')) {
-          // Only clear params if there are no manually added empty ones
-          if (!currentParams.some(p => p.key === '')) {
-            onParamsChange([])
-          }
-          return
-        }
+        const existingParams = currentParamsRef.current
+        const newParams = parseUrlParams(url)
+        const parsedKeys = new Set(newParams.map((param) => param.key))
 
-        const [_, queryString] = url.split('?')
-        
-        // Don't parse if no query string
-        if (!queryString || queryString.trim() === '') {
-          // Only clear params if there are no manually added empty ones
-          if (!currentParams.some(p => p.key === '')) {
-            onParamsChange([])
-          }
-          return
-        }
+        // Keep manually created blank rows and disabled rows that are not currently in the URL.
+        const retainedParams = existingParams.filter(
+          (param) => param.key === '' || (!param.enabled && !parsedKeys.has(param.key))
+        )
 
-        // Parse the URL parameters
-        try {
-          const searchParams = new URLSearchParams(queryString)
-          const newParams: URLParam[] = []
-          
-          searchParams.forEach((value, key) => {
-            if (key) {  // Only add parameters with non-empty keys
-              newParams.push({
-                key,
-                value,
-                enabled: true
-              })
-            }
-          })
+        const mergedParams = [...newParams, ...retainedParams]
 
-          // Preserve any manually added empty params
-          const emptyParams = currentParams.filter(p => p.key === '')
-          onParamsChange([...newParams, ...emptyParams])
-        } catch (error) {
-          // Invalid query string, just keep existing params
-          console.error('Error parsing URL params:', error)
+        if (!areParamsEqual(mergedParams, existingParams)) {
+          onParamsChangeRef.current(mergedParams)
         }
       } catch (error) {
         console.error('Error handling URL change:', error)
       }
-    }, 1000) // Debounce delay
+    }, 200) // Debounce delay
 
     return () => {
       if (debounceTimeout.current) {
         clearTimeout(debounceTimeout.current)
       }
     }
-  }, [url, onParamsChange, currentParams])
+  }, [url])
 } 

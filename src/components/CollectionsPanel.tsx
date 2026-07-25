@@ -3,14 +3,11 @@ import {
   SheetContent,
   SheetHeader,
   SheetTitle,
-  SheetTrigger,
   SheetDescription,
 } from "@/components/ui/sheet"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Folder, FolderPlus, MoreVertical, ChevronRight, ChevronDown, Save, Trash2, RotateCw, Download, Upload } from "lucide-react"
+import { FolderPlus, Download, Upload } from "lucide-react"
 import { useCollectionStore } from "@/store/collections"
 import { Tab } from "@/types"
 import { getRequestNameFromUrl } from "@/utils/url"
@@ -22,18 +19,11 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { useState, forwardRef, useRef } from "react"
 import { toast } from "sonner"
-import { cn } from "@/lib/utils"
 import { useThemeClass } from "@/hooks/useThemeClass"
-
-const methodColors: Record<string, string> = {
-  GET: "bg-blue-500/10 text-blue-500",
-  POST: "bg-green-500/10 text-green-500",
-  PUT: "bg-yellow-500/10 text-yellow-500",
-  PATCH: "bg-orange-500/10 text-orange-500",
-  DELETE: "bg-red-500/10 text-red-500",
-  HEAD: "bg-purple-500/10 text-purple-500",
-  OPTIONS: "bg-cyan-500/10 text-cyan-500"
-}
+import { importFromOpenapi } from '@/utils/collection-converter'
+import { CollectionCard } from "./collections/CollectionCard"
+import { savedRequestToTab } from "./collections/collectionUtils"
+import { useResizablePanel } from "@/hooks/useResizablePanel"
 
 interface CollectionsPanelProps {
   open: boolean
@@ -42,8 +32,8 @@ interface CollectionsPanelProps {
   onRequestSelect: (request: Tab) => void
 }
 
-export const CollectionsPanel = forwardRef<HTMLButtonElement, CollectionsPanelProps>(
-  ({ open, onOpenChange, currentRequest, onRequestSelect }, ref) => {
+export const CollectionsPanel = forwardRef<HTMLDivElement, CollectionsPanelProps>(
+  ({ open, onOpenChange, currentRequest, onRequestSelect }, _ref) => {
     const {
       collections,
       addCollection,
@@ -60,6 +50,11 @@ export const CollectionsPanel = forwardRef<HTMLButtonElement, CollectionsPanelPr
     const [expandedCollections, setExpandedCollections] = useState<Set<string>>(new Set())
     const fileInputRef = useRef<HTMLInputElement>(null)
     const themeClass = useThemeClass()
+    const { width, isDragging, setIsDragging } = useResizablePanel(600, 450)
+    const shouldLogImportErrors =
+      typeof import.meta !== "undefined" &&
+      Boolean(import.meta.env?.DEV) &&
+      import.meta.env?.MODE !== "test"
 
     const toggleCollection = (id: string) => {
       setExpandedCollections(prev => {
@@ -85,6 +80,24 @@ export const CollectionsPanel = forwardRef<HTMLButtonElement, CollectionsPanelPr
         ...requestData,
         name: getRequestNameFromUrl(requestData.url)
       })
+    }
+
+    const handleSelectRequest = (request: Tab) => {
+      onRequestSelect(request)
+      onOpenChange(false)
+    }
+
+    const handleSelectSavedRequest = (request: Parameters<typeof savedRequestToTab>[0]) => {
+      handleSelectRequest(savedRequestToTab(request))
+    }
+
+    const handleRestoreAllRequests = (collectionId: string) => {
+      const targetCollection = collections.find((collection) => collection.id === collectionId)
+      if (!targetCollection) return
+      targetCollection.requests.forEach((request) => {
+        onRequestSelect(savedRequestToTab(request))
+      })
+      onOpenChange(false)
     }
 
     const handleExport = () => {
@@ -122,7 +135,9 @@ export const CollectionsPanel = forwardRef<HTMLButtonElement, CollectionsPanelPr
           importCollections(collections)
           toast.success('Collections imported successfully')
         } catch (error) {
-          console.error('Failed to import collections:', error)
+          if (shouldLogImportErrors) {
+            console.error('Failed to import collections:', error)
+          }
           toast.error('Failed to import collections')
         }
       }
@@ -143,10 +158,12 @@ export const CollectionsPanel = forwardRef<HTMLButtonElement, CollectionsPanelPr
               importFromPostman(e.target?.result as string)
               toast.success('Postman collections imported successfully')
             } catch (error) {
-              console.error('Failed to import Postman collections:', error)
+              if (shouldLogImportErrors) {
+                console.error('Failed to import Postman collections:', error)
+              }
               toast.error(
-                error instanceof Error 
-                  ? error.message 
+                error instanceof Error
+                  ? error.message
                   : 'Invalid Postman collection format'
               )
             }
@@ -161,23 +178,42 @@ export const CollectionsPanel = forwardRef<HTMLButtonElement, CollectionsPanelPr
       }
     }
 
+    const handleImportOpenapiClick = async () => {
+      const openapiUrl = window.prompt("Enter the URL for the OpenAPI JSON file:");
+      if (!openapiUrl) return;
+      try {
+        const response = await fetch(openapiUrl);
+        if (!response.ok) {
+          throw new Error("Failed to fetch the OpenAPI document.");
+        }
+        const apiDoc = await response.json();
+        const baseUrl = window.prompt("Enter the base URL for the API:");
+        if (!baseUrl) return;
+        const importedCollections = importFromOpenapi(apiDoc, baseUrl);
+        importCollections(importedCollections);
+        toast.success("OpenAPI collections imported successfully");
+      } catch (error) {
+        if (shouldLogImportErrors) {
+          console.error("Error importing OpenAPI:", error);
+        }
+        toast.error(error instanceof Error ? error.message : "Invalid OpenAPI format");
+      }
+    };
+
     return (
       <Sheet open={open} onOpenChange={onOpenChange}>
-        <SheetTrigger asChild>
-          <Button
-            ref={ref}
-            variant="ghost"
-            size="sm"
-            className="h-10 w-10 rounded-none hover:bg-muted"
-            aria-label="Open Collections Panel"
-          >
-            <Folder className="h-4 w-4" />
-          </Button>
-        </SheetTrigger>
-        <SheetContent 
-          className={`${themeClass} w-[600px] sm:w-[800px] sm:max-w-none border-l border-border bg-background text-foreground [&_button>svg]:text-foreground [&_.close-button]:hover:bg-muted/60`}
+        <SheetContent
+          className={`${themeClass} w-full sm:max-w-none border-l border-border/30 bg-background/95 backdrop-blur-xl text-foreground [&_button>svg]:text-foreground [&_.close-button]:hover:bg-muted/60 ${isDragging ? "transition-none !duration-0" : ""}`}
+          style={{ width: width ? `${width}px` : undefined }}
           side="right"
         >
+          {/* Resize Handle */}
+          <div
+            className="absolute left-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-primary/20 active:bg-primary/30 z-50 transition-colors group"
+            onMouseDown={(e) => { e.preventDefault(); setIsDragging(true); }}
+          >
+            <div className="absolute left-1 top-1/2 -translate-x-1/2 -translate-y-1/2 w-1 h-12 bg-border/50 group-hover:bg-primary/50 rounded-full transition-colors" />
+          </div>
           <SheetHeader>
             <SheetTitle className="text-foreground">Collections</SheetTitle>
             <SheetDescription>
@@ -185,234 +221,84 @@ export const CollectionsPanel = forwardRef<HTMLButtonElement, CollectionsPanelPr
             </SheetDescription>
           </SheetHeader>
           <div className="flex flex-col h-[calc(100vh-5rem)]">
-            <div className="flex items-center justify-between py-6">
-              <div>
-                <h3 className="text-lg font-medium">Collections</h3>
-                <p className="text-sm text-muted-foreground">
-                  Organize and save your API requests
-                </p>
-              </div>
-              <div className="flex items-center gap-2">
-                <input
-                  type="file"
-                  ref={fileInputRef}
-                  className="hidden"
-                  accept=".json"
-                  onChange={handleImport}
-                  aria-label="Import Collections"
-                />
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="outline" size="sm">
-                      <Download className="h-4 w-4 mr-2" />
-                      Import
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent className="dark bg-background border-border">
-                    <DropdownMenuItem onClick={() => fileInputRef.current?.click()}>
-                      LitePost Format
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={handleImportPostmanClick}>
-                      Postman Format
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="outline" size="sm">
-                      <Upload className="h-4 w-4 mr-2" />
-                      Export
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent className="dark bg-background border-border">
-                    <DropdownMenuItem onClick={handleExport}>
-                      LitePost Format
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={handleExportPostman}>
-                      Postman Format
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleAddCollection}
-                >
-                  <FolderPlus className="h-4 w-4 mr-2" />
-                  Add Collection
-                </Button>
-              </div>
+            <div className="flex flex-wrap items-center justify-end gap-2.5 py-4 mt-2">
+              <input
+                type="file"
+                ref={fileInputRef}
+                className="hidden"
+                accept=".json"
+                onChange={handleImport}
+                aria-label="Import Collections"
+              />
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="h-9 shadow-sm bg-background/40 hover:bg-secondary/60 transition-colors">
+                    <Download className="h-4 w-4 mr-2" />
+                    Import
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className={`${themeClass} bg-popover/95 backdrop-blur-xl border-border/40 shadow-xl`}>
+                  <DropdownMenuItem onClick={() => fileInputRef.current?.click()}>
+                    LitePost Format
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleImportPostmanClick}>
+                    Postman Format
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleImportOpenapiClick}>
+                    OpenAPI Format
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="h-9 shadow-sm bg-background/40 hover:bg-secondary/60 transition-colors">
+                    <Upload className="h-4 w-4 mr-2" />
+                    Export
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className={`${themeClass} bg-popover/95 backdrop-blur-xl border-border/40 shadow-xl`}>
+                  <DropdownMenuItem onClick={handleExport}>
+                    LitePost Format
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleExportPostman}>
+                    Postman Format
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <Button
+                variant="default"
+                size="sm"
+                className="h-9 shadow-sm shadow-primary/20 transition-all font-medium"
+                onClick={handleAddCollection}
+              >
+                <FolderPlus className="h-4 w-4 mr-2" />
+                New Collection
+              </Button>
             </div>
-
             <ScrollArea className="flex-1 pr-4">
               <div className="space-y-4">
                 {collections.map((collection) => (
-                  <div 
-                    key={collection.id} 
-                    className="space-y-2 p-4 rounded-lg border border-border bg-card/50 shadow-sm"
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <div 
-                        className="flex items-center gap-2 flex-1 cursor-pointer" 
-                        onClick={() => toggleCollection(collection.id)}
-                      >
-                        <Button 
-                          variant="ghost" 
-                          size="sm"
-                          className="h-6 w-6 p-0 hover:bg-muted/50"
-                          aria-label={
-                            expandedCollections.has(collection.id) 
-                              ? `Collapse Collection ${collection.name}` 
-                              : `Expand Collection ${collection.name}`
-                          }
-                        >
-                          {expandedCollections.has(collection.id) ? (
-                            <ChevronDown className="h-4 w-4" />
-                          ) : (
-                            <ChevronRight className="h-4 w-4" />
-                          )}
-                        </Button>
-                        <Input
-                          value={collection.name}
-                          onChange={(e) => updateCollection(collection.id, { name: e.target.value })}
-                          onClick={(e) => e.stopPropagation()}
-                          className="h-8 bg-background text-foreground"
-                          aria-label={`Collection Name ${collection.name}`}
-                        />
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {currentRequest && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleSaveCurrentRequest(collection.id)}
-                            className="h-8"
-                            aria-label="Save Current Request"
-                          >
-                            <Save className="h-4 w-4" />
-                          </Button>
-                        )}
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            collection.requests.forEach(request => {
-                              onRequestSelect({
-                                id: crypto.randomUUID(),
-                                name: request.name,
-                                method: request.method,
-                                url: request.url,
-                                rawUrl: request.rawUrl,
-                                params: request.params,
-                                headers: request.headers,
-                                body: request.body,
-                                contentType: request.contentType,
-                                auth: request.auth,
-                                cookies: request.cookies,
-                                loading: false,
-                                response: null,
-                                isEditing: false,
-                                testScripts: request.testScripts || [],
-                                testAssertions: request.testAssertions || [],
-                                testResults: request.testResults || null
-                              });
-                            });
-                            onOpenChange(false);
-                          }}
-                          className="h-8"
-                          title="Restore all requests"
-                          aria-label="Restore All Requests"
-                        >
-                          <RotateCw className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => deleteCollection(collection.id)}
-                          className="h-8 text-destructive-foreground hover:text-destructive-foreground hover:bg-destructive"
-                          aria-label={`Delete Collection ${collection.name}`}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-
-                    {collection.description && (
-                      <Textarea
-                        value={collection.description}
-                        onChange={(e) => updateCollection(collection.id, { description: e.target.value })}
-                        placeholder="Collection description"
-                        className="h-20 bg-background text-foreground"
-                      />
-                    )}
-
-                    {expandedCollections.has(collection.id) && (
-                      <div className="space-y-2 mt-4">
-                        {collection.requests.map((request) => (
-                          <div 
-                            key={request.id}
-                            className="flex items-center justify-between gap-2 p-2 rounded border border-border/50 hover:bg-accent/50"
-                          >
-                            <div 
-                              className="flex items-center gap-2 flex-1 cursor-pointer"
-                              onClick={() => {
-                                onRequestSelect({
-                                  id: crypto.randomUUID(),
-                                  name: request.name,
-                                  method: request.method,
-                                  url: request.url,
-                                  rawUrl: request.rawUrl,
-                                  params: request.params,
-                                  headers: request.headers,
-                                  body: request.body,
-                                  contentType: request.contentType,
-                                  auth: request.auth,
-                                  cookies: request.cookies,
-                                  loading: false,
-                                  response: null,
-                                  isEditing: false,
-                                  testScripts: request.testScripts || [],
-                                  testAssertions: request.testAssertions || [],
-                                  testResults: request.testResults || null
-                                });
-                                onOpenChange(false);
-                              }}
-                            >
-                              <span className={cn(
-                                "px-2 py-0.5 text-xs rounded",
-                                methodColors[request.method] || "bg-muted-foreground/10"
-                              )}>
-                                {request.method}
-                              </span>
-                              <span className="flex-1 truncate">{request.name}</span>
-                            </div>
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="sm" className="h-8 w-8">
-                                  <MoreVertical className="h-4 w-4" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end" className="dark bg-background border-border">
-                                <DropdownMenuItem
-                                  onClick={() => deleteRequest(collection.id, request.id)}
-                                  className="text-destructive focus:text-destructive"
-                                >
-                                  <Trash2 className="h-4 w-4 mr-2" />
-                                  Delete
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
+                  <CollectionCard
+                    key={collection.id}
+                    collection={collection}
+                    currentRequest={currentRequest}
+                    isExpanded={expandedCollections.has(collection.id)}
+                    onToggle={toggleCollection}
+                    onUpdateCollection={updateCollection}
+                    onSaveCurrentRequest={handleSaveCurrentRequest}
+                    onRestoreAllRequests={(targetCollection) =>
+                      handleRestoreAllRequests(targetCollection.id)
+                    }
+                    onDeleteCollection={deleteCollection}
+                    onSelectRequest={handleSelectSavedRequest}
+                    onDeleteRequest={deleteRequest}
+                  />
                 ))}
               </div>
             </ScrollArea>
           </div>
         </SheetContent>
-      </Sheet>
+      </Sheet >
     )
   }
 )

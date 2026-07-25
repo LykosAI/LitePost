@@ -3,6 +3,8 @@ import { defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react'
 import path from 'path'
 
+process.env.BROWSERSLIST_IGNORE_OLD_DATA ??= "1"
+
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],

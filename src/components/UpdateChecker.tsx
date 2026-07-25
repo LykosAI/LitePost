@@ -1,6 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { check, type Update } from '@tauri-apps/plugin-updater';
-import { relaunch } from '@tauri-apps/plugin-process';
+import type { Update } from '@tauri-apps/plugin-updater';
 import { toast } from 'sonner';
 import { Progress } from './ui/progress';
 
@@ -13,12 +12,19 @@ const toastStyles = {
   },
 };
 
+const shouldLogUpdaterDiagnostics =
+  typeof import.meta !== 'undefined' &&
+  Boolean(import.meta.env?.DEV) &&
+  import.meta.env?.MODE !== 'test'
+
+const INITIAL_UPDATE_CHECK_DELAY_MS = 10_000
+const UPDATE_CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000
+
 // Export the check function for use in settings
 export async function checkForUpdatesManually() {
   try {
-    console.log('Checking for updates...');
+    const { check } = await import('@tauri-apps/plugin-updater');
     const update = await check();
-    console.log('Update check result:', update);
     if (update) {
       toast.message('Update Available', {
         description: `Version ${update.version || 'unknown'} is available. ${update.body || ''}`,
@@ -35,11 +41,8 @@ export async function checkForUpdatesManually() {
       return null;
     }
   } catch (error) {
-    console.error('Failed to check for updates:', error);
-    if (error instanceof Error) {
-      console.error('Error name:', error.name);
-      console.error('Error message:', error.message);
-      console.error('Error stack:', error.stack);
+    if (shouldLogUpdaterDiagnostics) {
+      console.error('Failed to check for updates:', error);
     }
     toast.error('Failed to check for updates', toastStyles);
     throw error;
@@ -76,12 +79,14 @@ async function installUpdateManually(update: Update) {
             id: toastId,
             ...toastStyles,
           });
-          relaunch();
+          void import('@tauri-apps/plugin-process').then(({ relaunch }) => relaunch())
           break;
       }
     });
   } catch (error) {
-    console.error('Failed to install update:', error);
+    if (shouldLogUpdaterDiagnostics) {
+      console.error('Failed to install update:', error);
+    }
     toast.error('Failed to install update', { 
       id: toastId,
       ...toastStyles,
@@ -104,9 +109,16 @@ export function UpdateChecker() {
   };
 
   useEffect(() => {
-    checkForUpdates();
-    const interval = setInterval(checkForUpdates, 24 * 60 * 60 * 1000);
-    return () => clearInterval(interval);
+    const timeout = setTimeout(() => {
+      checkForUpdates();
+    }, INITIAL_UPDATE_CHECK_DELAY_MS);
+
+    const interval = setInterval(checkForUpdates, UPDATE_CHECK_INTERVAL_MS);
+
+    return () => {
+      clearTimeout(timeout);
+      clearInterval(interval);
+    };
   }, []);
 
   return null;

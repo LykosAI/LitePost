@@ -1,20 +1,27 @@
 {
   "name": "litepost",
   "private": true,
-  "version": "0.2.0",
+  "version": "0.3.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
+    "browserslist:update": "npx update-browserslist-db@latest",
     "preview": "vite preview",
     "tauri": "tauri",
     "test": "vitest",
     "test:run": "vitest run",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest run --coverage",
-    "test:watch": "vitest --watch"
+    "test:watch": "vitest --watch",
+    "docs:dev": "vitepress dev docs",
+    "docs:build": "vitepress build docs",
+    "docs:preview": "vitepress preview docs"
   },
   "dependencies": {
+    "@fontsource-variable/inter": "^5.2.8",
+    "@fontsource-variable/jetbrains-mono": "^5.2.8",
+    "@monaco-editor/react": "^4.7.0",
     "@radix-ui/react-alert-dialog": "^1.1.5",
     "@radix-ui/react-context-menu": "^2.2.5",
     "@radix-ui/react-dialog": "^1.1.5",
@@ -65,12 +72,14 @@
     "@vitest/coverage-v8": "^3.0.4",
     "autoprefixer": "^10.4.20",
     "jsdom": "^26.0.0",
+    "monaco-editor": "^0.55.1",
     "postcss": "^8.5.1",
     "tailwind-scrollbar": "^3.1.0",
     "tailwindcss": "^3.4.17",
     "tailwindcss-animate": "^1.0.7",
     "typescript": "~5.6.2",
     "vite": "^6.0.3",
+    "vitepress": "^1.6.4",
     "vitest": "^3.0.4"
   }
 }

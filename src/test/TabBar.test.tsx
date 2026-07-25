@@ -119,14 +119,15 @@ describe('TabBar', () => {
   it('applies correct method color classes', () => {
     setup()
     const methodColors = {
-      GET: 'bg-blue-500',
-      POST: 'bg-green-500',
-      PUT: 'bg-yellow-500'
+      GET: 'text-sky-400',
+      POST: 'text-emerald-400',
+      PUT: 'text-amber-400'
     }
     mockTabs.forEach(tab => {
       const tabElement = screen.getByText(tab.name).closest('[role="tab"]')!
-      const methodIndicator = tabElement.querySelector('div[class*="rounded-full"]')!
-      expect(methodIndicator).toHaveClass(methodColors[tab.method as keyof typeof methodColors])
+      const methodLabel = tabElement.querySelector('span[class*="font-bold"]')!
+      expect(methodLabel).toHaveClass(methodColors[tab.method as keyof typeof methodColors])
+      expect(methodLabel).toHaveTextContent(tab.method)
     })
   })
 
@@ -169,12 +170,12 @@ describe('TabBar', () => {
   it('handles tab name editing', async () => {
     const { onStopEditing, rerender } = setup()
     const user = userEvent.setup()
-    
+
     // Simulate the tab entering edit mode
-    const editingTabs = mockTabs.map(tab => 
+    const editingTabs = mockTabs.map(tab =>
       tab.id === 'tab1' ? { ...tab, isEditing: true } : tab
     )
-    
+
     rerender(
       <TabBar
         tabs={editingTabs}
@@ -196,12 +197,12 @@ describe('TabBar', () => {
   it('cancels editing on escape key', async () => {
     const { onStopEditing, rerender } = setup()
     const user = userEvent.setup()
-    
+
     // Simulate the tab entering edit mode
-    const editingTabs = mockTabs.map(tab => 
+    const editingTabs = mockTabs.map(tab =>
       tab.id === 'tab1' ? { ...tab, isEditing: true } : tab
     )
-    
+
     rerender(
       <TabBar
         tabs={editingTabs}
@@ -222,12 +223,12 @@ describe('TabBar', () => {
   it('stops editing on blur', async () => {
     const { onStopEditing, rerender } = setup()
     const user = userEvent.setup()
-    
+
     // Simulate the tab entering edit mode
-    const editingTabs = mockTabs.map(tab => 
+    const editingTabs = mockTabs.map(tab =>
       tab.id === 'tab1' ? { ...tab, isEditing: true } : tab
     )
-    
+
     rerender(
       <TabBar
         tabs={editingTabs}
@@ -260,7 +261,7 @@ describe('TabBar', () => {
   it('handles horizontal scrolling', () => {
     setup()
     const tabsList = screen.getByRole('tablist')
-    
+
     // Mock scrollLeft since it's not implemented in JSDOM
     Object.defineProperty(tabsList, 'scrollLeft', {
       configurable: true,

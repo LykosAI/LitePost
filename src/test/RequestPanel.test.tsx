@@ -4,12 +4,16 @@ import userEvent from '@testing-library/user-event'
 import { RequestPanel } from '@/components/RequestPanel'
 import { AuthConfig, URLParam, Header, Cookie, TestScript, TestAssertion } from '@/types'
 
-// Mock Lucide icons
+// Mock Lucide icons (includes icons used by the ui/dropdown-menu primitives)
 vi.mock('lucide-react', () => ({
   Plus: () => <div data-testid="plus-icon" />,
   Trash2: () => <div data-testid="trash-icon" />,
   Save: () => <div data-testid="save-icon" />,
   X: () => <div data-testid="x-icon" />,
+  ChevronDown: () => <div data-testid="chevron-down-icon" />,
+  ChevronRight: () => <div data-testid="chevron-right-icon" />,
+  Check: () => <div data-testid="check-icon" />,
+  Circle: () => <div data-testid="circle-icon" />,
 }))
 
 // Mock child components
@@ -155,47 +159,49 @@ describe('RequestPanel', () => {
 
   it('renders all main components', () => {
     render(<RequestPanel {...mockProps} />)
-    
+
     expect(screen.getByTestId('send-button')).toBeInTheDocument()
     expect(screen.getByText('Params')).toBeInTheDocument()
     expect(screen.getByText('Auth')).toBeInTheDocument()
     expect(screen.getByText('Headers')).toBeInTheDocument()
     expect(screen.getByText('Body')).toBeInTheDocument()
-    expect(screen.getByText('Cookies')).toBeInTheDocument()
     expect(screen.getByText('Tests')).toBeInTheDocument()
-    expect(screen.getByText('Code')).toBeInTheDocument()
+    // Cookies, Code, and the other overflow sections live in the "⋯" menu
+    expect(screen.getByTestId('more-tabs-trigger')).toBeInTheDocument()
   })
 
   it('displays correct tabs content when selected', async () => {
     render(<RequestPanel {...mockProps} />)
     const user = userEvent.setup()
 
-    // Test Params tab
+    // Params chip
     await user.click(screen.getByText('Params'))
     expect(screen.getByRole('button', { name: 'Add Item' })).toBeInTheDocument()
 
-    // Test Auth tab
+    // Auth chip
     await user.click(screen.getByText('Auth'))
     expect(screen.getByTestId('auth-configurator')).toBeInTheDocument()
 
-    // Test Headers tab
+    // Headers chip
     await user.click(screen.getByText('Headers'))
     expect(screen.getByRole('button', { name: 'Add Item' })).toBeInTheDocument()
 
-    // Test Body tab
+    // Body chip
     await user.click(screen.getByText('Body'))
     expect(screen.getByTestId('body-editor')).toBeInTheDocument()
 
-    // Test Cookies tab
-    await user.click(screen.getByText('Cookies'))
+    // Cookies lives in the overflow menu
+    await user.click(screen.getByTestId('more-tabs-trigger'))
+    await user.click(screen.getByTestId('cookies-tab'))
     expect(screen.getByTestId('cookie-editor')).toBeInTheDocument()
 
-    // Test Tests tab
+    // Tests chip
     await user.click(screen.getByText('Tests'))
     expect(screen.getByTestId('test-panel')).toBeInTheDocument()
 
-    // Test Code tab
-    await user.click(screen.getByText('Code'))
+    // Code lives in the overflow menu
+    await user.click(screen.getByTestId('more-tabs-trigger'))
+    await user.click(screen.getByTestId('code-tab'))
     expect(screen.getByTestId('code-snippet')).toBeInTheDocument()
   })
 
@@ -250,9 +256,10 @@ describe('RequestPanel', () => {
     render(<RequestPanel {...customProps} />)
     const user = userEvent.setup()
     
-    // Navigate to Code tab first
-    await user.click(screen.getByText('Code'))
-    
+    // Code lives in the overflow menu
+    await user.click(screen.getByTestId('more-tabs-trigger'))
+    await user.click(screen.getByTestId('code-tab'))
+
     // Now check for the code snippet
     expect(screen.getByTestId('code-snippet')).toBeInTheDocument()
   })

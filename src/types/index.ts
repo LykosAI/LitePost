@@ -9,16 +9,37 @@ export interface Response {
     status: number
     statusText: string
     headers: Record<string, string>
-    cookies?: Cookie[]
+    cookies?: string[]
     timing?: ResponseTiming
     size?: ResponseSize
   }[]
-  cookies?: Cookie[]
-  cookieStrings?: string[]  // Original cookie strings for display
-  redirectCookieStrings?: string[][]  // Original cookie strings for each redirect
+  cookies?: string[]
   is_base64?: boolean
   timing?: ResponseTiming
   size?: ResponseSize
+}
+
+export interface StreamingResponse {
+  status: number
+  statusText: string
+  headers: Record<string, string>
+  chunkCount: number
+  currentContent: string
+  isComplete: boolean
+  error?: string
+  timing?: {
+    start: number
+    current: number
+    duration: number
+  }
+  streamType?: 'sse' | 'chunked' | 'unknown'
+}
+
+export interface StreamChunk {
+  id?: string
+  event?: string
+  data: string
+  timestamp: number
 }
 
 export interface ResponseTiming {
@@ -50,6 +71,8 @@ export interface HistoryItem {
   body: string
   contentType: string
   auth: AuthConfig
+  formDataEntries?: FormDataEntry[]
+  preRequestScripts?: TestScript[]
 }
 
 export interface URLParam {
@@ -64,7 +87,30 @@ export interface Header {
   enabled: boolean
 }
 
-export type AuthType = 'none' | 'basic' | 'bearer' | 'api-key'
+export type AuthType = 'none' | 'basic' | 'bearer' | 'api-key' | 'oauth2'
+
+export type OAuth2GrantType = 'authorization_code' | 'client_credentials' | 'password'
+
+export interface OAuth2Config {
+  grantType: OAuth2GrantType
+  /** Issuer/base URL or full .well-known URL used to auto-fill the endpoints */
+  discoveryUrl?: string
+  authUrl?: string
+  tokenUrl?: string
+  clientId: string
+  clientSecret?: string
+  scope?: string
+  usePkce?: boolean
+  redirectUri?: string
+  // Password grant only
+  username?: string
+  password?: string
+  // Token state (stored with request)
+  accessToken?: string
+  refreshToken?: string
+  tokenType?: string
+  expiresAt?: number
+}
 
 export interface AuthConfig {
   type: AuthType
@@ -74,6 +120,7 @@ export interface AuthConfig {
   key?: string
   value?: string
   addTo?: 'header' | 'query'
+  oauth2?: OAuth2Config
 }
 
 export interface Session {
@@ -119,6 +166,33 @@ export interface TestResult {
   duration: number
 }
 
+export interface FormDataEntry {
+  id: string
+  key: string
+  value: string
+  type: 'text' | 'file'
+  fileName?: string
+  fileSize?: number
+  fileData?: string
+  filePath?: string
+  enabled: boolean
+}
+
+export interface ResponseExtractionRule {
+  id: string
+  source: 'body' | 'header' | 'status' | 'cookie'
+  path: string
+  variableName: string
+  lastExtractedValue?: string
+}
+
+export interface NetworkConfig {
+  timeout?: number         // total request timeout in seconds (0 = no timeout)
+  connectTimeout?: number  // connection timeout in seconds
+  sslVerification?: boolean // verify SSL certificates (default true)
+  proxy?: string           // proxy URL (e.g. http://proxy:8080, socks5://proxy:1080)
+}
+
 export interface Tab {
   id: string
   name: string
@@ -136,8 +210,38 @@ export interface Tab {
   cookies: Cookie[]
   activeSession?: Session
   testScripts: TestScript[]
+  preRequestScripts?: TestScript[]
   testAssertions: TestAssertion[]
   testResults: TestResult | null
+  extractionRules?: ResponseExtractionRule[]
+  streaming?: StreamingResponse | null
+  cancelStream?: (() => void) | (() => Promise<void>)
+  // GraphQL support
+  graphqlQuery?: string
+  graphqlVariables?: string
+  graphqlOperationName?: string
+  isGraphQL?: boolean
+  // Form data support (for multipart/form-data)
+  formDataEntries?: FormDataEntry[]
+  // Network controls (per-request overrides)
+  networkConfig?: NetworkConfig
+}
+
+// WebSocket types
+export interface WebSocketMessage {
+  id: string
+  data: string
+  isBinary: boolean
+  timestamp: number
+  direction: 'incoming' | 'outgoing'
+}
+
+export interface WebSocketState {
+  connectionId: string
+  isConnected: boolean
+  messages: WebSocketMessage[]
+  connectedAt: number | null
+  error: string | null
 }
 
 export interface Cookie {
@@ -154,20 +258,34 @@ export interface Collection {
   id: string
   name: string
   description?: string
-  requests: {
-    id: string
-    name: string
-    method: string
-    url: string
-    rawUrl: string
-    params: URLParam[]
-    headers: Header[]
-    body: string
-    contentType: string
-    auth: AuthConfig
-    cookies: Cookie[]
-    testScripts: TestScript[]
-    testAssertions: TestAssertion[]
-    testResults: TestResult | null
-  }[]
-} 
+  requests: SavedRequest[]
+  createdAt?: Date
+  updatedAt?: Date
+}
+
+export interface SavedRequest {
+  id: string
+  name: string
+  method: string
+  url: string
+  rawUrl: string
+  params: URLParam[]
+  headers: Header[]
+  body: string
+  contentType: string
+  auth: AuthConfig
+  cookies: Cookie[]
+  testScripts: TestScript[]
+  preRequestScripts?: TestScript[]
+  testAssertions: TestAssertion[]
+  testResults: TestResult | null
+  extractionRules?: ResponseExtractionRule[]
+  graphqlQuery?: string
+  graphqlVariables?: string
+  graphqlOperationName?: string
+  isGraphQL?: boolean
+  formDataEntries?: FormDataEntry[]
+  networkConfig?: NetworkConfig
+  createdAt?: Date
+  updatedAt?: Date
+}

@@ -1,6 +1,7 @@
 import { invoke } from '@tauri-apps/api/core'
 import { Tab, HistoryItem } from '@/types'
 import { useEnvironmentStore } from '@/store/environments'
+import { useSettingsStore } from '@/store/settings'
 
 interface RedirectInfo {
   url: string
@@ -44,7 +45,8 @@ interface ResponseData {
 }
 
 export function useRequest(onHistoryUpdate: (item: HistoryItem) => void) {
-  const { getVariable } = useEnvironmentStore()
+  const { getVariable, setVariable } = useEnvironmentStore()
+  const { network: globalNetwork } = useSettingsStore()
 
   const substituteVariables = (text: string): string => {
     return text.replace(/\{\{([^}]+)\}\}/g, (match, key) => {
@@ -80,10 +82,12 @@ export function useRequest(onHistoryUpdate: (item: HistoryItem) => void) {
         if (tab.auth.addTo === 'header') {
           headerRecord[key] = value
         } else {
-          // Add to query parameters
           const separator = url.includes('?') ? '&' : '?'
           url += `${separator}${encodeURIComponent(key)}=${encodeURIComponent(value)}`
         }
+      } else if (tab.auth.type === 'oauth2' && tab.auth.oauth2?.accessToken) {
+        const tokenType = tab.auth.oauth2.tokenType || 'Bearer'
+        headerRecord['Authorization'] = `${tokenType} ${substituteVariables(tab.auth.oauth2.accessToken)}`
       }
 
       // Add cookies to headers with variable substitution
@@ -96,30 +100,77 @@ export function useRequest(onHistoryUpdate: (item: HistoryItem) => void) {
       }
 
       // Substitute variables in body if it exists
-      const body = tab.body && tab.method !== "GET" && tab.method !== "HEAD" 
-        ? substituteVariables(tab.body) 
+      let body = tab.body && tab.method !== "GET" && tab.method !== "HEAD"
+        ? substituteVariables(tab.body)
         : undefined
+      let method = tab.method
 
-      const options = {
-        method: tab.method,
+      if (tab.preRequestScripts && tab.preRequestScripts.length > 0) {
+        const { runPreRequestScripts } = await import('@/utils/preRequestRunner')
+        const runtime = await runPreRequestScripts({
+          scripts: tab.preRequestScripts,
+          request: {
+            method,
+            url,
+            headers: headerRecord,
+            body,
+          },
+          getVariable,
+          setVariable,
+          substituteVariables,
+        })
+
+        method = runtime.method
+        url = runtime.url
+        body = runtime.body
+
+        // Replace header values with runtime values.
+        Object.keys(headerRecord).forEach((key) => {
+          delete headerRecord[key]
+        })
+        Object.assign(headerRecord, runtime.headers)
+      }
+
+      // Merge network config: per-request overrides global defaults
+      const nc = tab.networkConfig
+      const timeout = nc?.timeout ?? globalNetwork.timeout
+      const connect_timeout = nc?.connectTimeout ?? globalNetwork.connectTimeout
+      const ssl_verification = nc?.sslVerification ?? globalNetwork.sslVerification
+      const proxy = nc?.proxy ?? globalNetwork.proxy
+
+      const options: Record<string, unknown> = {
+        method,
         url,
         headers: headerRecord,
         body,
-        content_type: tab.body && tab.method !== "GET" && tab.method !== "HEAD" ? tab.contentType : undefined,
+        content_type: body && method !== "GET" && method !== "HEAD" ? tab.contentType : undefined,
         cookies: tab.cookies.map(c => ({
           ...c,
           name: substituteVariables(c.name),
           value: substituteVariables(c.value)
-        }))
+        })),
+        timeout: timeout || undefined,
+        connect_timeout: connect_timeout || undefined,
+        ssl_verification,
+        proxy: proxy || undefined,
       }
 
-      console.log('Sending request with options:', options);
+      // Include form data for multipart/form-data requests
+      if (tab.contentType === 'multipart/form-data' && tab.formDataEntries) {
+        options.form_data = tab.formDataEntries.map((entry) => ({
+          ...entry,
+          key: substituteVariables(entry.key),
+          value: entry.type === 'text' ? substituteVariables(entry.value) : entry.value,
+          fileName: entry.fileName ? substituteVariables(entry.fileName) : entry.fileName
+        }))
+        options.content_type = 'multipart/form-data'
+      }
+
       const response = await invoke<ResponseData>('send_request', { options })
-      console.log('Raw response from Rust:', response);
 
       // Add to history
       onHistoryUpdate({
-        method: tab.method,
+        method,
         url: tab.rawUrl,
         rawUrl: tab.rawUrl,
         timestamp: new Date(),
@@ -127,15 +178,10 @@ export function useRequest(onHistoryUpdate: (item: HistoryItem) => void) {
         headers: tab.headers,
         body: tab.body,
         contentType: tab.contentType,
-        auth: tab.auth
+        auth: tab.auth,
+        formDataEntries: tab.formDataEntries,
+        preRequestScripts: tab.preRequestScripts,
       })
-
-      // Debug logging for redirect chain
-      console.log('Redirect chain from Rust:', {
-        hasRedirectChain: !!response.redirect_chain,
-        redirectChainLength: response.redirect_chain?.length,
-        redirectChain: response.redirect_chain
-      });
 
       const mappedResponse = {
         status: response.status,
@@ -147,58 +193,18 @@ export function useRequest(onHistoryUpdate: (item: HistoryItem) => void) {
           status: redirect.status,
           statusText: redirect.status_text,
           headers: redirect.headers,
-          cookies: redirect.cookies?.map(cookieStr => {
-            const parts = cookieStr.split(';').map(part => part.trim())
-            const [nameValue, ...attributes] = parts
-            const [name, value] = nameValue.split('=').map(s => s.trim())
-            const cookie: any = { name, value }
-            
-            attributes.forEach(attr => {
-              const [key, val] = attr.split('=').map(s => s.trim())
-              if (key.toLowerCase() === 'path') cookie.path = val
-              if (key.toLowerCase() === 'domain') cookie.domain = val
-              if (key.toLowerCase() === 'expires') cookie.expires = new Date(val)
-              if (key.toLowerCase() === 'secure') cookie.secure = true
-              if (key.toLowerCase() === 'httponly') cookie.httpOnly = true
-            })
-            
-            return cookie
-          }),
+          cookies: redirect.cookies,
           timing: redirect.timing,
           size: redirect.size
         })),
-        cookies: response.cookies.map(cookieStr => {
-          const parts = cookieStr.split(';').map(part => part.trim())
-          const [nameValue, ...attributes] = parts
-          const [name, value] = nameValue.split('=').map(s => s.trim())
-          const cookie: any = { name, value }
-          
-          attributes.forEach(attr => {
-            const [key, val] = attr.split('=').map(s => s.trim())
-            if (key.toLowerCase() === 'path') cookie.path = val
-            if (key.toLowerCase() === 'domain') cookie.domain = val
-            if (key.toLowerCase() === 'expires') cookie.expires = new Date(val)
-            if (key.toLowerCase() === 'secure') cookie.secure = true
-            if (key.toLowerCase() === 'httponly') cookie.httpOnly = true
-          })
-          
-          return cookie
-        }),
-        cookieStrings: response.cookies.map(cookieStr => cookieStr),  // Keep original strings for display
-        redirectCookieStrings: response.redirect_chain.map(redirect => redirect.cookies || []),  // Keep original strings for display
+        cookies: response.cookies,
         is_base64: response.is_base64,
         timing: response.timing,
         size: response.size
       }
 
-      console.log('Mapped response with redirects:', {
-        hasRedirectChain: !!mappedResponse.redirectChain,
-        redirectChainLength: mappedResponse.redirectChain?.length,
-        redirectChain: mappedResponse.redirectChain
-      });
       return mappedResponse
     } catch (error) {
-      console.error('Request error:', error)
       return {
         status: 0,
         statusText: "Error",

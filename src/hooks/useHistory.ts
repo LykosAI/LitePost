@@ -1,11 +1,21 @@
-import { useState, useEffect } from 'react'
-import { BaseDirectory, mkdir, readFile, writeFile } from '@tauri-apps/plugin-fs'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { HistoryItem } from '@/types'
+import { loadFromFile, saveToFile } from '@/utils/persistence'
 
 const HISTORY_FILE = 'history.json'
+// Unbounded history makes startup and every re-render slower forever; cap it.
+const MAX_HISTORY_ITEMS = 300
 
 export function useHistory() {
   const [history, setHistory] = useState<HistoryItem[]>([])
+  // Mirror of `history` so the mutation callbacks can stay referentially stable
+  // (they feed memoized components; recreating them defeats the memo).
+  const historyRef = useRef<HistoryItem[]>([])
+
+  const applyHistory = useCallback((newHistory: HistoryItem[]) => {
+    historyRef.current = newHistory
+    setHistory(newHistory)
+  }, [])
 
   useEffect(() => {
     loadHistory()
@@ -13,56 +23,43 @@ export function useHistory() {
 
   const loadHistory = async () => {
     try {
-      // Ensure the app data directory exists
-      try {
-        await mkdir('', { baseDir: BaseDirectory.AppData, recursive: true })
-      } catch (e) {
-        // Directory might already exist, ignore error
-      }
-
-      const contents = await readFile(HISTORY_FILE, { baseDir: BaseDirectory.AppData })
-      const loadedHistory = JSON.parse(new TextDecoder().decode(contents))
+      const loadedHistory = await loadFromFile<any[]>(HISTORY_FILE, [])
       // Convert ISO strings back to Date objects
-      setHistory(loadedHistory.map((item: any) => ({
+      applyHistory(loadedHistory.slice(0, MAX_HISTORY_ITEMS).map((item: any) => ({
         ...item,
         timestamp: new Date(item.timestamp)
       })))
     } catch (error) {
       // File doesn't exist yet or other error, start with fresh history
       console.log('No history file found, starting fresh')
-      setHistory([])
+      applyHistory([])
     }
   }
 
   const saveHistory = async (newHistory: HistoryItem[]) => {
     try {
-      const data = new TextEncoder().encode(JSON.stringify(newHistory, null, 2))
-      await writeFile(
-        HISTORY_FILE,
-        data,
-        { baseDir: BaseDirectory.AppData }
-      )
+      await saveToFile(HISTORY_FILE, newHistory)
     } catch (error) {
       console.error('Failed to save history:', error)
     }
   }
 
-  const addHistoryItem = async (item: HistoryItem) => {
-    const newHistory = [item, ...history]
-    setHistory(newHistory)
+  const addHistoryItem = useCallback(async (item: HistoryItem) => {
+    const newHistory = [item, ...historyRef.current].slice(0, MAX_HISTORY_ITEMS)
+    applyHistory(newHistory)
     await saveHistory(newHistory)
-  }
+  }, [applyHistory])
 
-  const removeHistoryItem = async (timestamp: Date) => {
-    const newHistory = history.filter(item => item.timestamp.getTime() !== timestamp.getTime())
-    setHistory(newHistory)
+  const removeHistoryItem = useCallback(async (timestamp: Date) => {
+    const newHistory = historyRef.current.filter(item => item.timestamp.getTime() !== timestamp.getTime())
+    applyHistory(newHistory)
     await saveHistory(newHistory)
-  }
+  }, [applyHistory])
 
-  const clearHistory = async () => {
-    setHistory([])
+  const clearHistory = useCallback(async () => {
+    applyHistory([])
     await saveHistory([])
-  }
+  }, [applyHistory])
 
   return {
     history,
