@@ -27,7 +27,9 @@ interface ResponsePanelProps {
   onLoadSample?: (sample: Partial<Tab>) => void
 }
 
-const MAX_JSON_PARSE_CHARS = 250_000
+// JSON.parse is cheap even at a few MB; render cost is bounded by
+// CollapsibleJSON's auto-collapse rules and per-node child cap.
+const MAX_JSON_PARSE_CHARS = 2_000_000
 const MAX_SYNTAX_HIGHLIGHT_CHARS = 500_000
 
 const cnFilterBadge = (state: "matched" | "partial" | "none") =>
@@ -328,6 +330,15 @@ function ResponsePanelComponent({
                   contentType={response.headers['content-type'] || 'image/png'}
                   isBase64={response.is_base64}
                 />
+              ) : responseFormat === "json" && parsedJSON !== null ? (
+                // Parsed JSON renders as a tree regardless of size — child
+                // rendering is capped per node, so big documents stay cheap
+                <div className="text-sm break-all font-mono">
+                  <CollapsibleJSON
+                    data={displayedJSON}
+                    {...jsonViewer}
+                  />
+                </div>
               ) : isLargeBody ? (
                 <div className="space-y-2">
                   <p className="text-xs text-muted-foreground/70 pr-8">
@@ -338,14 +349,7 @@ function ResponsePanelComponent({
                   </pre>
                 </div>
               ) : response ? (
-                responseFormat === "json" && parsedJSON !== null ? (
-                  <div className="text-sm break-all font-mono">
-                    <CollapsibleJSON
-                      data={displayedJSON}
-                      {...jsonViewer}
-                    />
-                  </div>
-                ) : (
+                (
                   <LazySyntaxHighlighter
                     language={responseFormat === "xml" || responseFormat === "html" ? "markup" : "text"}
                     variant="response-body"

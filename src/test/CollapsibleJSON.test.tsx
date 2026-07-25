@@ -28,6 +28,25 @@ describe('CollapsibleJSON', () => {
     expect(screen.getByText('"Hello"')).toBeInTheDocument()
   })
 
+  it('caps rendered children of huge arrays behind a show-more button', async () => {
+    const hugeArray = Array.from({ length: 350 }, (_, i) => `item-${i}`)
+    render(<CollapsibleJSON data={hugeArray} maxAutoExpandArraySize={1000} />)
+    const user = userEvent.setup()
+
+    // Only the first page of children renders
+    expect(screen.getByText('"item-0"')).toBeInTheDocument()
+    expect(screen.getByText('"item-99"')).toBeInTheDocument()
+    expect(screen.queryByText('"item-100"')).not.toBeInTheDocument()
+
+    const showMore = screen.getByTestId('json-show-more')
+    expect(showMore).toHaveTextContent('250 hidden')
+
+    // Revealing shows the rest (350 fits in one extra page)
+    await user.click(showMore)
+    expect(screen.getByText('"item-349"')).toBeInTheDocument()
+    expect(screen.queryByTestId('json-show-more')).not.toBeInTheDocument()
+  })
+
   it('renders array data', () => {
     const { container } = render(<CollapsibleJSON data={arrayData} />)
     expect(screen.getByText('[')).toBeInTheDocument()
