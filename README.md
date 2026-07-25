@@ -2,6 +2,9 @@
 
 A lightweight, cross-platform API testing application built with Tauri, React, and TypeScript.
 
+![image](https://github.com/user-attachments/assets/f0dc8163-c10c-4d71-9b19-99d92a448a1b)
+
+
 <div align="center">
 
 ### 📥 Download LitePost
