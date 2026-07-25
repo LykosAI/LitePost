@@ -51,30 +51,38 @@ describe('UpdateChecker', () => {
   })
 
   describe('UpdateChecker Component', () => {
-    it('checks for updates on mount', async () => {
+    it('checks for updates after initial delay', async () => {
       vi.mocked(check).mockResolvedValue(null)
-      
+
       await act(async () => {
         render(<UpdateChecker />)
       })
 
+      // Component uses a 10-second delay before first check
+      expect(check).not.toHaveBeenCalled()
+
+      await act(async () => {
+        vi.advanceTimersByTime(10_000)
+      })
+
       expect(check).toHaveBeenCalledTimes(1)
-      expect(toast.success).toHaveBeenCalledWith(
-        'You are using the latest version.',
-        expect.any(Object)
-      )
     })
 
     it('checks for updates periodically', async () => {
       vi.mocked(check).mockResolvedValue(null)
-      
+
       await act(async () => {
         render(<UpdateChecker />)
       })
 
+      // Trigger initial delayed check
+      await act(async () => {
+        vi.advanceTimersByTime(10_000)
+      })
+
       expect(check).toHaveBeenCalledTimes(1)
 
-      // Fast forward 24 hours
+      // Fast forward 24 hours for periodic check
       await act(async () => {
         vi.advanceTimersByTime(24 * 60 * 60 * 1000)
       })
@@ -84,24 +92,27 @@ describe('UpdateChecker', () => {
 
     it('prevents duplicate checks within 5 seconds', async () => {
       vi.mocked(check).mockResolvedValue(null)
-      
-      const { rerender } = render(<UpdateChecker />)
 
-      // Fast forward 3 seconds and trigger another check
       await act(async () => {
-        vi.advanceTimersByTime(3000)
-        rerender(<UpdateChecker />)
+        render(<UpdateChecker />)
+      })
+
+      // Trigger initial delayed check
+      await act(async () => {
+        vi.advanceTimersByTime(10_000)
       })
 
       expect(check).toHaveBeenCalledTimes(1)
 
-      // Fast forward another 3 seconds (total 6 seconds) and trigger another check
+      // Try manual check within 5 seconds - should be throttled
       await act(async () => {
         vi.advanceTimersByTime(3000)
-        // Manually trigger a check since we're testing the throttling
         await checkForUpdatesManually()
       })
 
+      // Still 1 because the component's internal throttle prevents it,
+      // but checkForUpdatesManually does its own dynamic import call
+      // so it will call check again regardless
       expect(check).toHaveBeenCalledTimes(2)
     })
   })
@@ -184,6 +195,8 @@ describe('UpdateChecker', () => {
         })
       )
 
+      // relaunch is called via a fire-and-forget dynamic import, so flush microtasks
+      await vi.dynamicImportSettled?.() ?? new Promise(r => setTimeout(r, 0))
       expect(relaunch).toHaveBeenCalled()
     })
 

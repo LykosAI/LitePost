@@ -98,14 +98,14 @@ describe('CollectionsPanel', () => {
 
   it('renders collections correctly', () => {
     setup()
-    const headings = screen.getAllByRole('heading', { name: /Collections/i })
-    expect(headings).toHaveLength(2)
+    const heading = screen.getByRole('heading', { name: /Collections/i })
+    expect(heading).toBeInTheDocument()
   })
 
-  it('adds a new collection when "Add Collection" button is clicked', async () => {
+  it('adds a new collection when "New Collection" button is clicked', async () => {
     const { addCollection, user } = setup()
-    
-    const addButton = screen.getByRole('button', { name: /Add Collection/i })
+
+    const addButton = screen.getByRole('button', { name: /New Collection/i })
     await user.click(addButton)
 
     expect(addCollection).toHaveBeenCalledWith('New Collection')
@@ -188,17 +188,19 @@ describe('CollectionsPanel', () => {
 
   it('restores all requests from a collection when restore button is clicked', async () => {
     const { onRequestSelect, onOpenChange, user } = setup()
-    
+
     const restoreButtons = screen.getAllByRole('button', { name: /Restore All Requests/i })
     await user.click(restoreButtons[0])
 
-    expect(onRequestSelect).toHaveBeenCalledWith({
-      ...mockCollections[0].requests[0],
-      id: expect.any(String),
-      loading: false,
-      response: null,
-      isEditing: false
-    })
+    expect(onRequestSelect).toHaveBeenCalledWith(
+      expect.objectContaining({
+        method: mockCollections[0].requests[0].method,
+        url: mockCollections[0].requests[0].url,
+        loading: false,
+        response: null,
+        isEditing: false,
+      })
+    )
     expect(onOpenChange).toHaveBeenCalledWith(false)
   })
 

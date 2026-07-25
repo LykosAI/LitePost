@@ -4,6 +4,10 @@ import path from "path";
 
 const host = process.env.TAURI_DEV_HOST;
 
+// Offline/sandboxed environments cannot refresh caniuse-lite during builds.
+// Avoid noisy warnings there while keeping an explicit update script in package.json.
+process.env.BROWSERSLIST_IGNORE_OLD_DATA ??= "1";
+
 // https://vitejs.dev/config/
 export default defineConfig(async () => ({
   plugins: [react()],
@@ -31,6 +35,52 @@ export default defineConfig(async () => ({
   },
   // to access the Tauri environment variables set by the CLI with information about the current target
   envPrefix: ["VITE_", "TAURI_"],
+  build: {
+    // Monaco is intentionally large and split into its own chunk for desktop/offline use.
+    chunkSizeWarningLimit: 5500,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          const normalizedId = id.replace(/\\/g, "/");
+
+          if (
+            normalizedId.includes("/node_modules/react/") ||
+            normalizedId.includes("/node_modules/react-dom/") ||
+            normalizedId.includes("/node_modules/scheduler/")
+          ) {
+            return "vendor-react";
+          }
+
+          if (normalizedId.includes("/node_modules/react-syntax-highlighter/")) {
+            return "vendor-syntax";
+          }
+
+          return undefined;
+        },
+      },
+    },
+  },
+  // Pre-bundle heavy deps so dev mode doesn't send hundreds of ESM requests through WebView2
+  optimizeDeps: {
+    include: [
+      "react",
+      "react-dom",
+      "react/jsx-runtime",
+      "react-resizable-panels",
+      "lucide-react",
+      "@radix-ui/react-tabs",
+      "@radix-ui/react-select",
+      "@radix-ui/react-dropdown-menu",
+      "@radix-ui/react-tooltip",
+      "@radix-ui/react-dialog",
+      "@radix-ui/react-popover",
+      "zustand",
+      "sonner",
+      "class-variance-authority",
+      "clsx",
+      "tailwind-merge",
+    ],
+  },
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),

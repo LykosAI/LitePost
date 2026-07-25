@@ -3,13 +3,14 @@ import {
   SheetContent,
   SheetHeader,
   SheetTitle,
-  SheetTrigger,
   SheetDescription,
 } from "@/components/ui/sheet"
 import { Button } from "@/components/ui/button"
-import { Settings, RotateCw, Palette, Sliders, RefreshCw } from "lucide-react"
+import { Settings, RotateCw, Palette, Sliders, RefreshCw, Globe, ShieldCheck } from "lucide-react"
 import { Label } from "@/components/ui/label"
 import { Slider } from "@/components/ui/slider"
+import { Input } from "@/components/ui/input"
+import { Switch } from "@/components/ui/switch"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
 import { useSettingsStore } from "@/store/settings"
@@ -18,18 +19,21 @@ import { useThemeClass } from "@/hooks/useThemeClass"
 import { forwardRef, useState } from "react"
 import { checkForUpdatesManually } from "./UpdateChecker"
 import { cn } from "@/lib/utils"
+import { useResizablePanel } from "@/hooks/useResizablePanel"
 
 interface SettingsPanelProps {
   open: boolean
   onOpenChange: (open: boolean) => void
 }
 
-export const SettingsPanel = forwardRef<HTMLButtonElement, SettingsPanelProps>(
-  ({ open, onOpenChange }, ref) => {
-    const { jsonViewer, updateJSONViewerSettings } = useSettingsStore()
+export const SettingsPanel = forwardRef<HTMLDivElement, SettingsPanelProps>(
+  ({ open, onOpenChange }, _ref) => {
+    const { jsonViewer, updateJSONViewerSettings, network: networkRaw, updateNetworkSettings } = useSettingsStore()
+    const network = networkRaw ?? { timeout: 30, connectTimeout: 10, sslVerification: true, proxy: '' }
     const { color: themeColor, setColor: setThemeColor } = useThemeStore()
     const themeClass = useThemeClass()
     const [isCheckingUpdate, setIsCheckingUpdate] = useState(false)
+    const { width, isDragging, setIsDragging } = useResizablePanel(480, 400)
 
     const handleCheckUpdate = async () => {
       setIsCheckingUpdate(true)
@@ -41,29 +45,28 @@ export const SettingsPanel = forwardRef<HTMLButtonElement, SettingsPanelProps>(
     }
 
     const themes = [
+      { id: 'amber' as ThemeColor, label: 'Night Desk', gradient: 'from-amber-400 to-orange-500' },
+      { id: 'green' as ThemeColor, label: 'Green C', gradient: 'from-emerald-500 to-teal-600' },
+      { id: 'schematic' as ThemeColor, label: 'Schematic', gradient: 'from-stone-100 to-blue-600' },
       { id: 'blue' as ThemeColor, label: 'Sapphire', gradient: 'from-blue-500 to-indigo-600' },
-      { id: 'green' as ThemeColor, label: 'Emerald', gradient: 'from-emerald-500 to-teal-600' },
       { id: 'purple' as ThemeColor, label: 'Amethyst', gradient: 'from-violet-500 to-purple-600' },
       { id: 'black' as ThemeColor, label: 'Obsidian', gradient: 'from-zinc-500 to-zinc-800' },
     ]
 
     return (
       <Sheet open={open} onOpenChange={onOpenChange}>
-        <SheetTrigger asChild>
-          <Button
-            ref={ref}
-            variant="ghost"
-            size="sm"
-            className="h-9 w-9 rounded-md hover:bg-muted/60"
-            aria-label="Settings"
-          >
-            <Settings className="h-4 w-4" />
-          </Button>
-        </SheetTrigger>
         <SheetContent
-          className={`${themeClass} w-[400px] sm:w-[480px] border-l border-border/30 bg-background/95 backdrop-blur-xl text-foreground [&_button>svg]:text-foreground [&_.close-button]:hover:bg-muted/60`}
+          className={`${themeClass} w-full sm:max-w-none border-l border-border/30 bg-background/95 backdrop-blur-xl text-foreground [&_button>svg]:text-foreground [&_.close-button]:hover:bg-muted/60 ${isDragging ? "transition-none !duration-0" : ""}`}
+          style={{ width: width ? `${width}px` : undefined }}
           side="right"
         >
+          {/* Resize Handle */}
+          <div
+            className="absolute left-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-primary/20 active:bg-primary/30 z-50 transition-colors group"
+            onMouseDown={(e) => { e.preventDefault(); setIsDragging(true); }}
+          >
+            <div className="absolute left-1 top-1/2 -translate-x-1/2 -translate-y-1/2 w-1 h-12 bg-border/50 group-hover:bg-primary/50 rounded-full transition-colors" />
+          </div>
           <SheetHeader>
             <SheetTitle className="text-foreground flex items-center gap-2">
               <Settings className="h-5 w-5 text-primary/70" />
@@ -86,26 +89,36 @@ export const SettingsPanel = forwardRef<HTMLButtonElement, SettingsPanelProps>(
                     </p>
                   </div>
                 </div>
-                <div className="grid grid-cols-4 gap-3">
+                <div className="grid grid-cols-2 gap-3 p-1">
                   {themes.map(({ id, label, gradient }) => (
                     <button
                       key={id}
                       onClick={() => setThemeColor(id)}
                       className={cn(
-                        "group flex flex-col items-center gap-2.5 p-3 rounded-xl transition-all duration-200",
+                        "group relative flex items-center justify-between p-3.5 rounded-xl border transition-all duration-300 overflow-hidden",
                         themeColor === id
-                          ? 'bg-accent/15 ring-2 ring-primary/30 shadow-sm'
-                          : 'hover:bg-muted/40'
+                          ? 'bg-primary/5 border-primary shadow-sm'
+                          : 'bg-secondary/20 border-border/40 hover:bg-secondary/40 hover:border-border/60'
                       )}
                     >
-                      <div
-                        className={cn(
-                          "w-10 h-10 rounded-full bg-gradient-to-br transition-transform duration-200 group-hover:scale-110 shadow-inner",
-                          gradient,
-                          themeColor === id && "ring-2 ring-white/20"
-                        )}
-                      />
-                      <span className="text-[11px] font-medium text-muted-foreground group-hover:text-foreground transition-colors">{label}</span>
+                      <div className="flex items-center gap-3 relative z-10">
+                        <div
+                          className={cn(
+                            "w-8 h-8 rounded-full bg-gradient-to-br transition-all duration-300 group-hover:scale-110 shadow-inner",
+                            gradient,
+                            themeColor === id && "ring-2 ring-background ring-offset-2 ring-offset-primary/40"
+                          )}
+                        />
+                        <span className={cn(
+                          "text-sm font-semibold transition-colors duration-300",
+                          themeColor === id ? 'text-primary' : 'text-foreground/70 group-hover:text-foreground'
+                        )}>
+                          {label}
+                        </span>
+                      </div>
+                      {themeColor === id && (
+                        <div className="absolute inset-0 bg-primary/5 dark:bg-primary/10 transition-opacity" />
+                      )}
                     </button>
                   ))}
                 </div>
@@ -124,11 +137,11 @@ export const SettingsPanel = forwardRef<HTMLButtonElement, SettingsPanelProps>(
                     </p>
                   </div>
                 </div>
-                <div className="flex items-center justify-between bg-muted/30 rounded-lg p-3 border border-border/20">
-                  <div className="space-y-0.5">
-                    <Label className="text-foreground text-sm">Auto Updates</Label>
-                    <p className="text-[11px] text-muted-foreground">
-                      Checks daily for new versions
+                <div className="flex items-center justify-between glass-card bg-secondary/10 p-4 border-border/30">
+                  <div className="space-y-1">
+                    <Label className="text-foreground text-[13px] font-semibold">Auto Updates</Label>
+                    <p className="text-[11px] text-muted-foreground/80">
+                      We check daily for new background patches
                     </p>
                   </div>
                   <Button
@@ -136,10 +149,10 @@ export const SettingsPanel = forwardRef<HTMLButtonElement, SettingsPanelProps>(
                     size="sm"
                     onClick={handleCheckUpdate}
                     disabled={isCheckingUpdate}
-                    className="border-border/40"
+                    className="border-border/40 h-9 bg-background/40 hover:bg-secondary/60 shadow-sm"
                   >
                     <RotateCw className={`h-3.5 w-3.5 mr-1.5 ${isCheckingUpdate ? 'animate-spin' : ''}`} />
-                    {isCheckingUpdate ? 'Checking…' : 'Check Now'}
+                    <span className="text-[13px] font-medium">{isCheckingUpdate ? 'Checking…' : 'Check Now'}</span>
                   </Button>
                 </div>
               </div>
@@ -157,11 +170,11 @@ export const SettingsPanel = forwardRef<HTMLButtonElement, SettingsPanelProps>(
                     </p>
                   </div>
                 </div>
-                <div className="grid gap-5 bg-muted/30 rounded-lg p-4 border border-border/20">
-                  <div className="space-y-3">
+                <div className="grid gap-6 glass-card bg-secondary/10 p-5 border-border/30">
+                  <div className="space-y-3.5">
                     <div className="flex justify-between items-center">
-                      <Label className="text-foreground text-sm">Auto-expand Depth</Label>
-                      <span className="text-xs font-mono text-primary/80 bg-primary/10 px-2 py-0.5 rounded-md">
+                      <Label className="text-foreground text-[13px] font-semibold">Auto-expand Depth</Label>
+                      <span className="text-[11px] font-mono font-bold text-primary/90 bg-primary/15 px-2 py-0.5 rounded-md border border-primary/20">
                         {jsonViewer.maxAutoExpandDepth}
                       </span>
                     </div>
@@ -173,17 +186,17 @@ export const SettingsPanel = forwardRef<HTMLButtonElement, SettingsPanelProps>(
                       onValueChange={([value]) =>
                         updateJSONViewerSettings({ maxAutoExpandDepth: value })
                       }
-                      className="[&_[role=slider]]:bg-primary [&_[role=slider]]:border-primary/80 [&_[data-orientation=horizontal]]:bg-muted"
+                      className="[&_[role=slider]]:bg-primary [&_[role=slider]]:border-primary/80 [&_[role=slider]]:shadow-glow-sm cursor-col-resize"
                     />
-                    <p className="text-[11px] text-muted-foreground">
-                      Maximum nesting depth to automatically expand
+                    <p className="text-[11px] text-muted-foreground/70">
+                      Determine the deepest nesting level to automatically uncollapse.
                     </p>
                   </div>
-                  <Separator className="bg-border/20" />
-                  <div className="space-y-3">
+                  <Separator className="bg-border/30" />
+                  <div className="space-y-3.5">
                     <div className="flex justify-between items-center">
-                      <Label className="text-foreground text-sm">Max Array Size</Label>
-                      <span className="text-xs font-mono text-primary/80 bg-primary/10 px-2 py-0.5 rounded-md">
+                      <Label className="text-foreground text-[13px] font-semibold">Max Array Size</Label>
+                      <span className="text-[11px] font-mono font-bold text-primary/90 bg-primary/15 px-2 py-0.5 rounded-md border border-primary/20">
                         {jsonViewer.maxAutoExpandArraySize}
                       </span>
                     </div>
@@ -195,17 +208,17 @@ export const SettingsPanel = forwardRef<HTMLButtonElement, SettingsPanelProps>(
                       onValueChange={([value]) =>
                         updateJSONViewerSettings({ maxAutoExpandArraySize: value })
                       }
-                      className="[&_[role=slider]]:bg-primary [&_[role=slider]]:border-primary/80 [&_[data-orientation=horizontal]]:bg-muted"
+                      className="[&_[role=slider]]:bg-primary [&_[role=slider]]:border-primary/80 [&_[role=slider]]:shadow-glow-sm cursor-col-resize"
                     />
-                    <p className="text-[11px] text-muted-foreground">
-                      Arrays larger than this will be collapsed by default
+                    <p className="text-[11px] text-muted-foreground/70">
+                      Arrays exceeding this size default to a collapsed view.
                     </p>
                   </div>
-                  <Separator className="bg-border/20" />
-                  <div className="space-y-3">
+                  <Separator className="bg-border/30" />
+                  <div className="space-y-3.5">
                     <div className="flex justify-between items-center">
-                      <Label className="text-foreground text-sm">Max Object Size</Label>
-                      <span className="text-xs font-mono text-primary/80 bg-primary/10 px-2 py-0.5 rounded-md">
+                      <Label className="text-foreground text-[13px] font-semibold">Max Object Size</Label>
+                      <span className="text-[11px] font-mono font-bold text-primary/90 bg-primary/15 px-2 py-0.5 rounded-md border border-primary/20">
                         {jsonViewer.maxAutoExpandObjectSize}
                       </span>
                     </div>
@@ -217,10 +230,10 @@ export const SettingsPanel = forwardRef<HTMLButtonElement, SettingsPanelProps>(
                       onValueChange={([value]) =>
                         updateJSONViewerSettings({ maxAutoExpandObjectSize: value })
                       }
-                      className="[&_[role=slider]]:bg-primary [&_[role=slider]]:border-primary/80 [&_[data-orientation=horizontal]]:bg-muted"
+                      className="[&_[role=slider]]:bg-primary [&_[role=slider]]:border-primary/80 [&_[role=slider]]:shadow-glow-sm cursor-col-resize"
                     />
-                    <p className="text-[11px] text-muted-foreground">
-                      Objects with more properties will be collapsed by default
+                    <p className="text-[11px] text-muted-foreground/70">
+                      Objects with expansive property lists will collapse to save space.
                     </p>
                   </div>
                 </div>
@@ -228,19 +241,96 @@ export const SettingsPanel = forwardRef<HTMLButtonElement, SettingsPanelProps>(
 
               <Separator className="bg-border/30" />
 
-              {/* Future Settings Sections */}
+              {/* Network Settings */}
               <div className="space-y-4">
                 <div className="flex items-center gap-2">
-                  <Sliders className="h-4 w-4 text-muted-foreground/40" />
+                  <Globe className="h-4 w-4 text-primary/60" />
                   <div>
-                    <h3 className="text-sm font-semibold text-muted-foreground/60">Request Defaults</h3>
-                    <p className="text-xs text-muted-foreground/40">
-                      Configure default settings for new requests
+                    <h3 className="text-sm font-semibold text-foreground">Network</h3>
+                    <p className="text-xs text-muted-foreground">
+                      Default timeout, SSL, and proxy settings for all requests
                     </p>
                   </div>
                 </div>
-                <div className="text-xs text-muted-foreground/40 italic bg-muted/20 rounded-lg p-3 border border-border/10 text-center">
-                  Coming soon…
+                <div className="grid gap-6 glass-card bg-secondary/10 p-5 border-border/30">
+                  {/* Timeout */}
+                  <div className="space-y-3.5">
+                    <div className="flex justify-between items-center">
+                      <Label className="text-foreground text-[13px] font-semibold">Request Timeout</Label>
+                      <span className="text-[11px] font-mono font-bold text-primary/90 bg-primary/15 px-2 py-0.5 rounded-md border border-primary/20">
+                        {network.timeout === 0 ? 'None' : `${network.timeout}s`}
+                      </span>
+                    </div>
+                    <Slider
+                      value={[network.timeout]}
+                      min={0}
+                      max={300}
+                      step={5}
+                      onValueChange={([value]) =>
+                        updateNetworkSettings({ timeout: value })
+                      }
+                      className="[&_[role=slider]]:bg-primary [&_[role=slider]]:border-primary/80 [&_[role=slider]]:shadow-glow-sm cursor-col-resize"
+                    />
+                    <p className="text-[11px] text-muted-foreground/70">
+                      Maximum time for the entire request. Set to 0 for no timeout.
+                    </p>
+                  </div>
+                  <Separator className="bg-border/30" />
+                  {/* Connect Timeout */}
+                  <div className="space-y-3.5">
+                    <div className="flex justify-between items-center">
+                      <Label className="text-foreground text-[13px] font-semibold">Connection Timeout</Label>
+                      <span className="text-[11px] font-mono font-bold text-primary/90 bg-primary/15 px-2 py-0.5 rounded-md border border-primary/20">
+                        {network.connectTimeout === 0 ? 'None' : `${network.connectTimeout}s`}
+                      </span>
+                    </div>
+                    <Slider
+                      value={[network.connectTimeout]}
+                      min={0}
+                      max={60}
+                      step={1}
+                      onValueChange={([value]) =>
+                        updateNetworkSettings({ connectTimeout: value })
+                      }
+                      className="[&_[role=slider]]:bg-primary [&_[role=slider]]:border-primary/80 [&_[role=slider]]:shadow-glow-sm cursor-col-resize"
+                    />
+                    <p className="text-[11px] text-muted-foreground/70">
+                      Maximum time to establish a TCP connection.
+                    </p>
+                  </div>
+                  <Separator className="bg-border/30" />
+                  {/* SSL Verification */}
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-1.5">
+                        <ShieldCheck className="h-3.5 w-3.5 text-primary/60" />
+                        <Label className="text-foreground text-[13px] font-semibold">SSL Certificate Verification</Label>
+                      </div>
+                      <p className="text-[11px] text-muted-foreground/70">
+                        Disable for self-signed certificates in development.
+                      </p>
+                    </div>
+                    <Switch
+                      checked={network.sslVerification}
+                      onCheckedChange={(checked) =>
+                        updateNetworkSettings({ sslVerification: checked })
+                      }
+                    />
+                  </div>
+                  <Separator className="bg-border/30" />
+                  {/* Proxy */}
+                  <div className="space-y-3.5">
+                    <Label className="text-foreground text-[13px] font-semibold">Proxy URL</Label>
+                    <Input
+                      value={network.proxy}
+                      onChange={(e) => updateNetworkSettings({ proxy: e.target.value })}
+                      placeholder="http://proxy:8080 or socks5://proxy:1080"
+                      className="bg-background/40 border-border/40 font-mono text-xs h-9"
+                    />
+                    <p className="text-[11px] text-muted-foreground/70">
+                      Route all requests through a proxy. Leave empty for direct connections.
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>

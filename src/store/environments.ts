@@ -16,6 +16,7 @@ interface EnvironmentState {
   deleteEnvironment: (id: string) => void
   setActiveEnvironment: (id: string | null) => void
   getVariable: (key: string) => string | undefined
+  setVariable: (key: string, value: string) => void
 }
 
 interface PersistedEnvironmentState {
@@ -62,6 +63,17 @@ export const useEnvironmentStore = create<EnvironmentState>()(
       getVariable: (key) => {
         const activeEnv = get().environments.find(env => env.id === get().activeEnvironmentId)
         return activeEnv?.variables[key]
+      },
+      setVariable: (key, value) => {
+        const { activeEnvironmentId } = get()
+        if (!activeEnvironmentId) return
+        set((state) => ({
+          environments: state.environments.map(env =>
+            env.id === activeEnvironmentId
+              ? { ...env, variables: { ...env.variables, [key]: value } }
+              : env
+          )
+        }))
       }
     }),
     {
@@ -74,7 +86,7 @@ export const useEnvironmentStore = create<EnvironmentState>()(
         setItem: async (_, value) => {
           await saveToFile(ENVIRONMENTS_FILE, value.state as PersistedEnvironmentState)
         },
-        removeItem: () => {}
+        removeItem: () => { }
       }
     }
   )

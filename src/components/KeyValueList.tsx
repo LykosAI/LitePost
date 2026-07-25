@@ -3,6 +3,9 @@ import { Button } from "@/components/ui/button"
 import { Trash2, Plus } from "lucide-react"
 import React from "react"
 import { cn } from "@/lib/utils"
+import { VariablePeek } from "./VariablePeek"
+
+const TEMPLATE_TOKEN_TEST = /\{\{[^}]+\}\}/
 
 interface KeyValueListProps<T extends { key: string; value: string; enabled: boolean }> {
   items: T[]
@@ -50,17 +53,25 @@ export function KeyValueList<T extends { key: string; value: string; enabled: bo
                 !item.enabled && "opacity-40"
               )}
             />
-            <Input
-              placeholder={valuePlaceholder}
-              value={item.value}
-              onChange={(e) => updateItem(index, 'value', e.target.value)}
-              disabled={disabled}
-              className={cn(
-                "bg-muted/30 border-border/30 text-foreground text-[13px] h-8",
-                "focus-visible:ring-ring/30 font-mono",
-                !item.enabled && "opacity-40"
-              )}
-            />
+            <div className="relative min-w-0">
+              <Input
+                placeholder={valuePlaceholder}
+                value={item.value}
+                onChange={(e) => updateItem(index, 'value', e.target.value)}
+                disabled={disabled}
+                className={cn(
+                  "bg-muted/30 border-border/30 text-foreground text-[13px] h-8 w-full",
+                  "focus-visible:ring-ring/30 font-mono",
+                  !item.enabled && "opacity-40",
+                  TEMPLATE_TOKEN_TEST.test(`${item.key} ${item.value}`) && "pr-16"
+                )}
+              />
+              <VariablePeek
+                compact
+                text={`${item.key} ${item.value}`}
+                className="absolute right-1.5 top-1/2 -translate-y-1/2"
+              />
+            </div>
             <Button
               variant="ghost"
               size="icon"

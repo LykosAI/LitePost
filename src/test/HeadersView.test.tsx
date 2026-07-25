@@ -20,20 +20,30 @@ describe('HeadersView', () => {
 
   it('renders headers correctly', () => {
     render(<HeadersView headers={mockHeaders} />)
-    
-    const expectedContent = 'content-type: application/json\nx-powered-by: Express\ncontent-length: 123'
-    const preElement = screen.getByText((content, element) => {
-      return element?.tagName.toLowerCase() === 'pre' && 
-             content.replace(/\s+/g, '') === expectedContent.replace(/\s+/g, '')
-    })
-    expect(preElement).toBeInTheDocument()
+
+    // Each header key and value should be rendered
+    expect(screen.getByText('content-type')).toBeInTheDocument()
+    expect(screen.getByText('application/json')).toBeInTheDocument()
+    expect(screen.getByText('x-powered-by')).toBeInTheDocument()
+    expect(screen.getByText('Express')).toBeInTheDocument()
+    expect(screen.getByText('content-length')).toBeInTheDocument()
+    expect(screen.getByText('123')).toBeInTheDocument()
+
+    // Should show header count
+    expect(screen.getByText('3 headers')).toBeInTheDocument()
   })
 
   it('provides copy functionality with correct content', async () => {
     render(<HeadersView headers={mockHeaders} />)
-    
+
     const copyButton = screen.getByTestId('copy-button')
     const expectedContent = 'content-type: application/json\nx-powered-by: Express\ncontent-length: 123'
     expect(copyButton).toHaveAttribute('data-content', expectedContent)
+  })
+
+  it('renders empty state when no headers', () => {
+    render(<HeadersView headers={{}} />)
+
+    expect(screen.getByText('No headers')).toBeInTheDocument()
   })
 }) 

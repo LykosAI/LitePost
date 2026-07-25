@@ -1,6 +1,4 @@
 import { useState, useMemo } from "react"
-import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
-import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import { CopyButton } from "./CopyButton"
 import { CODE_SNIPPETS } from "@/utils/codeSnippets"
 import { AuthConfig, Header, Cookie } from "@/types"
@@ -13,6 +11,7 @@ import {
 } from "@/components/ui/select"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { useThemeClass } from "@/hooks/useThemeClass"
+import { LazySyntaxHighlighter } from "./LazySyntaxHighlighter"
 
 interface CodeSnippetViewerProps {
   method: string
@@ -39,7 +38,7 @@ export function CodeSnippetViewer({
   const codeSnippet = useMemo(() => {
     const generator = CODE_SNIPPETS.find(s => s.value === selectedLanguage)?.generator
     if (!generator) return ''
-    
+
     return generator({
       method,
       url,
@@ -53,18 +52,18 @@ export function CodeSnippetViewer({
 
   return (
     <ScrollArea className="h-full pr-4">
-      <div className="space-y-4">
+      <div className="space-y-3">
         <div className="flex justify-between items-center">
           <Select value={selectedLanguage} onValueChange={setSelectedLanguage}>
-            <SelectTrigger className="w-[200px] bg-background border-input focus:ring-0 focus-visible:ring-1">
+            <SelectTrigger className="w-[200px] bg-secondary/40 border-border/40">
               <SelectValue placeholder="Select Language" />
             </SelectTrigger>
-            <SelectContent className={`${themeClass} bg-background border-border`}>
+            <SelectContent className={`${themeClass} bg-popover/95 backdrop-blur-xl border-border/40 shadow-xl`}>
               {CODE_SNIPPETS.map((lang) => (
                 <SelectItem
                   key={lang.value}
                   value={lang.value}
-                  className="hover:bg-accent focus:bg-accent text-foreground"
+                  className="hover:bg-accent/15 focus:bg-accent/15 text-foreground font-mono text-[13px]"
                 >
                   {lang.label}
                 </SelectItem>
@@ -73,41 +72,15 @@ export function CodeSnippetViewer({
           </Select>
           <CopyButton content={codeSnippet} />
         </div>
-        
-        <div className="relative font-mono text-sm bg-muted rounded-md p-4">
-          <SyntaxHighlighter
+
+        <div className="relative font-mono text-sm bg-muted/40 rounded-lg p-4 border border-border/20">
+          <LazySyntaxHighlighter
             language={selectedLanguage === 'curl' ? 'bash' : selectedLanguage}
-            style={{
-              ...oneDark,
-              'pre[class*="language-"]': {
-                ...oneDark['pre[class*="language-"]'],
-                background: 'transparent',
-                margin: 0,
-                padding: 0,
-              },
-              'code[class*="language-"]': {
-                ...oneDark['code[class*="language-"]'],
-                background: 'transparent',
-              },
-              'pre > code': {
-                ...oneDark['pre > code'],
-                background: 'transparent',
-              },
-              'token': {
-                background: 'transparent',
-              }
-            }}
-            customStyle={{
-              background: 'transparent',
-              fontSize: 'inherit',
-              whiteSpace: 'pre-wrap',
-              wordBreak: 'break-all',
-              overflowWrap: 'break-word',
-            }}
+            variant="code-snippet"
             wrapLongLines
           >
             {codeSnippet}
-          </SyntaxHighlighter>
+          </LazySyntaxHighlighter>
         </div>
       </div>
     </ScrollArea>

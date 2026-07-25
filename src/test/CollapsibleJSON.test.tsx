@@ -37,7 +37,7 @@ describe('CollapsibleJSON', () => {
     expect(rootArray).toBeInTheDocument()
     
     // Use within to scope our queries to just the array indices
-    const arrayIndices = within(rootArray).getAllByText(/[0-2]/, { selector: '.text-yellow-400' })
+    const arrayIndices = within(rootArray).getAllByText(/[0-2]/, { selector: '.text-amber-700' })
     expect(arrayIndices).toHaveLength(3)
     expect(arrayIndices[0]).toHaveTextContent('0')
     expect(arrayIndices[1]).toHaveTextContent('1')
@@ -120,4 +120,28 @@ describe('CollapsibleJSON', () => {
     expect(within(rootObject).getByTestId('chevron-right')).toBeInTheDocument()
     expect(screen.getByText('15 properties')).toBeInTheDocument()
   })
-}) 
+
+  it('recomputes auto-expand when limits change', () => {
+    const mediumObject = {
+      a: 1,
+      b: 2,
+      c: 3,
+      d: 4,
+      e: 5,
+      f: 6
+    }
+
+    const { container, rerender } = render(
+      <CollapsibleJSON data={mediumObject} maxAutoExpandObjectSize={10} />
+    )
+
+    let rootObject = container.querySelector('.relative') as HTMLElement
+    expect(within(rootObject).getByTestId('chevron-down')).toBeInTheDocument()
+
+    rerender(<CollapsibleJSON data={mediumObject} maxAutoExpandObjectSize={3} />)
+
+    rootObject = container.querySelector('.relative') as HTMLElement
+    expect(within(rootObject).getByTestId('chevron-right')).toBeInTheDocument()
+    expect(screen.getByText('6 properties')).toBeInTheDocument()
+  })
+})

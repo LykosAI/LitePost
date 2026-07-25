@@ -42,7 +42,7 @@ export function createInitialStreamingResponse(startTime: number): StreamingResp
     status: 0,
     statusText: 'Pending',
     headers: {},
-    chunks: [],
+    chunkCount: 0,
     currentContent: '',
     isComplete: false,
     streamType: 'sse',

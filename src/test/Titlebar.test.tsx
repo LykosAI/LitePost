@@ -3,6 +3,7 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { TitleBar } from '@/components/Titlebar'
 import { useEnvironmentStore } from '@/store/environments'
+import { useUiStore } from '@/store/ui'
 import React from 'react'
 
 // Create mock functions that we can track
@@ -83,6 +84,8 @@ describe('TitleBar', () => {
     mockWindowFunctions.minimize.mockReset()
     mockWindowFunctions.toggleMaximize.mockReset()
     mockWindowFunctions.close.mockReset()
+    // The UI store is global — reset panel/palette state between tests
+    useUiStore.setState({ paletteOpen: false, activePanel: null })
   })
 
   const setup = (props = {}) => {
@@ -107,24 +110,12 @@ describe('TitleBar', () => {
   //   expect(screen.getByAltText('LitePost')).toBeInTheDocument()
   // })
 
-  it('renders window control buttons', () => {
+  it('does not render window controls in non-Tauri environment', () => {
     setup()
-    expect(screen.getByLabelText('Minimize')).toBeInTheDocument()
-    expect(screen.getByLabelText('Maximize')).toBeInTheDocument()
-    expect(screen.getByLabelText('Close')).toBeInTheDocument()
-  })
-
-  it('calls window controls when buttons are clicked', async () => {
-    const { user } = setup()
-
-    await user.click(screen.getByLabelText('Minimize'))
-    expect(mockWindowFunctions.minimize).toHaveBeenCalled()
-
-    await user.click(screen.getByLabelText('Maximize'))
-    expect(mockWindowFunctions.toggleMaximize).toHaveBeenCalled()
-
-    await user.click(screen.getByLabelText('Close'))
-    expect(mockWindowFunctions.close).toHaveBeenCalled()
+    // Window controls (Minimize/Maximize/Close) only render when running inside Tauri
+    expect(screen.queryByLabelText('Minimize')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Maximize')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Close')).not.toBeInTheDocument()
   })
 
   it('renders environment selector with correct options', () => {

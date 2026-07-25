@@ -72,7 +72,7 @@ export function useStreamingResponse() {
           if (!prev) return null
           return {
             ...prev,
-            chunks: [...prev.chunks, chunk],
+            chunkCount: prev.chunkCount + 1,
             currentContent: prev.currentContent + chunk.data,
             timing: createStreamingTiming(startTime.current),
           }

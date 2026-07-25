@@ -430,7 +430,7 @@ pub async fn oauth2_token_exchange(
         params.insert("password".to_string(), password);
     }
 
-    let client = &client_wrapper.client;
+    let client = client_wrapper.get_or_init_client()?;
     let res = client
         .post(&token_url)
         .header("accept", OAUTH_TOKEN_ACCEPT_HEADER)
@@ -546,7 +546,7 @@ pub async fn oauth2_auth_code_flow(
         params.insert("code_verifier".to_string(), code_verifier);
     }
 
-    let client = &client_wrapper.client;
+    let client = client_wrapper.get_or_init_client()?;
     let res = client
         .post(&token_url)
         .header("accept", OAUTH_TOKEN_ACCEPT_HEADER)
@@ -685,7 +685,7 @@ pub async fn oauth2_refresh(
 
     insert_optional_param(&mut params, "client_secret", options.client_secret);
 
-    let client = &client_wrapper.client;
+    let client = client_wrapper.get_or_init_client()?;
     let res = client
         .post(&token_url)
         .header("accept", OAUTH_TOKEN_ACCEPT_HEADER)

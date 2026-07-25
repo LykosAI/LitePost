@@ -1,10 +1,10 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { Tab, AuthConfig } from '@/types'
 import { getRequestNameFromUrl } from '@/utils/url'
 
 const DEFAULT_HEADERS = [
   { key: "Accept", value: "application/json", enabled: true },
-  { key: "User-Agent", value: "LitePost/0.2.0", enabled: true },
+  { key: "User-Agent", value: "LitePost/0.3.0", enabled: true },
   { key: "Accept-Language", value: "en-US,en;q=0.9", enabled: true },
   { key: "Cache-Control", value: "no-cache", enabled: false },
   { key: "Content-Type", value: "application/json", enabled: false }
@@ -18,25 +18,12 @@ const DEFAULT_AUTH: AuthConfig = {
 export function useTabs() {
   const [activeTab, setActiveTab] = useState<string>("")
   const [tabs, setTabs] = useState<Tab[]>([])
-  const [nextId, setNextId] = useState(1)
+  // Ref instead of state so createNewTab/addTab stay referentially stable —
+  // these callbacks feed memoized children and must not change per render.
+  const nextIdRef = useRef(1)
 
-  // Initialize with one tab
-  useEffect(() => {
-    if (tabs.length === 0) {
-      const initialTab = createNewTab()
-      setTabs([initialTab])
-      setActiveTab(initialTab.id)
-    }
-  }, [])
-
-  const generateUniqueId = () => {
-    const id = String(nextId)
-    setNextId(prev => prev + 1)
-    return id
-  }
-
-  const createNewTab = (overrides: Partial<Tab> = {}): Tab => {
-    const id = generateUniqueId()
+  const createNewTab = useCallback((overrides: Partial<Tab> = {}): Tab => {
+    const id = String(nextIdRef.current++)
     return {
       id,
       name: "New Request",
@@ -52,19 +39,30 @@ export function useTabs() {
       auth: { ...DEFAULT_AUTH },
       cookies: [],
       testScripts: [],
+      preRequestScripts: [],
       testAssertions: [],
       testResults: null,
+      extractionRules: [],
       ...overrides
     }
-  }
+  }, [])
 
-  const addTab = () => {
+  // Initialize with one tab
+  useEffect(() => {
+    if (tabs.length === 0) {
+      const initialTab = createNewTab()
+      setTabs([initialTab])
+      setActiveTab(initialTab.id)
+    }
+  }, [])
+
+  const addTab = useCallback(() => {
     const newTab = createNewTab()
     setTabs(prev => [...prev, newTab])
     setActiveTab(newTab.id)
-  }
+  }, [createNewTab])
 
-  const closeTab = (tabId: string) => {
+  const closeTab = useCallback((tabId: string) => {
     setTabs(prev => {
       const newTabs = prev.filter(t => t.id !== tabId)
       if (newTabs.length === 0) {
@@ -72,16 +70,17 @@ export function useTabs() {
         setActiveTab(newTab.id)
         return [newTab]
       }
-      if (tabId === activeTab) {
+      setActiveTab(currentActive => {
+        if (tabId !== currentActive) return currentActive
         const index = prev.findIndex(t => t.id === tabId)
         const newActiveIndex = Math.max(0, index - 1)
-        setActiveTab(newTabs[newActiveIndex].id)
-      }
+        return newTabs[newActiveIndex].id
+      })
       return newTabs
     })
-  }
+  }, [createNewTab])
 
-  const updateTab = (tabId: string, updates: Partial<Tab>) => {
+  const updateTab = useCallback((tabId: string, updates: Partial<Tab>) => {
     setTabs(current => {
       const tabIndex = current.findIndex(t => t.id === tabId)
       if (tabIndex === -1) return current
@@ -90,18 +89,27 @@ export function useTabs() {
       newTabs[tabIndex] = { ...newTabs[tabIndex], ...updates }
       return newTabs
     })
-  }
+  }, [])
 
-  const startEditing = (tabId: string) => {
+  const startEditing = useCallback((tabId: string) => {
     updateTab(tabId, { isEditing: true })
-  }
+  }, [updateTab])
 
-  const stopEditing = (tabId: string, newName: string) => {
-    updateTab(tabId, { 
-      isEditing: false,
-      name: newName.trim() || getRequestNameFromUrl(tabs.find(t => t.id === tabId)?.rawUrl || "") || "New Request"
+  const stopEditing = useCallback((tabId: string, newName: string) => {
+    setTabs(current => {
+      const tabIndex = current.findIndex(t => t.id === tabId)
+      if (tabIndex === -1) return current
+
+      const tab = current[tabIndex]
+      const newTabs = [...current]
+      newTabs[tabIndex] = {
+        ...tab,
+        isEditing: false,
+        name: newName.trim() || getRequestNameFromUrl(tab.rawUrl || "") || "New Request"
+      }
+      return newTabs
     })
-  }
+  }, [])
 
   const currentTab = tabs.find(t => t.id === activeTab)
 

@@ -3,8 +3,6 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Plus, Trash2, Play } from "lucide-react"
-import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
-import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import {
   Select,
   SelectContent,
@@ -14,6 +12,10 @@ import {
 } from "@/components/ui/select"
 import { TestScript, TestAssertion, TestResult, Response } from "@/types"
 import { useState } from "react"
+import { useThemeClass } from "@/hooks/useThemeClass"
+import { LazySyntaxHighlighter } from "./LazySyntaxHighlighter"
+
+const MAX_TEST_EDITOR_HIGHLIGHT_CHARS = 120_000
 
 interface TestPanelProps {
   scripts: TestScript[]
@@ -25,11 +27,13 @@ interface TestPanelProps {
   onRunTests: () => void
 }
 
-function CodeEditor({ value, onChange, className = "" }: { 
+function CodeEditor({ value, onChange, className = "" }: {
   value: string
   onChange: (value: string) => void
-  className?: string 
+  className?: string
 }) {
+  const showPlainText = value.length > MAX_TEST_EDITOR_HIGHLIGHT_CHARS
+
   return (
     <div className={`relative font-mono text-sm rounded-md border ${className}`}>
       <Textarea
@@ -39,42 +43,18 @@ function CodeEditor({ value, onChange, className = "" }: {
         spellCheck={false}
       />
       <div className="p-4">
-        <SyntaxHighlighter
-          language="javascript"
-          style={{
-            ...oneDark,
-            'pre[class*="language-"]': {
-              ...oneDark['pre[class*="language-"]'],
-              background: 'transparent',
-              margin: 0,
-              padding: 0,
-            },
-            'code[class*="language-"]': {
-              ...oneDark['code[class*="language-"]'],
-              background: 'transparent',
-            },
-            'token': {
-              ...oneDark['token'],
-              background: 'transparent !important',
-            },
-            'token.operator': {
-              ...oneDark['token.operator'],
-              background: 'transparent !important',
-            },
-            'token.string': {
-              ...oneDark['token.string'],
-              background: 'transparent !important',
-            }
-          }}
-          customStyle={{
-            margin: 0,
-            padding: 0,
-            background: 'transparent',
-            fontSize: 'inherit',
-          }}
-        >
-          {value}
-        </SyntaxHighlighter>
+        {showPlainText ? (
+          <pre className="text-sm font-mono whitespace-pre-wrap break-all m-0">
+            {value}
+          </pre>
+        ) : (
+          <LazySyntaxHighlighter
+            language="javascript"
+            variant="test-editor"
+          >
+            {value}
+          </LazySyntaxHighlighter>
+        )}
       </div>
     </div>
   )
@@ -89,6 +69,7 @@ export function TestPanel({
   onAssertionsChange,
   onRunTests,
 }: TestPanelProps) {
+  const themeClass = useThemeClass()
   const [selectedScript, setSelectedScript] = useState<string | null>(
     scripts[0]?.id || null
   )
@@ -173,6 +154,38 @@ export function TestPanel({
 
       <ScrollArea className="flex-1 min-h-0">
         <div className="p-4 space-y-4 pr-4">
+          {/* Empty state */}
+          {scripts.length === 0 && assertions.length === 0 && !testResults && (
+            <div className="flex flex-col items-center justify-center py-12 text-center">
+              <div className="rounded-full bg-muted/40 p-4 mb-4">
+                <Play className="h-8 w-8 text-muted-foreground/30" />
+              </div>
+              <h4 className="text-sm font-medium text-muted-foreground/80 mb-1">No tests configured</h4>
+              <p className="text-xs text-muted-foreground/50 max-w-[320px] mb-6">
+                Validate your API responses automatically. Send a request first, then run your tests.
+              </p>
+              <div className="grid grid-cols-2 gap-3 w-full max-w-[400px]">
+                <button
+                  onClick={addScript}
+                  className="flex flex-col items-start gap-1.5 rounded-lg border border-border/30 bg-muted/20 p-3 hover:bg-muted/40 transition-colors text-left"
+                >
+                  <span className="text-xs font-semibold text-foreground/80">+ Add Script</span>
+                  <span className="text-[11px] text-muted-foreground/50 leading-tight">
+                    Write custom JavaScript tests with full access to the response
+                  </span>
+                </button>
+                <button
+                  onClick={addAssertion}
+                  className="flex flex-col items-start gap-1.5 rounded-lg border border-border/30 bg-muted/20 p-3 hover:bg-muted/40 transition-colors text-left"
+                >
+                  <span className="text-xs font-semibold text-foreground/80">+ Add Assertion</span>
+                  <span className="text-[11px] text-muted-foreground/50 leading-tight">
+                    Quick no-code checks for status, headers, JSON values, and more
+                  </span>
+                </button>
+              </div>
+            </div>
+          )}
           {/* Test Scripts */}
           {scripts.length > 0 && (
             <div className="space-y-2">
@@ -225,10 +238,10 @@ export function TestPanel({
                       })
                     }
                   >
-                    <SelectTrigger className="w-[140px] bg-background border-input focus:ring-0 focus-visible:ring-1" aria-label="Type">
+                    <SelectTrigger className="w-[140px] bg-background border-input" aria-label="Type">
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent className="dark bg-background border-border">
+                    <SelectContent className={`${themeClass} bg-background border-border`}>
                       <SelectItem value="status" className="text-foreground">Status Code</SelectItem>
                       <SelectItem value="json" className="text-foreground">JSON Value</SelectItem>
                       <SelectItem value="header" className="text-foreground">Header</SelectItem>
@@ -259,10 +272,10 @@ export function TestPanel({
                       })
                     }
                   >
-                    <SelectTrigger className="w-[140px] bg-background border-input focus:ring-0 focus-visible:ring-1" aria-label="Operator">
+                    <SelectTrigger className="w-[140px] bg-background border-input" aria-label="Operator">
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent className="dark bg-background border-border">
+                    <SelectContent className={`${themeClass} bg-background border-border`}>
                       <SelectItem value="equals" className="text-foreground">Equals</SelectItem>
                       <SelectItem value="contains" className="text-foreground">Contains</SelectItem>
                       <SelectItem value="exists" className="text-foreground">Exists</SelectItem>
@@ -279,9 +292,9 @@ export function TestPanel({
                         updateAssertion(assertion.id, {
                           expected:
                             assertion.type === 'status' ||
-                            assertion.type === 'responseTime'
+                              assertion.type === 'responseTime'
                               ? Number(e.target.value)
-                            : e.target.value,
+                              : e.target.value,
                         })
                       }
                       className="w-[140px]"
@@ -307,9 +320,8 @@ export function TestPanel({
               <div className="p-2 border border-border rounded-md space-y-2">
                 <div className="flex items-center gap-2">
                   <div
-                    className={`w-2 h-2 rounded-full ${
-                      testResults.success ? 'bg-green-500' : 'bg-red-500'
-                    }`}
+                    className={`w-2 h-2 rounded-full ${testResults.success ? 'bg-green-500' : 'bg-red-500'
+                      }`}
                   />
                   <span>
                     {testResults.success ? 'Tests passed' : 'Tests failed'}
@@ -326,9 +338,8 @@ export function TestPanel({
                     {testResults.scriptResults.map((result, index) => (
                       <div
                         key={index}
-                        className={`p-2 rounded text-sm ${
-                          result.success ? 'bg-green-500/10' : 'bg-red-500/10'
-                        }`}
+                        className={`p-2 rounded text-sm ${result.success ? 'bg-green-500/10' : 'bg-red-500/10'
+                          }`}
                       >
                         <span className="font-medium">{result.name}</span>
                         {result.message && (
@@ -348,9 +359,8 @@ export function TestPanel({
                     {testResults.assertions.map((result) => (
                       <div
                         key={result.id}
-                        className={`p-2 rounded text-sm ${
-                          result.success ? 'bg-green-500/10' : 'bg-red-500/10'
-                        }`}
+                        className={`p-2 rounded text-sm ${result.success ? 'bg-green-500/10' : 'bg-red-500/10'
+                          }`}
                       >
                         {result.message}
                       </div>

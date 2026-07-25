@@ -2,7 +2,7 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { loadFromFile, saveToFile } from '@/utils/persistence'
 
-export type ThemeColor = 'blue' | 'green' | 'black' | 'purple'
+export type ThemeColor = 'amber' | 'blue' | 'green' | 'black' | 'purple' | 'schematic'
 
 interface ThemeState {
   color: ThemeColor
@@ -10,7 +10,7 @@ interface ThemeState {
 }
 
 const THEME_FILE = 'theme.json'
-const DEFAULT_THEME: ThemeColor = 'blue'
+const DEFAULT_THEME: ThemeColor = 'amber'
 
 export const useThemeStore = create<ThemeState>()(
   persist(

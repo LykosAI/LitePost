@@ -3,11 +3,12 @@ use tauri_plugin_http::reqwest::header::{HeaderMap, HeaderName, HeaderValue};
 
 use crate::models::RequestOptions;
 
-pub fn now_millis() -> u128 {
+pub fn now_millis() -> f64 {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap_or_default()
-        .as_millis()
+        .as_secs_f64()
+        * 1000.0
 }
 
 pub fn build_request_headers(options: &RequestOptions) -> Result<HeaderMap, String> {

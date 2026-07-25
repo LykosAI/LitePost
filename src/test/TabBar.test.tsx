@@ -119,14 +119,15 @@ describe('TabBar', () => {
   it('applies correct method color classes', () => {
     setup()
     const methodColors = {
-      GET: 'bg-sky-400',
-      POST: 'bg-emerald-400',
-      PUT: 'bg-amber-400'
+      GET: 'text-sky-400',
+      POST: 'text-emerald-400',
+      PUT: 'text-amber-400'
     }
     mockTabs.forEach(tab => {
       const tabElement = screen.getByText(tab.name).closest('[role="tab"]')!
-      const methodIndicator = tabElement.querySelector('div[class*="rounded-full"]')!
-      expect(methodIndicator).toHaveClass(methodColors[tab.method as keyof typeof methodColors])
+      const methodLabel = tabElement.querySelector('span[class*="font-bold"]')!
+      expect(methodLabel).toHaveClass(methodColors[tab.method as keyof typeof methodColors])
+      expect(methodLabel).toHaveTextContent(tab.method)
     })
   })
 

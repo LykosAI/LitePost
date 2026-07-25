@@ -8,6 +8,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { cn } from "@/lib/utils"
+import { useThemeClass } from "@/hooks/useThemeClass"
 import { Collection, SavedRequest, Tab } from "@/types"
 import { methodColors } from "./collectionUtils"
 import {
@@ -44,6 +45,7 @@ export function CollectionCard({
   onSelectRequest,
   onDeleteRequest,
 }: CollectionCardProps) {
+  const themeClass = useThemeClass()
   return (
     <div className="space-y-2 p-4 rounded-lg border border-border bg-card/50 shadow-sm">
       <div className="flex items-center justify-between gap-2">
@@ -123,33 +125,38 @@ export function CollectionCard({
       )}
 
       {isExpanded && (
-        <div className="space-y-2 mt-4">
+        <div className="space-y-1 mt-3 pl-4 border-l-2 border-border/20">
+          {collection.requests.length === 0 && (
+            <p className="text-xs text-muted-foreground/50 py-3 pl-2">
+              No saved requests. Click the save icon above to add the current request.
+            </p>
+          )}
           {collection.requests.map((request) => (
             <div
               key={request.id}
-              className="flex items-center justify-between gap-2 p-2 rounded border border-border/50 hover:bg-accent/50"
+              className="flex items-center justify-between gap-2 px-3 py-2 rounded-md hover:bg-muted/30 transition-colors group"
             >
               <div
-                className="flex items-center gap-2 flex-1 cursor-pointer"
+                className="flex items-center gap-2.5 flex-1 cursor-pointer min-w-0"
                 onClick={() => onSelectRequest(request)}
               >
                 <span
                   className={cn(
-                    "px-2 py-0.5 text-xs rounded",
+                    "px-2 py-0.5 text-[11px] font-semibold rounded-md shrink-0",
                     methodColors[request.method] || "bg-muted-foreground/10"
                   )}
                 >
                   {request.method}
                 </span>
-                <span className="flex-1 truncate">{request.name}</span>
+                <span className="flex-1 truncate text-sm">{request.name}</span>
               </div>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="sm" className="h-8 w-8">
-                    <MoreVertical className="h-4 w-4" />
+                  <Button variant="ghost" size="sm" className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <MoreVertical className="h-3.5 w-3.5" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="dark bg-background border-border">
+                <DropdownMenuContent align="end" className={`${themeClass} bg-popover/95 backdrop-blur-xl border-border/40 shadow-xl`}>
                   <DropdownMenuItem
                     onClick={() => onDeleteRequest(collection.id, request.id)}
                     className="text-destructive focus:text-destructive"

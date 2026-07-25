@@ -1,4 +1,4 @@
-import { useState, memo } from "react"
+import { useEffect, useMemo, useState, memo } from "react"
 import { Button } from "./ui/button"
 import { ChevronRight, ChevronDown } from "lucide-react"
 
@@ -33,13 +33,24 @@ export const CollapsibleJSON = memo(function CollapsibleJSON({
     return true
   }
 
-  const [expanded, setExpanded] = useState(isExpanded && shouldAutoExpand())
+  const autoExpanded = useMemo(
+    () => isExpanded && shouldAutoExpand(),
+    [data, isExpanded, level, maxAutoExpandArraySize, maxAutoExpandDepth, maxAutoExpandObjectSize]
+  )
+
+  const [expanded, setExpanded] = useState(autoExpanded)
+  useEffect(() => {
+    setExpanded(autoExpanded)
+  }, [autoExpanded])
+
   const isObject = typeof data === 'object' && data !== null
   const isArray = Array.isArray(data)
 
   if (!isObject) {
     return (
-      <span className={typeof data === 'string' ? 'text-green-400' : 'text-blue-400'}>
+      <span className={typeof data === 'string'
+        ? 'text-emerald-700 dark:text-green-400'
+        : 'text-blue-700 dark:text-blue-400'}>
         {JSON.stringify(data)}
       </span>
     )
@@ -75,7 +86,7 @@ export const CollapsibleJSON = memo(function CollapsibleJSON({
           {entries.map(([key, value]) => (
             <div key={key} className="flex items-start py-0.5">
               <div className="flex-1 flex">
-                <span className="text-yellow-400 whitespace-nowrap">
+                <span className="text-amber-700 dark:text-yellow-400 whitespace-nowrap">
                   {!isArray && `"${key}"`}{isArray && key}
                 </span>
                 <span className="mx-1">:</span>

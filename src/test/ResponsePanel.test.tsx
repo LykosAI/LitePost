@@ -12,7 +12,11 @@ vi.mock('lucide-react', () => ({
   ZoomOut: () => <div data-testid="zoom-out" />,
   RotateCw: () => <div data-testid="rotate-cw" />,
   Send: () => <div data-testid="send" />,
-  ArrowUpRight: () => <div data-testid="arrow-up-right" />
+  ArrowUpRight: () => <div data-testid="arrow-up-right" />,
+  Clock: () => <div data-testid="clock" />,
+  HardDrive: () => <div data-testid="hard-drive" />,
+  AlertTriangle: () => <div data-testid="alert-triangle" />,
+  Filter: () => <div data-testid="filter-icon" />
 }))
 
 // Mock react-syntax-highlighter
@@ -119,8 +123,10 @@ describe('ResponsePanel', () => {
     render(<ResponsePanel response={mockJsonResponse} />)
 
     // Test switching to Headers tab
-    await user.click(screen.getByRole('tab', { name: 'Headers' }))
-    expect(screen.getByText('content-type: application/json')).toBeInTheDocument()
+    await user.click(screen.getByRole('tab', { name: /Headers/i }))
+    // Headers are now rendered as separate key/value elements
+    expect(screen.getByText('content-type')).toBeInTheDocument()
+    expect(screen.getByText('application/json')).toBeInTheDocument()
 
     // Test switching to Timing tab
     await user.click(screen.getByRole('tab', { name: 'Timing' }))
@@ -156,6 +162,18 @@ describe('ResponsePanel', () => {
     expect(screen.getByRole('img')).toBeInTheDocument()
   })
 
+  it('falls back to plain text for very large non-image responses', () => {
+    const largeResponse: Response = {
+      ...mockJsonResponse,
+      headers: { 'content-type': 'text/plain' },
+      body: 'x'.repeat(600_000),
+    }
+
+    render(<ResponsePanel response={largeResponse} />)
+
+    expect(screen.getByText(/Large response/)).toBeInTheDocument()
+  })
+
   it('shows redirect chain when present', async () => {
     const responseWithRedirects: Response = {
       ...mockJsonResponse,
@@ -165,14 +183,14 @@ describe('ResponsePanel', () => {
           status: 301,
           statusText: '301 Moved Permanently',
           headers: { location: 'http://example.com/final' },
-          cookies: [{ name: 'session', value: '123' }]
+          cookies: ['session=123; Path=/']
         }
       ]
     }
     const user = userEvent.setup()
     render(<ResponsePanel response={responseWithRedirects} />)
 
-    await user.click(screen.getByRole('tab', { name: 'Redirects' }))
+    await user.click(screen.getByRole('tab', { name: /Redirects/i }))
     expect(screen.getByText('1. http://example.com/redirect1')).toBeInTheDocument()
     expect(screen.getByText('Status: 301 Moved Permanently')).toBeInTheDocument()
   })

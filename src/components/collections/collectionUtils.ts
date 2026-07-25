@@ -27,7 +27,14 @@ export function savedRequestToTab(request: SavedRequest): Tab {
     response: null,
     isEditing: false,
     testScripts: request.testScripts || [],
+    preRequestScripts: request.preRequestScripts || [],
     testAssertions: request.testAssertions || [],
     testResults: request.testResults || null,
+    extractionRules: request.extractionRules || [],
+    graphqlQuery: request.graphqlQuery,
+    graphqlVariables: request.graphqlVariables,
+    graphqlOperationName: request.graphqlOperationName,
+    isGraphQL: request.isGraphQL,
+    formDataEntries: request.formDataEntries,
   }
 }

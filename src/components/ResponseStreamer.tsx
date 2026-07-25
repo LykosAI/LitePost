@@ -52,7 +52,7 @@ export function ResponseStreamer({
         scrollAreaRef.current.scrollTop = scrollAreaRef.current.scrollHeight
       }
     })
-  }, [streaming?.currentContent, streaming?.chunks.length, isPaused])
+  }, [streaming?.currentContent, streaming?.chunkCount, isPaused])
 
   const togglePause = () => {
     setIsPaused((prev) => !prev)
@@ -83,7 +83,7 @@ export function ResponseStreamer({
                 variant={streaming.isComplete ? "outline" : "default"} 
                 className={streaming.isComplete ? "" : "animate-pulse"}
               >
-                {streaming.isComplete ? "Complete" : `Streaming (${streaming.chunks.length} chunks)...`}
+                {streaming.isComplete ? "Complete" : `Streaming (${streaming.chunkCount} chunks)...`}
               </Badge>
               <span className="text-muted-foreground">
                 Time: {getElapsedTime()}
@@ -148,7 +148,7 @@ export function ResponseStreamer({
               )}
               
               {/* Visual indicator for new chunks */}
-              {!streaming.isComplete && streaming.chunks.length > 0 && (
+              {!streaming.isComplete && streaming.chunkCount > 0 && (
                 <div className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse absolute bottom-1 right-1"></div>
               )}
             </div>

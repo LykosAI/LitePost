@@ -3,12 +3,11 @@ import {
   SheetContent,
   SheetHeader,
   SheetTitle,
-  SheetTrigger,
   SheetDescription,
 } from "@/components/ui/sheet"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Folder, FolderPlus, Download, Upload } from "lucide-react"
+import { FolderPlus, Download, Upload } from "lucide-react"
 import { useCollectionStore } from "@/store/collections"
 import { Tab } from "@/types"
 import { getRequestNameFromUrl } from "@/utils/url"
@@ -24,6 +23,7 @@ import { useThemeClass } from "@/hooks/useThemeClass"
 import { importFromOpenapi } from '@/utils/collection-converter'
 import { CollectionCard } from "./collections/CollectionCard"
 import { savedRequestToTab } from "./collections/collectionUtils"
+import { useResizablePanel } from "@/hooks/useResizablePanel"
 
 interface CollectionsPanelProps {
   open: boolean
@@ -32,8 +32,8 @@ interface CollectionsPanelProps {
   onRequestSelect: (request: Tab) => void
 }
 
-export const CollectionsPanel = forwardRef<HTMLButtonElement, CollectionsPanelProps>(
-  ({ open, onOpenChange, currentRequest, onRequestSelect }, ref) => {
+export const CollectionsPanel = forwardRef<HTMLDivElement, CollectionsPanelProps>(
+  ({ open, onOpenChange, currentRequest, onRequestSelect }, _ref) => {
     const {
       collections,
       addCollection,
@@ -50,6 +50,7 @@ export const CollectionsPanel = forwardRef<HTMLButtonElement, CollectionsPanelPr
     const [expandedCollections, setExpandedCollections] = useState<Set<string>>(new Set())
     const fileInputRef = useRef<HTMLInputElement>(null)
     const themeClass = useThemeClass()
+    const { width, isDragging, setIsDragging } = useResizablePanel(600, 450)
     const shouldLogImportErrors =
       typeof import.meta !== "undefined" &&
       Boolean(import.meta.env?.DEV) &&
@@ -201,21 +202,18 @@ export const CollectionsPanel = forwardRef<HTMLButtonElement, CollectionsPanelPr
 
     return (
       <Sheet open={open} onOpenChange={onOpenChange}>
-        <SheetTrigger asChild>
-          <Button
-            ref={ref}
-            variant="ghost"
-            size="sm"
-            className="h-10 w-10 rounded-none hover:bg-muted"
-            aria-label="Open Collections Panel"
-          >
-            <Folder className="h-4 w-4" />
-          </Button>
-        </SheetTrigger>
         <SheetContent
-          className={`${themeClass} w-[600px] sm:w-[800px] sm:max-w-none border-l border-border/30 bg-background/95 backdrop-blur-xl text-foreground [&_button>svg]:text-foreground [&_.close-button]:hover:bg-muted/60`}
+          className={`${themeClass} w-full sm:max-w-none border-l border-border/30 bg-background/95 backdrop-blur-xl text-foreground [&_button>svg]:text-foreground [&_.close-button]:hover:bg-muted/60 ${isDragging ? "transition-none !duration-0" : ""}`}
+          style={{ width: width ? `${width}px` : undefined }}
           side="right"
         >
+          {/* Resize Handle */}
+          <div
+            className="absolute left-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-primary/20 active:bg-primary/30 z-50 transition-colors group"
+            onMouseDown={(e) => { e.preventDefault(); setIsDragging(true); }}
+          >
+            <div className="absolute left-1 top-1/2 -translate-x-1/2 -translate-y-1/2 w-1 h-12 bg-border/50 group-hover:bg-primary/50 rounded-full transition-colors" />
+          </div>
           <SheetHeader>
             <SheetTitle className="text-foreground">Collections</SheetTitle>
             <SheetDescription>
@@ -223,68 +221,60 @@ export const CollectionsPanel = forwardRef<HTMLButtonElement, CollectionsPanelPr
             </SheetDescription>
           </SheetHeader>
           <div className="flex flex-col h-[calc(100vh-5rem)]">
-            <div className="flex items-center justify-between py-6">
-              <div>
-                <h3 className="text-lg font-medium">Collections</h3>
-                <p className="text-sm text-muted-foreground">
-                  Organize and save your API requests
-                </p>
-              </div>
-              <div className="flex items-center gap-2">
-                <input
-                  type="file"
-                  ref={fileInputRef}
-                  className="hidden"
-                  accept=".json"
-                  onChange={handleImport}
-                  aria-label="Import Collections"
-                />
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="outline" size="sm">
-                      <Download className="h-4 w-4 mr-2" />
-                      Import
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent className="dark bg-background border-border">
-                    <DropdownMenuItem onClick={() => fileInputRef.current?.click()}>
-                      LitePost Format
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={handleImportPostmanClick}>
-                      Postman Format
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={handleImportOpenapiClick}>
-                      OpenAPI Format
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="outline" size="sm">
-                      <Upload className="h-4 w-4 mr-2" />
-                      Export
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent className="dark bg-background border-border">
-                    <DropdownMenuItem onClick={handleExport}>
-                      LitePost Format
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={handleExportPostman}>
-                      Postman Format
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleAddCollection}
-                >
-                  <FolderPlus className="h-4 w-4 mr-2" />
-                  Add Collection
-                </Button>
-              </div>
+            <div className="flex flex-wrap items-center justify-end gap-2.5 py-4 mt-2">
+              <input
+                type="file"
+                ref={fileInputRef}
+                className="hidden"
+                accept=".json"
+                onChange={handleImport}
+                aria-label="Import Collections"
+              />
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="h-9 shadow-sm bg-background/40 hover:bg-secondary/60 transition-colors">
+                    <Download className="h-4 w-4 mr-2" />
+                    Import
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className={`${themeClass} bg-popover/95 backdrop-blur-xl border-border/40 shadow-xl`}>
+                  <DropdownMenuItem onClick={() => fileInputRef.current?.click()}>
+                    LitePost Format
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleImportPostmanClick}>
+                    Postman Format
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleImportOpenapiClick}>
+                    OpenAPI Format
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="h-9 shadow-sm bg-background/40 hover:bg-secondary/60 transition-colors">
+                    <Upload className="h-4 w-4 mr-2" />
+                    Export
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className={`${themeClass} bg-popover/95 backdrop-blur-xl border-border/40 shadow-xl`}>
+                  <DropdownMenuItem onClick={handleExport}>
+                    LitePost Format
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleExportPostman}>
+                    Postman Format
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <Button
+                variant="default"
+                size="sm"
+                className="h-9 shadow-sm shadow-primary/20 transition-all font-medium"
+                onClick={handleAddCollection}
+              >
+                <FolderPlus className="h-4 w-4 mr-2" />
+                New Collection
+              </Button>
             </div>
-
             <ScrollArea className="flex-1 pr-4">
               <div className="space-y-4">
                 {collections.map((collection) => (
@@ -308,7 +298,7 @@ export const CollectionsPanel = forwardRef<HTMLButtonElement, CollectionsPanelPr
             </ScrollArea>
           </div>
         </SheetContent>
-      </Sheet>
+      </Sheet >
     )
   }
 )

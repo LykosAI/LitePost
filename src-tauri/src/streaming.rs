@@ -15,7 +15,7 @@ pub async fn stream_sse(
     client_wrapper: tauri::State<'_, ClientWrapper>,
     active_streams: tauri::State<'_, ActiveStreams>,
 ) -> Result<(), String> {
-    let client = &client_wrapper.client;
+    let client = client_wrapper.get_or_init_client()?;
     let start_time = now_millis();
 
     let (cancel_tx, mut cancel_rx) = tokio::sync::watch::channel(false);
