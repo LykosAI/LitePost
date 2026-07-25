@@ -72,6 +72,8 @@ jobs:
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # vite build OOMs under Node's default heap cap on the 7GB macOS runners
+          NODE_OPTIONS: --max-old-space-size=4096
         with:
           tagName: ${{ github.ref_name }}
           releaseName: 'LitePost ${{ github.ref_name }}'
