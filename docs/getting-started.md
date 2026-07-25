@@ -63,24 +63,36 @@ open as many tabs as you need and rename them by double-clicking the tab title.
 
 ### Request Panel
 
-The upper half of the main area is the request panel. It contains the URL bar and a
-row of sub-tabs:
+The top of the main area is the request panel: the URL bar plus a row of **section
+chips**. Each chip summarizes its section at a glance (`Headers 3`, `Auth ✓`,
+`Body 768B`) and clicking one opens that editor; clicking again -- or sending the
+request -- collapses it so the response gets the full window. Drag the handle
+below an open editor to resize it.
+
+The everyday sections have their own chips:
 
 - **Params** -- query parameters parsed from the URL, editable as key-value pairs.
-- **Auth** -- configure authentication (None, Basic, Bearer Token, API Key, or OAuth 2.0).
 - **Headers** -- add or edit request headers.
+- **Auth** -- configure authentication (None, Basic, Bearer Token, API Key, or OAuth 2.0).
 - **Body** -- write a request body in JSON, plain text, XML, or other formats. Multipart form-data with file uploads is also supported.
+- **Tests** -- write test scripts and assertions that execute after a response arrives.
+
+The rest live in the **`⋯` menu**:
+
 - **Cookies** -- attach cookies to the request.
 - **Pre-request** -- run JavaScript scripts before the request is sent.
-- **Tests** -- write test scripts and assertions that execute after a response arrives.
 - **Code** -- view auto-generated code snippets for the current request in cURL, Python, JavaScript, C#, Go, or Ruby.
 - **GraphQL** -- toggle GraphQL mode to write queries and variables with a dedicated editor.
+- **Settings** -- per-request network overrides (timeout, SSL verification, proxy).
+- **WebSocket** -- connect to a WebSocket endpoint and exchange messages.
 
 ### Response Panel
 
-The lower half shows everything about the response:
+The rest of the window belongs to the response. Before your first request it offers
+a small gallery of sample requests you can send with one click. After a response
+arrives you get:
 
-- **Response** -- the formatted response body with syntax highlighting and collapsible JSON.
+- **Response** -- the formatted response body with syntax highlighting and collapsible JSON, plus a filter bar for narrowing JSON bodies with plain text or a path like `$.items[*].name`.
 - **Preview** -- an HTML preview when the response is an HTML document.
 - **Raw** -- the unformatted response body.
 - **Headers** -- response headers in a readable table.
@@ -89,13 +101,30 @@ The lower half shows everything about the response:
 - **Timing** -- a breakdown of DNS, TCP, TLS, first byte, and download times.
 - **Extract** -- define rules to extract values from responses into environment variables.
 
+### History Sidebar
+
+The left sidebar lists every request you have sent, grouped by date, with
+back-to-back repeats collapsed into a single row (marked `×N`). Click an entry to
+reopen it in a new tab, search it from the box at the top, or collapse the whole
+sidebar to a slim rail with the button in its header.
+
+### Command Palette
+
+Press **Ctrl+K** (or **Cmd+K** on macOS) anywhere to open the command palette. It
+fuzzy-searches your history and saved collection requests, switches environments,
+and runs actions like importing a cURL command or opening any panel -- all without
+touching the mouse.
+
 ### Title Bar
 
 The title bar at the very top of the window gives you quick access to:
 
-- **Collections** -- open, manage, and run saved request collections.
-- **Environments** -- create and switch between environment variable sets.
+- **Search (`Ctrl K` pill)** -- opens the command palette.
+- **Environment selector** -- switch the active environment.
 - **cURL Import** -- paste a cURL command to instantly populate a new request tab.
+- **Collection Runner** -- batch-run a saved collection.
+- **Collections** -- open and manage saved request collections.
+- **Environments** -- create and edit environment variable sets.
 - **Settings** -- configure theme, JSON viewer behavior, and other preferences.
 
 ## Next Steps

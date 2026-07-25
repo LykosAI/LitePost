@@ -1,10 +1,10 @@
 # Authentication
 
-LitePost supports several authentication schemes through the **Auth** tab on the request panel. Select an auth type from the dropdown to configure credentials. The appropriate headers or parameters are applied automatically when the request is sent.
+LitePost supports several authentication schemes through the **Auth** chip on the request panel (the chip shows a ✓ whenever auth is configured). Select an auth type from the dropdown to configure credentials. The appropriate headers or parameters are applied automatically when the request is sent.
 
 ## No Auth
 
-The default setting. No authentication headers or parameters are added to the request. Use this for public endpoints or when you are managing auth headers manually in the Headers tab.
+The default setting. No authentication headers or parameters are added to the request. Use this for public endpoints or when you are managing auth headers manually in the Headers section.
 
 ## Basic Auth
 
@@ -88,6 +88,21 @@ These fields appear for all OAuth 2.0 grant types:
 | Client Secret | Your application's client secret (may be optional for PKCE)  |
 | Scopes        | Space-separated list of requested permissions                |
 
+### Auto-Fill from OIDC Discovery
+
+Instead of hunting down endpoint URLs, paste your provider's issuer into the
+**Discovery URL** field and click **Auto-fill**. LitePost accepts any of:
+
+- A bare issuer or base URL -- `https://accounts.google.com` or just `auth.example.com`
+- An issuer with a tenant path -- `https://login.example.com/tenant/v2.0`
+- The full `/.well-known/openid-configuration` URL
+
+LitePost fetches the discovery document (through its own HTTP backend, so CORS is
+not a concern), fills in the **Authorization URL** and **Token URL**, and -- if the
+Scopes field is empty -- seeds it with the standard scopes the provider actually
+supports (`openid profile email`). Values you have already typed in Scopes are
+never overwritten, and the field supports `{{variables}}` like everything else.
+
 ### Authorization Code
 
 Use this grant type when the API requires user login through a browser. This is the standard flow for apps acting on behalf of a user.
@@ -105,7 +120,7 @@ Use this grant type when the API requires user login through a browser. This is 
 | Field             | Description                                              |
 |-------------------|----------------------------------------------------------|
 | Authorization URL | The authorization server's authorize endpoint            |
-| Callback URL      | The redirect URI registered with your OAuth application  |
+| Callback URL      | The redirect URI registered with your OAuth application. Leave blank to use LitePost's local callback server (`http://localhost:17823/callback`; if that port is busy, LitePost automatically falls back to a free one). |
 
 #### PKCE Support
 

@@ -79,7 +79,7 @@ The `variables` key is omitted if the variables editor is empty. The `operationN
 
 ## Auth and Environment Variables
 
-GraphQL mode works with all authentication types -- Basic, Bearer, API Key, and OAuth 2.0. Configure auth in the **Auth** tab as you would for any other request.
+GraphQL mode works with all authentication types -- Basic, Bearer, API Key, and OAuth 2.0. Configure auth in the **Auth** section as you would for any other request.
 
 Environment variables (e.g. `{{base_url}}`, `{{auth_token}}`) are resolved in the URL, headers, and variable values before the request is sent.
 

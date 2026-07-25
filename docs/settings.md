@@ -8,16 +8,18 @@ Click the **gear icon** in the title bar (top-right area, next to the window con
 
 ## Theme
 
-LitePost ships with four built-in color themes. Selecting a theme applies it immediately -- no restart required.
+LitePost ships with six built-in themes -- five dark and one light. Selecting a theme applies it immediately, no restart required.
 
-| Theme        | Description                              |
-|--------------|------------------------------------------|
-| **Sapphire** | Blue-to-indigo gradient (default)        |
-| **Emerald**  | Emerald-to-teal gradient                 |
-| **Amethyst** | Violet-to-purple gradient                |
-| **Obsidian** | Zinc-to-dark-zinc gradient (near-black)  |
+| Theme          | Description                                              |
+|----------------|----------------------------------------------------------|
+| **Night Desk** | Warm graphite with an amber accent (default)             |
+| **Green C**    | The Night Desk graphite ground with an emerald accent    |
+| **Schematic**  | Light engineering-paper theme with cobalt ink            |
+| **Sapphire**   | Deep navy with a blue accent                             |
+| **Amethyst**   | Aubergine with a violet accent                           |
+| **Obsidian**   | Pure black with white accents (OLED-friendly)            |
 
-Each theme controls the primary accent color, gradient accents, and various UI highlights across the entire application. The active theme is indicated by a highlighted ring around its color swatch in the settings panel.
+Each theme controls the accent color, surfaces, and highlights across the entire application -- including the Monaco body editor and response syntax highlighting, which follow the active theme. The active theme is indicated by a highlighted ring around its color swatch in the settings panel.
 
 ## JSON Viewer
 
@@ -69,10 +71,11 @@ If you are already on the latest version, a confirmation toast is shown instead.
 
 ## Keyboard Shortcuts
 
-| Shortcut                         | Action               |
-|----------------------------------|----------------------|
-| `Ctrl+I` (Windows/Linux)        | Open cURL import modal |
-| `Cmd+I` (macOS)                 | Open cURL import modal |
+| Shortcut                        | Action                                        |
+|---------------------------------|-----------------------------------------------|
+| `Ctrl+K` / `Cmd+K`              | Open the command palette                      |
+| `Ctrl+I` / `Cmd+I`              | Open cURL import modal                        |
+| `Enter` (in the URL bar)        | Send the request                              |
 
 ## Data Storage
 

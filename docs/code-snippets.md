@@ -4,7 +4,7 @@ LitePost can generate ready-to-use code from any request in six languages. This 
 
 ## Accessing Code Snippets
 
-Open the **Code Snippet** tab in the request panel. The generated code reflects the current state of the request -- method, URL, headers, body, auth, and cookies. As you modify the request, the snippet updates automatically.
+Open the **Code** section in the request panel (under the `⋯` menu). The generated code reflects the current state of the request -- method, URL, headers, body, auth, and cookies. As you modify the request, the snippet updates automatically.
 
 ## Supported Languages
 

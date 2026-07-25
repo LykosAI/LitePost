@@ -83,12 +83,33 @@ Binary responses that cannot be displayed as text or images are shown as a Base6
 
 Very large responses are handled with automatic fallbacks to keep the interface responsive:
 
-- **JSON responses over 250 KB** -- the collapsible tree view is disabled and the response is shown as plain highlighted text instead. Tree rendering at this size would cause noticeable UI lag.
-- **Any response over 500 KB** -- syntax highlighting is disabled entirely and the response is displayed as raw plain text.
+- **JSON responses up to 2 MB** render in the collapsible tree view. To keep huge documents fast, each node shows at most 100 children at a time with a **"show more"** row that reveals the rest in chunks.
+- **JSON responses over 2 MB** are displayed as raw plain text.
+- **Non-JSON responses over 500 KB** are displayed as plain text without syntax highlighting.
 
-::: tip
-If you need to inspect a large JSON response in tree view, copy it into an external tool. The size thresholds exist to keep LitePost responsive during normal use.
-:::
+## Filtering the Response Body
+
+JSON responses get a filter bar above the body. Type either kind of query:
+
+- **A path** (starts with `$` or `.`) extracts part of the document:
+
+  | Query                  | Result                                     |
+  |------------------------|--------------------------------------------|
+  | `$.items[0].name`      | One value                                  |
+  | `$.items[*].id`        | That field from every array element        |
+  | `$["content type"]`    | Keys containing spaces or dots             |
+
+  While you type, the filter falls back to the **longest valid prefix** instead of
+  snapping back to the whole document -- and a trailing partial key matches by
+  prefix, so `$.headers.Acc` shows `Accept`, `Accept-Encoding`, and friends. An
+  amber badge shows which path actually matched.
+
+- **Plain text** deep-filters the tree to branches whose keys or values contain
+  the query (matching a key keeps its whole subtree).
+
+The badge on the right reports `filtered`, a partial-match path, or `no matches`.
+The filter resets when a new response arrives, and the **Copy** button always
+copies the full, unfiltered body.
 
 ## Response Headers
 

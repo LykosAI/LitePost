@@ -26,13 +26,13 @@ Type or paste a full URL into the URL bar:
 https://api.example.com/v1/users
 ```
 
-Press the **Send** button (or use the keyboard shortcut) to execute the request. LitePost will resolve environment variables in the URL before sending -- see the Environments documentation for details.
+Press the **Send** button (or hit **Enter** in the URL bar) to execute the request. LitePost will resolve environment variables in the URL before sending -- see the Environments documentation for details. When the URL contains `{{variables}}`, a badge appears at the end of the URL bar; hover it to see each variable's resolved value, with a ⚠ warning for anything the active environment cannot resolve.
 
 If the URL contains query parameters inline (e.g. `?page=1&limit=20`), they will be parsed and shown in the Query Parameters editor automatically.
 
 ## Query Parameters
 
-Below the URL bar, the **Params** section lets you build query parameters as key-value pairs without hand-editing the URL string.
+Below the URL bar, the **Params** chip opens an editor for building query parameters as key-value pairs without hand-editing the URL string. (Each request section -- Params, Headers, Auth, Body, Tests, and the rest under the `⋯` menu -- works this way: click the chip to open its editor, click again or send the request to collapse it, and drag the handle underneath to resize.)
 
 Each parameter row has:
 
@@ -52,7 +52,7 @@ The URL bar updates in real time as you add, remove, or toggle parameters.
 
 ## Request Headers
 
-The **Headers** tab lets you attach custom HTTP headers as key-value pairs. Like query parameters, each header has a toggle to enable or disable it individually.
+The **Headers** chip opens an editor for attaching custom HTTP headers as key-value pairs. Like query parameters, each header has a toggle to enable or disable it individually, and values containing `{{variables}}` show an inline badge with their resolved values.
 
 ```
 Key:   Content-Type     Value: application/json    [enabled]
@@ -160,4 +160,4 @@ You can:
 - **Close a tab** with the close button on the tab.
 - **Switch between tabs** by clicking them -- the request and response panels update immediately.
 
-Tabs persist across sessions, so your work is not lost when you close and reopen LitePost.
+Tabs are session-scoped: they reset when you close LitePost. To keep a request permanently, save it to a [collection](/collections) -- and everything you send is always recorded in the history sidebar, so recent work is one click away after a restart.

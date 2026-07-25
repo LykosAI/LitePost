@@ -4,7 +4,7 @@ Extraction rules let you automatically pull values out of HTTP responses and sav
 
 ## Configuring Extraction Rules
 
-You configure extraction rules in the **Extraction** tab of the Response panel. Each rule has three parts:
+You configure extraction rules in the **Extract** tab of the Response panel. Each rule has three parts:
 
 1. **Source**: Where to extract from (body, header, status, or cookie).
 2. **Path or name**: The specific value to extract (a JSON path, header name, or cookie name).

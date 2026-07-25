@@ -2,7 +2,7 @@
 
 Pre-request scripts are JavaScript code that runs **before** each request is sent. They let you dynamically modify requests, set environment variables, compute values, and prepare authentication — all without manual intervention.
 
-You write pre-request scripts in the **Pre-Request** tab of the request panel. The script executes every time you send the request, including during Collection Runner execution.
+You write pre-request scripts in the **Pre-request** section of the request panel (under the `⋯` menu). The script executes every time you send the request, including during Collection Runner execution.
 
 ## The `lp` API
 
