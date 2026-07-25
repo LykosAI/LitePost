@@ -22,9 +22,10 @@ jobs:
           node-version: 20
 
       - name: Install pnpm
-        uses: pnpm/action-setup@v2
+        uses: pnpm/action-setup@v4
         with:
-          version: 8
+          # Must match the major that wrote pnpm-lock.yaml (lockfileVersion 9.0)
+          version: 9
           run_install: false
 
       - name: Install Tauri CLI
