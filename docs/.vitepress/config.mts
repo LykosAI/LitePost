@@ -3,9 +3,8 @@ import { defineConfig } from 'vitepress'
 export default defineConfig({
   title: 'LitePost',
   description: 'A lightweight, cross-platform API testing application',
-  // Deployed to GitHub Pages (org domain): lykos.ai/LitePost/
-  base: '/LitePost/',
-  head: [['link', { rel: 'icon', href: '/LitePost/logo.png' }]],
+  // Deployed to an Azure Static Web App at https://litepost.lykos.ai
+  head: [['link', { rel: 'icon', href: '/logo.png' }]],
 
   themeConfig: {
     logo: '/logo.png',

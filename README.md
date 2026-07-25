@@ -10,7 +10,7 @@ Built with Tauri, Rust, and React. Your requests, collections, and history live 
 plain JSON files on your machine and nowhere else.
 
 [**Download**](https://github.com/LykosAI/LitePost/releases/latest) ·
-[**Documentation**](https://lykos.ai/LitePost/) ·
+[**Documentation**](https://litepost.lykos.ai/) ·
 [**Report an issue**](https://github.com/LykosAI/LitePost/issues)
 
 </div>
@@ -54,7 +54,7 @@ No sign-up, no telemetry. LitePost updates itself in-app when new releases ship.
 - **Code generation** — copy any request as cURL, Python, JavaScript, C#, Go, or Ruby
 - **Six themes** — from the warm default **Night Desk** to the paper-and-cobalt **Schematic** light theme
 
-Full guides for everything live in the [documentation](https://lykos.ai/LitePost/).
+Full guides for everything live in the [documentation](https://litepost.lykos.ai/).
 
 ## Development
 
@@ -86,7 +86,7 @@ cargo test           # Rust backend (run inside src-tauri/)
 ### Docs site
 
 The documentation is a [VitePress](https://vitepress.dev/) site in `docs/`,
-deployed automatically to [lykos.ai/LitePost](https://lykos.ai/LitePost/) on merge:
+deployed automatically to [litepost.lykos.ai](https://litepost.lykos.ai/) on merge:
 
 ```bash
 pnpm docs:dev
@@ -96,7 +96,7 @@ pnpm docs:dev
 
 Issues and pull requests are welcome. Branch from `main`, keep commits focused,
 and make sure `pnpm test:run` and `cargo check` pass — CI enforces both. See the
-[contributing guide](https://lykos.ai/LitePost/contributing) for details.
+[contributing guide](https://litepost.lykos.ai/contributing) for details.
 
 ## License
 
