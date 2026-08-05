@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from 'react'
+import { basicAuthValue } from '@/utils/base64'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -113,8 +114,7 @@ export function WebSocketPanel({ url, headers, auth }: WebSocketPanelProps) {
 
     // Apply auth
     if (auth.type === 'basic' && auth.username) {
-      const credentials = btoa(`${auth.username}:${auth.password || ''}`)
-      headerRecord['Authorization'] = `Basic ${credentials}`
+      headerRecord['Authorization'] = basicAuthValue(auth.username, auth.password || '')
     } else if (auth.type === 'bearer' && auth.token) {
       headerRecord['Authorization'] = `Bearer ${auth.token}`
     } else if (auth.type === 'api-key' && auth.key && auth.value && auth.addTo === 'header') {

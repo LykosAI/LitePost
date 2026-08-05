@@ -144,3 +144,13 @@ impl ClientWrapper {
 pub struct ActiveStreams {
     pub streams: Mutex<HashMap<String, tokio::sync::watch::Sender<bool>>>,
 }
+
+/// In-flight authorization code flows, keyed by a frontend-supplied id.
+///
+/// The flow parks on a loopback listener waiting for the provider to redirect
+/// back. If the provider refuses to redirect at all — an unregistered redirect
+/// URI is the usual reason — nothing ever arrives, and without this the user is
+/// stuck watching a spinner until the timeout expires with no way out.
+pub struct PendingOAuthFlows {
+    pub flows: Mutex<HashMap<String, tokio::sync::watch::Sender<bool>>>,
+}

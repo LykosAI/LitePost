@@ -337,6 +337,7 @@ function App() {
                           onHeadersChange={(headers) => updateTab(currentTab.id, { headers })}
                           onBodyChange={(body) => updateTab(currentTab.id, { body })}
                           onContentTypeChange={(contentType) => updateTab(currentTab.id, { contentType })}
+                          tabId={currentTab.id}
                           onAuthChange={(auth) => updateTab(currentTab.id, { auth })}
                           onCookiesChange={(cookies) => updateTab(currentTab.id, { cookies })}
                           onTestScriptsChange={(testScripts) => updateTab(currentTab.id, { testScripts })}

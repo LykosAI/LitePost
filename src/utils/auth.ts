@@ -1,4 +1,5 @@
 import { AuthConfig, Header } from '@/types'
+import { utf8ToBase64 } from '@/utils/base64'
 
 /**
  * Applies authentication settings to request headers
@@ -22,7 +23,7 @@ export function applyAuthToRequest(headers: Header[], auth: AuthConfig): Header[
           ? `${auth.username}:${auth.password}`
           : auth.username
         
-        const encodedCredentials = btoa(credentials)
+        const encodedCredentials = utf8ToBase64(credentials)
         
         // Check if authorization header already exists
         const existingAuthHeader = headersWithAuth.findIndex(

@@ -11,12 +11,14 @@ import { useEnvironmentStore } from "@/store/environments"
 import { detectEntraV1Url, fetchOidcDiscovery } from "@/utils/oidcDiscovery"
 import { substituteVariables } from "@/utils/variables"
 import { decodeToken } from "@/utils/jwt"
-import { Loader2, KeyRound, RefreshCw, Globe, Shield, Wand2 } from "lucide-react"
+import { Loader2, KeyRound, RefreshCw, Globe, Shield, Wand2, X } from "lucide-react"
 import { useMemo, useState } from "react"
 
 interface OAuthConfiguratorProps {
   oauth2: OAuth2Config
   onOAuth2Change: (config: OAuth2Config) => void
+  /** Scopes in-flight sign-in state to this tab or collection — see the store. */
+  flowKey?: string
 }
 
 const GRANT_TYPES: { value: OAuth2GrantType; label: string; description: string }[] = [
@@ -59,7 +61,7 @@ function FormField({ label, hint, children }: {
   )
 }
 
-export function OAuthConfigurator({ oauth2, onOAuth2Change }: OAuthConfiguratorProps) {
+export function OAuthConfigurator({ oauth2, onOAuth2Change, flowKey }: OAuthConfiguratorProps) {
   const themeClass = useThemeClass()
   const { getVariable } = useEnvironmentStore()
   const [isDiscovering, setIsDiscovering] = useState(false)
@@ -75,9 +77,10 @@ export function OAuthConfigurator({ oauth2, onOAuth2Change }: OAuthConfiguratorP
     getNewToken,
     refreshToken,
     clearToken,
+    cancelTokenRequest,
     isExpired,
     expiresIn,
-  } = useOAuth2TokenActions({ oauth2, onOAuth2Change })
+  } = useOAuth2TokenActions({ oauth2, onOAuth2Change, flowKey })
 
   const updateField = (field: keyof OAuth2Config, value: string) => {
     onOAuth2Change({ ...oauth2, [field]: value })
@@ -456,7 +459,7 @@ export function OAuthConfigurator({ oauth2, onOAuth2Change }: OAuthConfiguratorP
           {isLoading ? (
             <>
               <Loader2 size={14} className="mr-2 animate-spin" />
-              Getting Token…
+              {cancelTokenRequest ? 'Waiting for sign-in…' : 'Getting Token…'}
             </>
           ) : (
             <>
@@ -465,6 +468,25 @@ export function OAuthConfigurator({ oauth2, onOAuth2Change }: OAuthConfiguratorP
             </>
           )}
         </Button>
+
+        {/*
+          Only the authorization code flow parks waiting on the browser, and it
+          can wait forever: if the redirect URI is not registered the provider
+          shows an error page and never redirects back, so nothing ever arrives
+          on the callback listener.
+        */}
+        {cancelTokenRequest && (
+          <Button
+            onClick={cancelTokenRequest}
+            size="sm"
+            variant="outline"
+            className="border-border/40"
+            data-testid="cancel-token-request"
+          >
+            <X size={14} className="mr-1" />
+            Cancel
+          </Button>
+        )}
 
         {oauth2.refreshToken && (
           <Button
