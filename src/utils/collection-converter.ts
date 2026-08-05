@@ -202,7 +202,7 @@ export function importFromOpenapi(openapiDoc: any, baseUrl: string): Collection[
     updatedAt: new Date()
   };
 
-  let serverUrl = baseUrl;
+  const serverUrl = baseUrl;
 
   const paths = openapiDoc.paths || {};
   for (const path in paths) {
@@ -232,7 +232,7 @@ export function importFromOpenapi(openapiDoc: any, baseUrl: string): Collection[
             enabled: true
           }));
         let contentType = "application/json";
-        let body = "";
+        const body = "";
         if (operation.requestBody && operation.requestBody.content) {
           const contentTypes = Object.keys(operation.requestBody.content);
           if (contentTypes.length > 0) {
