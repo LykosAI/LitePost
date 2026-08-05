@@ -196,7 +196,9 @@ describe('UpdateChecker', () => {
       )
 
       // relaunch is called via a fire-and-forget dynamic import, so flush microtasks
-      await vi.dynamicImportSettled?.() ?? new Promise(r => setTimeout(r, 0))
+      // Parenthesised deliberately: `await a ?? b` binds as `(await a) ?? b`,
+      // which would build the fallback promise and never await it.
+      await (vi.dynamicImportSettled?.() ?? new Promise(r => setTimeout(r, 0)))
       expect(relaunch).toHaveBeenCalled()
     })
 

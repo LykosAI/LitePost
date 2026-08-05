@@ -109,7 +109,7 @@ export async function runPreRequestScripts({
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
-      throw new Error(`Pre-request script '${script.name}' failed: ${message}`)
+      throw new Error(`Pre-request script '${script.name}' failed: ${message}`, { cause: error })
     }
   }
 

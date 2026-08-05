@@ -142,6 +142,12 @@ function App() {
     } catch (error) {
       console.error('Error updating URL with params:', error)
     }
+    // Deliberately keyed on params alone. currentTab and updateTab are read
+    // inside, but adding currentTab would re-run this on every URL keystroke
+    // and rewrite rawUrl underneath the user — the "without affecting user
+    // input" part above. params changing always implies a fresh currentTab,
+    // so the values read here are never stale. updateTab is already stable.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentTab?.params])
 
   const handleSend = async (tabId: string, overrides: { body?: string; url?: string } = {}) => {

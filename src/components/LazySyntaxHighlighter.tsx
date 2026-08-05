@@ -243,6 +243,11 @@ export function LazySyntaxHighlighter({
     }
 
     return buildStyles(variant, loadedStyles[mode], `${variant}:${mode}`)
+    // isReady looks unused here but is load-bearing: loadedStyles is a
+    // module-level mutable filled in by the dynamic import, and isReady
+    // flipping is the only signal that it is now populated. Drop it and this
+    // memo keeps returning the null it computed on the first render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [variant, isReady, mode])
 
   if (!isReady || !loadedHighlighter || !styles) {

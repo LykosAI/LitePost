@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { ResponsePanel } from '@/components/ResponsePanel'
-import { Response } from '@/types'
+import { Response, StreamingResponse } from '@/types'
 
 // Mock Lucide icons
 vi.mock('lucide-react', () => ({
@@ -16,7 +16,11 @@ vi.mock('lucide-react', () => ({
   Clock: () => <div data-testid="clock" />,
   HardDrive: () => <div data-testid="hard-drive" />,
   AlertTriangle: () => <div data-testid="alert-triangle" />,
-  Filter: () => <div data-testid="filter-icon" />
+  Filter: () => <div data-testid="filter-icon" />,
+  // Used by ResponseStreamer, which ResponsePanel swaps in while streaming
+  PlayIcon: () => <div data-testid="play-icon" />,
+  PauseIcon: () => <div data-testid="pause-icon" />,
+  AlertCircle: () => <div data-testid="alert-circle" />
 }))
 
 // Mock react-syntax-highlighter
@@ -202,5 +206,88 @@ describe('ResponsePanel', () => {
     const copyButton = screen.getByTestId('copy-button')
     expect(copyButton).toHaveAttribute('data-content', mockJsonResponse.body)
     await user.click(copyButton)
+  })
+
+  describe('streaming transitions', () => {
+    const mockStreaming: StreamingResponse = {
+      status: 200,
+      statusText: '200 OK',
+      headers: { 'content-type': 'text/event-stream' },
+      chunkCount: 2,
+      currentContent: 'hello from the stream',
+      isComplete: false
+    }
+
+    // Regression: the streaming early-return used to sit above every hook.
+    // React 18 does not throw for that shape (zero hooks run, so it silently
+    // falls back to the mount dispatcher), it resets the panel's hook state
+    // instead — the selected tab and body filter snapped back to defaults as
+    // soon as a stream finished. rerender() keeps the same instance, which is
+    // what exposes it; a remount would hide the bug.
+    it('keeps tab state across a streaming round-trip', async () => {
+      const user = userEvent.setup()
+      const { rerender } = render(<ResponsePanel response={mockJsonResponse} />)
+
+      await user.click(screen.getByRole('tab', { name: /Headers/i }))
+      expect(screen.getByRole('tab', { name: /Headers/i })).toHaveAttribute('aria-selected', 'true')
+
+      rerender(
+        <ResponsePanel
+          response={mockJsonResponse}
+          streamingResponse={mockStreaming}
+          onCancelStream={() => { }}
+        />
+      )
+      expect(screen.getByText('hello from the stream')).toBeInTheDocument()
+
+      rerender(<ResponsePanel response={mockJsonResponse} />)
+      expect(screen.getByRole('tab', { name: /Headers/i })).toHaveAttribute('aria-selected', 'true')
+    })
+
+    it('flips between streaming and non-streaming without remounting', () => {
+      const { rerender } = render(<ResponsePanel response={mockJsonResponse} />)
+      expect(screen.getByText('"Success"')).toBeInTheDocument()
+
+      // Stream starts on a panel that already rendered a response
+      rerender(
+        <ResponsePanel
+          response={mockJsonResponse}
+          streamingResponse={mockStreaming}
+          onCancelStream={() => { }}
+        />
+      )
+      expect(screen.getByText('hello from the stream')).toBeInTheDocument()
+
+      // More chunks arrive
+      rerender(
+        <ResponsePanel
+          response={mockJsonResponse}
+          streamingResponse={{ ...mockStreaming, chunkCount: 3, currentContent: 'hello from the stream more' }}
+          onCancelStream={() => { }}
+        />
+      )
+      expect(screen.getByText('hello from the stream more')).toBeInTheDocument()
+
+      // Stream finishes and the panel swaps back to the static response
+      rerender(<ResponsePanel response={mockJsonResponse} />)
+      expect(screen.getByText('"Success"')).toBeInTheDocument()
+
+      // And back into streaming once more
+      rerender(
+        <ResponsePanel
+          response={mockJsonResponse}
+          streamingResponse={mockStreaming}
+          onCancelStream={() => { }}
+        />
+      )
+      expect(screen.getByText('hello from the stream')).toBeInTheDocument()
+    })
+
+    it('renders the streamer when mounted mid-stream with no response yet', () => {
+      render(<ResponsePanel response={null} streamingResponse={mockStreaming} onCancelStream={() => { }} />)
+
+      expect(screen.getByText('hello from the stream')).toBeInTheDocument()
+      expect(screen.queryByText('No response yet')).not.toBeInTheDocument()
+    })
   })
 }) 

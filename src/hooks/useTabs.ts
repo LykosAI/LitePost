@@ -47,14 +47,16 @@ export function useTabs() {
     }
   }, [])
 
-  // Initialize with one tab
+  // Initialize with one tab. Depending on tabs.length rather than running
+  // mount-only also makes this self-healing: if the list is ever emptied, a
+  // fresh tab reappears. createNewTab is stable, so this cannot loop.
   useEffect(() => {
     if (tabs.length === 0) {
       const initialTab = createNewTab()
       setTabs([initialTab])
       setActiveTab(initialTab.id)
     }
-  }, [])
+  }, [createNewTab, tabs.length])
 
   const addTab = useCallback(() => {
     const newTab = createNewTab()
