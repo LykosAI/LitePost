@@ -1,4 +1,5 @@
 import { Collection, URLParam, Header, AuthConfig, AuthType, Cookie } from '@/types'
+import { exampleBodyFor, pickContentType } from '@/utils/openapiExample'
 
 interface PostmanCollection {
   info: {
@@ -294,11 +295,17 @@ export function importFromOpenapi(
             enabled: true
           }));
         let contentType = "application/json";
-        const body = "";
+        let body = "";
         if (operation.requestBody && operation.requestBody.content) {
-          const contentTypes = Object.keys(operation.requestBody.content);
-          if (contentTypes.length > 0) {
-            contentType = contentTypes[0];
+          const chosen = pickContentType(Object.keys(operation.requestBody.content));
+          if (chosen) {
+            contentType = chosen;
+            // Only JSON bodies are generated. The example generator emits a JSON
+            // value, and handing that to an endpoint expecting XML or form
+            // encoding would be worse than leaving the body empty.
+            if (/json/i.test(chosen)) {
+              body = exampleBodyFor(operation.requestBody.content[chosen], openapiDoc);
+            }
           }
         }
         const newRequest = {
