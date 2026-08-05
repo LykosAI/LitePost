@@ -238,7 +238,14 @@ export function importFromOpenapi(openapiDoc: any, baseUrl: string): Collection[
     for (const method in pathItem) {
       if (["get", "post", "put", "patch", "delete", "options", "head"].includes(method.toLowerCase())) {
         const operation = pathItem[method];
-        const name = operation.summary || `${method.toUpperCase()} ${path}`;
+        // Route first, summary second. The summary alone ("Update an existing
+        // pet.") reads nicely but leaves you unable to tell which endpoint a
+        // saved request actually hits without opening it — and the list
+        // truncates, so whatever goes first is what survives. The method is
+        // already shown as a separate badge, so it is not repeated here.
+        const name = operation.summary
+          ? `${path} — ${operation.summary}`
+          : path;
         let fullUrl = path;
         try {
           if (serverUrl) {

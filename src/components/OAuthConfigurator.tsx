@@ -10,8 +10,9 @@ import { useOAuth2TokenActions } from "@/hooks/useOAuth2TokenActions"
 import { useEnvironmentStore } from "@/store/environments"
 import { detectEntraV1Url, fetchOidcDiscovery } from "@/utils/oidcDiscovery"
 import { substituteVariables } from "@/utils/variables"
+import { decodeToken } from "@/utils/jwt"
 import { Loader2, KeyRound, RefreshCw, Globe, Shield, Wand2 } from "lucide-react"
-import { useState } from "react"
+import { useMemo, useState } from "react"
 
 interface OAuthConfiguratorProps {
   oauth2: OAuth2Config
@@ -66,6 +67,8 @@ export function OAuthConfigurator({ oauth2, onOAuth2Change }: OAuthConfiguratorP
   const [discoveryNote, setDiscoveryNote] = useState<string | null>(null)
   const [discoveryWarning, setDiscoveryWarning] = useState<string | null>(null)
   const [entraV2Url, setEntraV2Url] = useState<string | null>(null)
+  const [showAllClaims, setShowAllClaims] = useState(false)
+  const decoded = useMemo(() => decodeToken(oauth2.accessToken), [oauth2.accessToken])
   const {
     isLoading,
     tokenError,
@@ -80,8 +83,13 @@ export function OAuthConfigurator({ oauth2, onOAuth2Change }: OAuthConfiguratorP
     onOAuth2Change({ ...oauth2, [field]: value })
   }
 
-  const handleDiscover = async () => {
-    if (!oauth2.discoveryUrl?.trim() || isDiscovering) return
+  /**
+   * Run discovery against an explicit URL rather than reading it off the prop.
+   * The v2.0 switch below needs to discover against a URL it has only just
+   * handed to the parent, which this render's `oauth2` does not know about yet.
+   */
+  const runDiscovery = async (rawUrl: string) => {
+    if (!rawUrl.trim() || isDiscovering) return
     setIsDiscovering(true)
     setDiscoveryError(null)
     setDiscoveryNote(null)
@@ -90,7 +98,7 @@ export function OAuthConfigurator({ oauth2, onOAuth2Change }: OAuthConfiguratorP
 
     try {
       // Support {{var}} in the discovery URL, like every other field
-      const resolvedUrl = substituteVariables(oauth2.discoveryUrl, getVariable)
+      const resolvedUrl = substituteVariables(rawUrl, getVariable)
       const discovery = await fetchOidcDiscovery(resolvedUrl)
 
       const updates: Partial<OAuth2Config> = {}
@@ -112,7 +120,9 @@ export function OAuthConfigurator({ oauth2, onOAuth2Change }: OAuthConfiguratorP
         if (preferred.length > 0) updates.scope = preferred.join(' ')
       }
 
-      onOAuth2Change({ ...oauth2, ...updates })
+      // rawUrl is carried through so the v2.0 switch is not undone by the
+      // stale discoveryUrl still sitting on `oauth2`.
+      onOAuth2Change({ ...oauth2, discoveryUrl: rawUrl, ...updates })
       const filled = [
         updates.authUrl && 'authorization URL',
         updates.tokenUrl && 'token URL',
@@ -142,12 +152,20 @@ export function OAuthConfigurator({ oauth2, onOAuth2Change }: OAuthConfiguratorP
     }
   }
 
+  const handleDiscover = () => runDiscovery(oauth2.discoveryUrl ?? '')
+
+  /**
+   * Swap in the v2.0 discovery URL and immediately re-run discovery against it.
+   * The URL is passed explicitly rather than read back from `oauth2` because
+   * the prop has not been updated yet at this point in the render cycle.
+   */
   const applyEntraV2Url = () => {
     if (!entraV2Url) return
-    onOAuth2Change({ ...oauth2, discoveryUrl: entraV2Url })
+    const nextUrl = entraV2Url
     setEntraV2Url(null)
     setDiscoveryWarning(null)
-    setDiscoveryNote('Switched to the v2.0 endpoint — hit Auto-fill again.')
+    onOAuth2Change({ ...oauth2, discoveryUrl: nextUrl })
+    void runDiscovery(nextUrl)
   }
 
   return (
@@ -375,6 +393,48 @@ export function OAuthConfigurator({ oauth2, onOAuth2Change }: OAuthConfiguratorP
           <div className="text-[11px] font-mono text-muted-foreground/70 bg-background/30 rounded px-2 py-1.5 truncate">
             {oauth2.tokenType || 'Bearer'} {oauth2.accessToken.substring(0, 50)}…
           </div>
+
+          {/*
+            The claims answer "the provider gave me a token, so why is the API
+            still saying 401?" — nearly always because `aud` names a different
+            API, or because the token is app-only where a user token is wanted.
+            Decoded locally and unverified; this is a read of what the token
+            says about itself, not a trust decision.
+          */}
+          {decoded ? (
+            <div className="space-y-2 pt-1">
+              {decoded.highlights.map((claim) => (
+                <div key={claim.label} className="space-y-0.5">
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-[11px] text-muted-foreground/70 shrink-0">{claim.label}</span>
+                    <span className="text-[11px] font-mono text-foreground break-all">{claim.value}</span>
+                  </div>
+                  {claim.hint && (
+                    <p className="text-[10px] text-muted-foreground/50 leading-snug">{claim.hint}</p>
+                  )}
+                </div>
+              ))}
+
+              <button
+                type="button"
+                onClick={() => setShowAllClaims((shown) => !shown)}
+                className="text-[11px] text-primary hover:underline"
+                data-testid="toggle-all-claims"
+              >
+                {showAllClaims ? 'Hide all claims' : `Show all ${Object.keys(decoded.claims).length} claims`}
+              </button>
+
+              {showAllClaims && (
+                <pre className="text-[10px] font-mono bg-background/40 rounded p-2 overflow-x-auto max-h-56 overflow-y-auto">
+                  {JSON.stringify(decoded.claims, null, 2)}
+                </pre>
+              )}
+            </div>
+          ) : (
+            <p className="text-[10px] text-muted-foreground/50 leading-snug">
+              Opaque token — no claims to decode. Check the audience with your API provider.
+            </p>
+          )}
         </FormSection>
       )}
 
