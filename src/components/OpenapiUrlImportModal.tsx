@@ -4,6 +4,8 @@ import { Input } from "@/components/ui/input"
 import { useState } from "react"
 import { Loader2 } from "lucide-react"
 import { fetchJsonViaBackend } from "@/utils/backendFetch"
+import { BaseUrlVariableToggle } from "./BaseUrlVariableToggle"
+import { DEFAULT_BASE_URL_VARIABLE } from "./openapiImportShared"
 
 interface OpenapiDoc {
   servers?: { url?: string }[]
@@ -13,7 +15,7 @@ interface OpenapiDoc {
 interface OpenapiUrlImportModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  onImport: (openapiDoc: unknown, baseUrl: string) => void
+  onImport: (openapiDoc: unknown, baseUrl: string, baseUrlVariable?: string) => void
 }
 
 export function OpenapiUrlImportModal({ open, onOpenChange, onImport }: OpenapiUrlImportModalProps) {
@@ -23,6 +25,7 @@ export function OpenapiUrlImportModal({ open, onOpenChange, onImport }: OpenapiU
   const [error, setError] = useState<string | null>(null)
   const [detectedServers, setDetectedServers] = useState<string[]>([])
   const [loadedDoc, setLoadedDoc] = useState<OpenapiDoc | null>(null)
+  const [useVariable, setUseVariable] = useState(true)
 
   const reset = () => {
     setOpenapiUrl("")
@@ -30,6 +33,7 @@ export function OpenapiUrlImportModal({ open, onOpenChange, onImport }: OpenapiU
     setDetectedServers([])
     setLoadedDoc(null)
     setError(null)
+    setUseVariable(true)
   }
 
   /**
@@ -83,7 +87,7 @@ export function OpenapiUrlImportModal({ open, onOpenChange, onImport }: OpenapiU
     }
 
     try {
-      onImport(apiDoc, baseUrl.trim())
+      onImport(apiDoc, baseUrl.trim(), useVariable ? DEFAULT_BASE_URL_VARIABLE : undefined)
       reset()
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to import OpenAPI specification")
@@ -160,6 +164,12 @@ export function OpenapiUrlImportModal({ open, onOpenChange, onImport }: OpenapiU
               </div>
             )}
           </div>
+          <BaseUrlVariableToggle
+            checked={useVariable}
+            onCheckedChange={setUseVariable}
+            baseUrl={baseUrl}
+          />
+
           {error && (
             <p className="text-[12px] text-destructive bg-destructive/10 rounded px-2 py-1.5 break-all leading-snug">
               ⚠ {error}

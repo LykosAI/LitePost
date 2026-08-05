@@ -1,4 +1,5 @@
-import { SavedRequest, Tab } from "@/types"
+import { Collection, SavedRequest, Tab } from "@/types"
+import { resolveRequestAuth } from "@/utils/collectionAuth"
 
 export const methodColors: Record<string, string> = {
   GET: "bg-blue-500/10 text-blue-500",
@@ -10,7 +11,16 @@ export const methodColors: Record<string, string> = {
   OPTIONS: "bg-cyan-500/10 text-cyan-500",
 }
 
-export function savedRequestToTab(request: SavedRequest): Tab {
+/**
+ * Open a saved request as a tab.
+ *
+ * The collection is optional so existing callers keep working, but pass it
+ * where you can: it is what lets a request inherit the collection's auth.
+ * Resolution happens here rather than at send time so the Auth panel shows what
+ * will actually go out, instead of an empty form for a request that is in fact
+ * authenticated.
+ */
+export function savedRequestToTab(request: SavedRequest, collection?: Collection): Tab {
   return {
     id: crypto.randomUUID(),
     name: request.name,
@@ -21,7 +31,7 @@ export function savedRequestToTab(request: SavedRequest): Tab {
     headers: request.headers,
     body: request.body,
     contentType: request.contentType,
-    auth: request.auth,
+    auth: resolveRequestAuth(request, collection),
     cookies: request.cookies,
     loading: false,
     response: null,

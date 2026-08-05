@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { OpenapiImportModal } from '@/components/OpenapiImportModal'
 import { CollectionsPanel } from '@/components/CollectionsPanel'
+import { importFromOpenapi } from '@/utils/collection-converter'
 import { toast } from 'sonner'
 
 // Mock the toast
@@ -111,7 +112,8 @@ describe('OpenapiImportModal', () => {
     fireEvent.change(baseUrlInput, { target: { value: 'https://api.example.com' } })
     fireEvent.click(screen.getByRole('button', { name: /import/i }))
 
-    expect(mockOnImport).toHaveBeenCalledWith({ valid: 'json' }, 'https://api.example.com')
+    // Third argument is the {{baseUrl}} variable name, on by default.
+    expect(mockOnImport).toHaveBeenCalledWith({ valid: 'json' }, 'https://api.example.com', 'baseUrl')
     expect(textarea).toHaveValue('')
     expect(baseUrlInput).toHaveValue('')
   })
@@ -158,7 +160,52 @@ describe('CollectionsPanel OpenAPI Import', () => {
     fireEvent.click(screen.getByRole('button', { name: /^import$/i }))
 
     await waitFor(() => {
-      expect(toast.success).toHaveBeenCalledWith('Imported 1 request from OpenAPI')
+      expect(toast.success).toHaveBeenCalledWith(expect.stringContaining('Imported 1 request'))
+    })
+  })
+
+  it('parameterizes the base URL by default so the collection is not welded to one host', async () => {
+    const user = userEvent.setup()
+    mockFetch.mockResolvedValueOnce(okResponse(SPEC))
+
+    render(<CollectionsPanel open={true} onOpenChange={() => { }} onRequestSelect={() => { }} />)
+
+    const urlInput = await openUrlModal(user)
+    fireEvent.change(urlInput, { target: { value: 'https://api.example.com/swagger/v1/swagger.json' } })
+    fireEvent.click(screen.getByRole('button', { name: /^load$/i }))
+    await waitFor(() => expect(screen.getByPlaceholderText(/base url/i)).toHaveValue('https://api.example.com/'))
+
+    fireEvent.click(screen.getByRole('button', { name: /^import$/i }))
+
+    await waitFor(() => {
+      expect(importFromOpenapi).toHaveBeenCalledWith(
+        expect.anything(),
+        'https://api.example.com/',
+        { baseUrlVariable: 'baseUrl' }
+      )
+    })
+  })
+
+  it('bakes in the absolute host when the toggle is turned off', async () => {
+    const user = userEvent.setup()
+    mockFetch.mockResolvedValueOnce(okResponse(SPEC))
+
+    render(<CollectionsPanel open={true} onOpenChange={() => { }} onRequestSelect={() => { }} />)
+
+    const urlInput = await openUrlModal(user)
+    fireEvent.change(urlInput, { target: { value: 'https://api.example.com/swagger/v1/swagger.json' } })
+    fireEvent.click(screen.getByRole('button', { name: /^load$/i }))
+    await waitFor(() => expect(screen.getByPlaceholderText(/base url/i)).toHaveValue('https://api.example.com/'))
+
+    fireEvent.click(screen.getByTestId('base-url-variable-toggle'))
+    fireEvent.click(screen.getByRole('button', { name: /^import$/i }))
+
+    await waitFor(() => {
+      expect(importFromOpenapi).toHaveBeenCalledWith(
+        expect.anything(),
+        'https://api.example.com/',
+        { baseUrlVariable: undefined }
+      )
     })
   })
 
