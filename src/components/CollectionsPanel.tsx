@@ -24,6 +24,8 @@ import { importFromOpenapi } from '@/utils/collection-converter'
 import { CollectionCard } from "./collections/CollectionCard"
 import { savedRequestToTab } from "./collections/collectionUtils"
 import { useResizablePanel } from "@/hooks/useResizablePanel"
+import { OpenapiUrlImportModal } from "./OpenapiUrlImportModal"
+import { OpenapiImportModal } from "./OpenapiImportModal"
 
 interface CollectionsPanelProps {
   open: boolean
@@ -48,6 +50,8 @@ export const CollectionsPanel = forwardRef<HTMLDivElement, CollectionsPanelProps
     } = useCollectionStore()
 
     const [expandedCollections, setExpandedCollections] = useState<Set<string>>(new Set())
+    const [openapiUrlModalOpen, setOpenapiUrlModalOpen] = useState(false)
+    const [openapiRawModalOpen, setOpenapiRawModalOpen] = useState(false)
     const fileInputRef = useRef<HTMLInputElement>(null)
     const themeClass = useThemeClass()
     const { width, isDragging, setIsDragging } = useResizablePanel(600, 450)
@@ -178,20 +182,30 @@ export const CollectionsPanel = forwardRef<HTMLDivElement, CollectionsPanelProps
       }
     }
 
-    const handleImportOpenapiClick = async () => {
-      const openapiUrl = window.prompt("Enter the URL for the OpenAPI JSON file:");
-      if (!openapiUrl) return;
+    /**
+     * Shared by both OpenAPI modals — they differ only in how the document is
+     * obtained (fetched vs pasted), not in what happens to it afterwards.
+     *
+     * Note the fetching lives in the URL modal and goes through the Rust
+     * backend. This used to call the webview's fetch() directly, which fails on
+     * any internal API server: a browser fetch enforces CORS, and an internal
+     * host has no reason to send Access-Control-Allow-Origin for a desktop
+     * app's origin.
+     */
+    const handleOpenapiImport = (apiDoc: unknown, baseUrl: string) => {
       try {
-        const response = await fetch(openapiUrl);
-        if (!response.ok) {
-          throw new Error("Failed to fetch the OpenAPI document.");
-        }
-        const apiDoc = await response.json();
-        const baseUrl = window.prompt("Enter the base URL for the API:");
-        if (!baseUrl) return;
         const importedCollections = importFromOpenapi(apiDoc, baseUrl);
+        const requestCount = importedCollections.reduce((sum, c) => sum + c.requests.length, 0);
+
+        if (requestCount === 0) {
+          toast.error("No operations found in that document — is it an OpenAPI spec?");
+          return;
+        }
+
         importCollections(importedCollections);
-        toast.success("OpenAPI collections imported successfully");
+        setOpenapiUrlModalOpen(false);
+        setOpenapiRawModalOpen(false);
+        toast.success(`Imported ${requestCount} request${requestCount === 1 ? "" : "s"} from OpenAPI`);
       } catch (error) {
         if (shouldLogImportErrors) {
           console.error("Error importing OpenAPI:", error);
@@ -244,8 +258,11 @@ export const CollectionsPanel = forwardRef<HTMLDivElement, CollectionsPanelProps
                   <DropdownMenuItem onClick={handleImportPostmanClick}>
                     Postman Format
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={handleImportOpenapiClick}>
-                    OpenAPI Format
+                  <DropdownMenuItem onClick={() => setOpenapiUrlModalOpen(true)}>
+                    OpenAPI from URL
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setOpenapiRawModalOpen(true)}>
+                    OpenAPI (paste JSON)
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -298,6 +315,17 @@ export const CollectionsPanel = forwardRef<HTMLDivElement, CollectionsPanelProps
             </ScrollArea>
           </div>
         </SheetContent>
+
+        <OpenapiUrlImportModal
+          open={openapiUrlModalOpen}
+          onOpenChange={setOpenapiUrlModalOpen}
+          onImport={handleOpenapiImport}
+        />
+        <OpenapiImportModal
+          open={openapiRawModalOpen}
+          onOpenChange={setOpenapiRawModalOpen}
+          onImport={handleOpenapiImport}
+        />
       </Sheet >
     )
   }

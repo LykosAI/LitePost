@@ -19,7 +19,7 @@ vi.mock('@/utils/collection-converter', () => ({
     if (!apiDoc || !baseUrl) {
       throw new Error('Invalid OpenAPI document or base URL')
     }
-    return [{ id: '1', name: 'Test Collection', requests: [] }]
+    return [{ id: '1', name: 'Test Collection', requests: [{ id: 'r1', name: 'GET /things' }] }]
   })
 }))
 
@@ -118,68 +118,91 @@ describe('OpenapiImportModal', () => {
 })
 
 describe('CollectionsPanel OpenAPI Import', () => {
-  // Mock the fetch function
   const mockFetch = vi.fn()
   global.fetch = mockFetch
-  const mockPrompt = vi.fn()
-  global.prompt = mockPrompt as unknown as typeof window.prompt
 
   beforeEach(() => {
     vi.clearAllMocks()
   })
 
-  const openImportMenu = async () => {
-    const user = userEvent.setup()
-    const importButton = screen.getByRole('button', { name: /import/i })
-    await user.click(importButton)
-    return screen.findByRole('menuitem', { name: /openapi format/i })
+  const SPEC = { openapi: '3.0.0', info: { title: 'Test API' }, servers: [{ url: 'https://api.example.com' }] }
+
+  const okResponse = (body: unknown) => ({
+    ok: true,
+    status: 200,
+    text: () => Promise.resolve(JSON.stringify(body)),
+  })
+
+  const openUrlModal = async (user: ReturnType<typeof userEvent.setup>) => {
+    await user.click(screen.getByRole('button', { name: /import/i }))
+    const item = await screen.findByRole('menuitem', { name: /openapi from url/i })
+    fireEvent.click(item)
+    return screen.findByPlaceholderText(/swagger\/v1\/swagger\.json/i)
   }
 
-  it('handles URL import correctly', async () => {
-    const mockApiDoc = { openapi: '3.0.0', info: { title: 'Test API' } }
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: () => Promise.resolve(mockApiDoc)
+  it('imports a spec fetched from a URL', async () => {
+    const user = userEvent.setup()
+    mockFetch.mockResolvedValueOnce(okResponse(SPEC))
+
+    render(<CollectionsPanel open={true} onOpenChange={() => { }} onRequestSelect={() => { }} />)
+
+    const urlInput = await openUrlModal(user)
+    fireEvent.change(urlInput, { target: { value: 'https://api.example.com/swagger/v1/swagger.json' } })
+    fireEvent.click(screen.getByRole('button', { name: /^load$/i }))
+
+    // The base URL is pre-filled from the spec's `servers` entry
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText(/base url/i)).toHaveValue('https://api.example.com/')
     })
-    mockPrompt
-      .mockReturnValueOnce('https://api.example.com/openapi.json') // URL prompt
-      .mockReturnValueOnce('https://api.example.com') // Base URL prompt
 
-    render(
-      <CollectionsPanel
-        open={true}
-        onOpenChange={() => {}}
-        onRequestSelect={() => {}}
-      />
-    )
-
-    // Find and click the OpenAPI URL import option
-    const urlImportOption = await openImportMenu()
-    fireEvent.click(urlImportOption)
+    fireEvent.click(screen.getByRole('button', { name: /^import$/i }))
 
     await waitFor(() => {
-      expect(mockFetch).toHaveBeenCalledWith('https://api.example.com/openapi.json')
-      expect(toast.success).toHaveBeenCalledWith('OpenAPI collections imported successfully')
+      expect(toast.success).toHaveBeenCalledWith('Imported 1 request from OpenAPI')
     })
   })
 
-  it('handles URL import errors', async () => {
-    mockFetch.mockRejectedValueOnce(new Error('Network error'))
-    mockPrompt.mockReturnValueOnce('https://api.example.com/openapi.json')
+  // The bug this whole path was rewritten for: the import used the webview's
+  // fetch(), which enforces CORS and so could never reach an internal API host.
+  // Requests now go out through the Rust backend, and the only reason fetch()
+  // appears at all here is the browser-mode fallback these tests exercise.
+  it('surfaces a fetch failure in the dialog instead of failing silently', async () => {
+    const user = userEvent.setup()
+    mockFetch.mockRejectedValueOnce(new Error('Failed to fetch'))
 
-    render(
-      <CollectionsPanel
-        open={true}
-        onOpenChange={() => {}}
-        onRequestSelect={() => {}}
-      />
-    )
+    render(<CollectionsPanel open={true} onOpenChange={() => { }} onRequestSelect={() => { }} />)
 
-    const urlImportOption = await openImportMenu()
-    fireEvent.click(urlImportOption)
+    const urlInput = await openUrlModal(user)
+    fireEvent.change(urlInput, { target: { value: 'https://internal.corp/swagger/v1/swagger.json' } })
+    fireEvent.click(screen.getByRole('button', { name: /^load$/i }))
 
-    await waitFor(() => {
-      expect(toast.error).toHaveBeenCalled()
+    expect(await screen.findByText(/Failed to fetch/i)).toBeInTheDocument()
+  })
+
+  it('explains an HTML login-page response rather than a JSON parse error', async () => {
+    const user = userEvent.setup()
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      text: () => Promise.resolve('<!DOCTYPE html><html><body>Sign in</body></html>'),
     })
+
+    render(<CollectionsPanel open={true} onOpenChange={() => { }} onRequestSelect={() => { }} />)
+
+    const urlInput = await openUrlModal(user)
+    fireEvent.change(urlInput, { target: { value: 'https://internal.corp/swagger/v1/swagger.json' } })
+    fireEvent.click(screen.getByRole('button', { name: /^load$/i }))
+
+    expect(await screen.findByText(/HTML page instead of JSON/i)).toBeInTheDocument()
+  })
+
+  it('does not fetch on every keystroke', async () => {
+    const user = userEvent.setup()
+    render(<CollectionsPanel open={true} onOpenChange={() => { }} onRequestSelect={() => { }} />)
+
+    const urlInput = await openUrlModal(user)
+    await user.type(urlInput, 'https://api.example.com/spec.json')
+
+    expect(mockFetch).not.toHaveBeenCalled()
   })
 }) 

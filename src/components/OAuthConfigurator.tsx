@@ -8,7 +8,8 @@ import { OAuth2Config, OAuth2GrantType } from "@/types"
 import { useThemeClass } from "@/hooks/useThemeClass"
 import { useOAuth2TokenActions } from "@/hooks/useOAuth2TokenActions"
 import { useEnvironmentStore } from "@/store/environments"
-import { fetchOidcDiscovery } from "@/utils/oidcDiscovery"
+import { detectEntraV1Url, fetchOidcDiscovery } from "@/utils/oidcDiscovery"
+import { substituteVariables } from "@/utils/variables"
 import { Loader2, KeyRound, RefreshCw, Globe, Shield, Wand2 } from "lucide-react"
 import { useState } from "react"
 
@@ -63,6 +64,8 @@ export function OAuthConfigurator({ oauth2, onOAuth2Change }: OAuthConfiguratorP
   const [isDiscovering, setIsDiscovering] = useState(false)
   const [discoveryError, setDiscoveryError] = useState<string | null>(null)
   const [discoveryNote, setDiscoveryNote] = useState<string | null>(null)
+  const [discoveryWarning, setDiscoveryWarning] = useState<string | null>(null)
+  const [entraV2Url, setEntraV2Url] = useState<string | null>(null)
   const {
     isLoading,
     tokenError,
@@ -82,18 +85,27 @@ export function OAuthConfigurator({ oauth2, onOAuth2Change }: OAuthConfiguratorP
     setIsDiscovering(true)
     setDiscoveryError(null)
     setDiscoveryNote(null)
+    setDiscoveryWarning(null)
+    setEntraV2Url(null)
 
     try {
       // Support {{var}} in the discovery URL, like every other field
-      const resolvedUrl = oauth2.discoveryUrl.replace(/\{\{([^}]+)\}\}/g, (match, name) =>
-        getVariable(String(name).trim()) ?? match
-      )
+      const resolvedUrl = substituteVariables(oauth2.discoveryUrl, getVariable)
       const discovery = await fetchOidcDiscovery(resolvedUrl)
 
       const updates: Partial<OAuth2Config> = {}
       if (discovery.authorizationEndpoint) updates.authUrl = discovery.authorizationEndpoint
       if (discovery.tokenEndpoint) updates.tokenUrl = discovery.tokenEndpoint
-      if (!oauth2.scope && discovery.scopesSupported?.length) {
+
+      // Scope is deliberately NOT auto-filled for client credentials. The
+      // discovery document's `scopes_supported` advertises what the identity
+      // provider offers for OIDC sign-in — it says nothing about the API you
+      // are actually calling. Filling in `openid profile email` yields a token
+      // minted for the provider's own userinfo endpoint (on Entra, for
+      // Microsoft Graph), which your API then rejects with a 401. Client
+      // credentials in particular needs a resource-specific scope that only
+      // the user knows, e.g. `api://<client-id>/.default`.
+      if (!oauth2.scope && oauth2.grantType !== 'client_credentials' && discovery.scopesSupported?.length) {
         const preferred = ['openid', 'profile', 'email'].filter((scope) =>
           discovery.scopesSupported!.includes(scope)
         )
@@ -107,11 +119,35 @@ export function OAuthConfigurator({ oauth2, onOAuth2Change }: OAuthConfiguratorP
         updates.scope && 'scope',
       ].filter(Boolean)
       setDiscoveryNote(`Filled ${filled.join(', ')}`)
+
+      const v2Url = detectEntraV1Url(resolvedUrl)
+      if (v2Url) {
+        setEntraV2Url(v2Url)
+        setDiscoveryWarning(
+          'This is the Entra v1.0 discovery document. v1.0 selects the token audience with a ' +
+          '`resource` parameter, which LitePost does not send — you will get a token, but for ' +
+          'the wrong audience, and your API will answer 401. Use the v2.0 endpoint instead.'
+        )
+      } else if (!oauth2.scope && !updates.scope) {
+        setDiscoveryWarning(
+          'No scope set. Most providers need a scope naming the API you are calling ' +
+          '(Entra: `api://<client-id>/.default`) — without it the token may be issued for ' +
+          'a different audience and rejected with a 401.'
+        )
+      }
     } catch (error) {
       setDiscoveryError(error instanceof Error ? error.message : String(error))
     } finally {
       setIsDiscovering(false)
     }
+  }
+
+  const applyEntraV2Url = () => {
+    if (!entraV2Url) return
+    onOAuth2Change({ ...oauth2, discoveryUrl: entraV2Url })
+    setEntraV2Url(null)
+    setDiscoveryWarning(null)
+    setDiscoveryNote('Switched to the v2.0 endpoint — hit Auto-fill again.')
   }
 
   return (
@@ -178,6 +214,22 @@ export function OAuthConfigurator({ oauth2, onOAuth2Change }: OAuthConfiguratorP
         )}
         {discoveryNote && (
           <p className="text-[11px] text-primary bg-primary/10 rounded px-2 py-1">✓ {discoveryNote}</p>
+        )}
+        {discoveryWarning && (
+          <div className="text-[11px] text-amber-400 bg-amber-500/10 rounded px-2 py-1.5 space-y-1.5 border border-amber-500/20">
+            <p className="leading-snug">⚠ {discoveryWarning}</p>
+            {entraV2Url && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={applyEntraV2Url}
+                className="h-6 text-[11px] border-amber-500/30 hover:bg-amber-500/10"
+                data-testid="use-entra-v2-button"
+              >
+                Use the v2.0 endpoint
+              </Button>
+            )}
+          </div>
         )}
 
         {oauth2.grantType === 'authorization_code' ? (

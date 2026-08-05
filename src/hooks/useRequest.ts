@@ -2,6 +2,7 @@ import { invoke } from '@tauri-apps/api/core'
 import { Tab, HistoryItem } from '@/types'
 import { useEnvironmentStore } from '@/store/environments'
 import { useSettingsStore } from '@/store/settings'
+import { substituteVariables as substitute } from '@/utils/variables'
 
 interface RedirectInfo {
   url: string
@@ -48,11 +49,25 @@ export function useRequest(onHistoryUpdate: (item: HistoryItem) => void) {
   const { getVariable, setVariable } = useEnvironmentStore()
   const { network: globalNetwork } = useSettingsStore()
 
-  const substituteVariables = (text: string): string => {
-    return text.replace(/\{\{([^}]+)\}\}/g, (match, key) => {
-      const value = getVariable(key.trim())
-      return value !== undefined ? value : match
-    })
+  const substituteVariables = (text: string): string => substitute(text, getVariable)
+
+  /**
+   * Set a header, replacing any existing key that differs only in case.
+   *
+   * HTTP header names are case-insensitive but a JS object's keys are not, so a
+   * plain assignment to `Authorization` leaves a user-typed `authorization`
+   * sitting right next to it and both get sent. Servers are free to pick either
+   * one, which shows up as an intermittent 401 that looks like the auth config
+   * is broken when it is actually a stale header from the Headers tab.
+   */
+  const setHeader = (headers: Record<string, string>, key: string, value: string) => {
+    const lowered = key.toLowerCase()
+    for (const existing of Object.keys(headers)) {
+      if (existing !== key && existing.toLowerCase() === lowered) {
+        delete headers[existing]
+      }
+    }
+    headers[key] = value
   }
 
   const sendRequest = async (tab: Tab) => {
@@ -73,21 +88,21 @@ export function useRequest(onHistoryUpdate: (item: HistoryItem) => void) {
         const username = substituteVariables(tab.auth.username || '')
         const password = substituteVariables(tab.auth.password || '')
         const credentials = btoa(`${username}:${password}`)
-        headerRecord['Authorization'] = `Basic ${credentials}`
+        setHeader(headerRecord, 'Authorization', `Basic ${credentials}`)
       } else if (tab.auth.type === 'bearer' && tab.auth.token) {
-        headerRecord['Authorization'] = `Bearer ${substituteVariables(tab.auth.token)}`
+        setHeader(headerRecord, 'Authorization', `Bearer ${substituteVariables(tab.auth.token)}`)
       } else if (tab.auth.type === 'api-key' && tab.auth.key && tab.auth.value) {
         const key = substituteVariables(tab.auth.key)
         const value = substituteVariables(tab.auth.value)
         if (tab.auth.addTo === 'header') {
-          headerRecord[key] = value
+          setHeader(headerRecord, key, value)
         } else {
           const separator = url.includes('?') ? '&' : '?'
           url += `${separator}${encodeURIComponent(key)}=${encodeURIComponent(value)}`
         }
       } else if (tab.auth.type === 'oauth2' && tab.auth.oauth2?.accessToken) {
         const tokenType = tab.auth.oauth2.tokenType || 'Bearer'
-        headerRecord['Authorization'] = `${tokenType} ${substituteVariables(tab.auth.oauth2.accessToken)}`
+        setHeader(headerRecord, 'Authorization', `${tokenType} ${tab.auth.oauth2.accessToken}`)
       }
 
       // Add cookies to headers with variable substitution
@@ -96,7 +111,7 @@ export function useRequest(onHistoryUpdate: (item: HistoryItem) => void) {
         .join('; ')
 
       if (cookieHeader) {
-        headerRecord['Cookie'] = cookieHeader
+        setHeader(headerRecord, 'Cookie', cookieHeader)
       }
 
       // Substitute variables in body if it exists
