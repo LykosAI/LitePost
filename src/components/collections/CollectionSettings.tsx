@@ -100,6 +100,7 @@ export function CollectionSettings({ collection, onUpdateCollection }: Collectio
           <AuthConfigurator
             auth={collection.auth ?? { type: "none" }}
             onAuthChange={(auth) => onUpdateCollection(collection.id, { auth })}
+            flowKey={`collection:${collection.id}`}
           />
           <p className="text-[11px] text-muted-foreground/50 leading-snug pt-2">
             Requests in this collection use this unless they set their own.

@@ -17,6 +17,8 @@ import { useMemo, useState } from "react"
 interface OAuthConfiguratorProps {
   oauth2: OAuth2Config
   onOAuth2Change: (config: OAuth2Config) => void
+  /** Scopes in-flight sign-in state to this tab or collection — see the store. */
+  flowKey?: string
 }
 
 const GRANT_TYPES: { value: OAuth2GrantType; label: string; description: string }[] = [
@@ -59,7 +61,7 @@ function FormField({ label, hint, children }: {
   )
 }
 
-export function OAuthConfigurator({ oauth2, onOAuth2Change }: OAuthConfiguratorProps) {
+export function OAuthConfigurator({ oauth2, onOAuth2Change, flowKey }: OAuthConfiguratorProps) {
   const themeClass = useThemeClass()
   const { getVariable } = useEnvironmentStore()
   const [isDiscovering, setIsDiscovering] = useState(false)
@@ -78,7 +80,7 @@ export function OAuthConfigurator({ oauth2, onOAuth2Change }: OAuthConfiguratorP
     cancelTokenRequest,
     isExpired,
     expiresIn,
-  } = useOAuth2TokenActions({ oauth2, onOAuth2Change })
+  } = useOAuth2TokenActions({ oauth2, onOAuth2Change, flowKey })
 
   const updateField = (field: keyof OAuth2Config, value: string) => {
     onOAuth2Change({ ...oauth2, [field]: value })

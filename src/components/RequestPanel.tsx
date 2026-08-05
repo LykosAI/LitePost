@@ -153,6 +153,8 @@ interface RequestPanelProps {
   onBodyChange: (body: string) => void
   onContentTypeChange: (contentType: string) => void
   onAuthChange: (auth: AuthConfig) => void
+  /** The tab this panel is showing, used to scope in-flight OAuth sign-ins. */
+  tabId?: string
   onCookiesChange: (cookies: Cookie[]) => void
   onTestScriptsChange: (scripts: TestScript[]) => void
   onPreRequestScriptsChange?: (scripts: TestScript[]) => void
@@ -189,6 +191,7 @@ export function RequestPanel({
   body,
   contentType,
   auth,
+  tabId,
   cookies,
   response,
   testScripts,
@@ -663,7 +666,7 @@ export function RequestPanel({
           <TabsContent value="auth" className="h-full p-4 pt-2 data-[state=active]:flex data-[state=active]:flex-col">
             <ScrollArea className="flex-1 min-h-0">
               <div className="space-y-4 pr-4">
-                <AuthConfigurator auth={auth} onAuthChange={onAuthChange} />
+                <AuthConfigurator auth={auth} onAuthChange={onAuthChange} flowKey={tabId} />
               </div>
             </ScrollArea>
           </TabsContent>

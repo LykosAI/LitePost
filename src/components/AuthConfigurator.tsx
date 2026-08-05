@@ -9,6 +9,12 @@ import { ShieldOff, KeyRound, Lock, Key, ShieldCheck } from "lucide-react"
 interface AuthConfiguratorProps {
   auth: AuthConfig
   onAuthChange: (auth: AuthConfig) => void
+  /**
+   * Identifies whose auth this is — a request tab id, or `collection:<id>`.
+   * Passed through so an in-flight OAuth sign-in is scoped to it rather than to
+   * this component, which unmounts whenever the auth type changes.
+   */
+  flowKey?: string
 }
 
 const AUTH_TYPES = [
@@ -19,7 +25,7 @@ const AUTH_TYPES = [
   { value: 'oauth2', label: 'OAuth 2.0', icon: ShieldCheck },
 ]
 
-export function AuthConfigurator({ auth, onAuthChange }: AuthConfiguratorProps) {
+export function AuthConfigurator({ auth, onAuthChange, flowKey }: AuthConfiguratorProps) {
   const themeClass = useThemeClass()
   // Every auth field that supports {{var}} substitution, for the peek badge
   const authText = [
@@ -154,6 +160,7 @@ export function AuthConfigurator({ auth, onAuthChange }: AuthConfiguratorProps) 
         <OAuthConfigurator
           oauth2={auth.oauth2 || { grantType: 'authorization_code', clientId: '' }}
           onOAuth2Change={(oauth2) => onAuthChange({ ...auth, oauth2 })}
+          flowKey={flowKey}
         />
       )}
     </div>
