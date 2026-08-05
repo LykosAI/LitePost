@@ -167,7 +167,7 @@ export const useCollectionStore = create<CollectionState>()(
           get().importCollections(imported)
         } catch (error) {
           console.error('Failed to import Postman collection:', error)
-          throw new Error('Invalid Postman collection format')
+          throw new Error('Invalid Postman collection format', { cause: error })
         }
       }
     }),

@@ -57,11 +57,6 @@ function ResponsePanelComponent({
   onExtractionRulesChange,
   onLoadSample,
 }: ResponsePanelProps) {
-  // If streaming is active, show the streaming component instead
-  if (streamingResponse) {
-    return <ResponseStreamer streaming={streamingResponse} onCancel={onCancelStream || (() => { })} />
-  }
-
   const [activeTab, setActiveTab] = useState("response")
   const { jsonViewer } = useSettingsStore()
   const bodySize = response?.body.length ?? 0
@@ -140,6 +135,16 @@ function ResponsePanelComponent({
   const displayedJSON = queryResult && (queryResult.matched || queryResult.partial)
     ? queryResult.data
     : parsedJSON
+
+  // Keep this below every hook. When it sat at the top of the component a
+  // finishing stream silently reset the panel's hook state (selected tab, body
+  // filter): React 18 sees a render that called zero hooks, so the next render
+  // falls back to the mount dispatcher rather than throwing. Adding any hook
+  // above such a return turns the same mistake into a hard
+  // "Rendered fewer hooks than expected" crash.
+  if (streamingResponse) {
+    return <ResponseStreamer streaming={streamingResponse} onCancel={onCancelStream || (() => { })} />
+  }
 
   // Status badge helper
   const getStatusBadge = () => {

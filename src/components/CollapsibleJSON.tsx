@@ -24,21 +24,23 @@ export const CollapsibleJSON = memo(function CollapsibleJSON({
   maxAutoExpandArraySize = 10,
   maxAutoExpandObjectSize = 5
 }: CollapsibleJSONProps) {
-  const shouldAutoExpand = () => {
-    if (level >= maxAutoExpandDepth) return false
-    
-    const isObject = typeof data === 'object' && data !== null
-    if (!isObject) return true
-
-    const entries = Object.entries(data)
-    if (Array.isArray(data) && entries.length > maxAutoExpandArraySize) return false
-    if (!Array.isArray(data) && entries.length > maxAutoExpandObjectSize) return false
-
-    return true
-  }
-
   const autoExpanded = useMemo(
-    () => isExpanded && shouldAutoExpand(),
+    () => {
+      const shouldAutoExpand = () => {
+        if (level >= maxAutoExpandDepth) return false
+
+        const isObject = typeof data === 'object' && data !== null
+        if (!isObject) return true
+
+        const entries = Object.entries(data)
+        if (Array.isArray(data) && entries.length > maxAutoExpandArraySize) return false
+        if (!Array.isArray(data) && entries.length > maxAutoExpandObjectSize) return false
+
+        return true
+      }
+
+      return isExpanded && shouldAutoExpand()
+    },
     [data, isExpanded, level, maxAutoExpandArraySize, maxAutoExpandDepth, maxAutoExpandObjectSize]
   )
 
