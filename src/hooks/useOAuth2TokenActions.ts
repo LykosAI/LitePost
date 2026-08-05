@@ -3,6 +3,7 @@ import { OAuth2Config } from '@/types'
 import {
   OAuthTokenResponse,
   applyTokenResponse,
+  cancelOAuthFlow,
   refreshOAuthToken,
   requestOAuthToken,
 } from '@/services/oauth'
@@ -19,6 +20,8 @@ interface OAuth2TokenActions {
   getNewToken: () => Promise<void>
   refreshToken: () => Promise<void>
   clearToken: () => void
+  /** Abort an in-flight browser sign-in. Null when there is nothing to cancel. */
+  cancelTokenRequest: (() => Promise<void>) | null
   isExpired: boolean
   expiresIn: number | null
 }
@@ -38,18 +41,36 @@ export function useOAuth2TokenActions({
     onOAuth2Change(applyTokenResponse(oauth2, token))
   }
 
+  /**
+   * Only the authorization code flow parks waiting on the browser, so it is the
+   * only one that needs cancelling. Held in state rather than a ref so the
+   * Cancel button appears and disappears with it.
+   */
+  const [activeFlowId, setActiveFlowId] = useState<string | null>(null)
+
   const getNewToken = async () => {
     setIsLoading(true)
     setTokenError(null)
 
+    const flowId = oauth2.grantType === 'authorization_code' ? crypto.randomUUID() : undefined
+    setActiveFlowId(flowId ?? null)
+
     try {
-      const token = await requestOAuthToken(oauth2, getVariable)
+      const token = await requestOAuthToken(oauth2, getVariable, flowId)
       handleTokenResponse(token)
     } catch (err) {
       setTokenError(err instanceof Error ? err.message : String(err))
     } finally {
       setIsLoading(false)
+      setActiveFlowId(null)
     }
+  }
+
+  const cancelTokenRequest = async () => {
+    if (!activeFlowId) return
+    await cancelOAuthFlow(activeFlowId)
+    // The flow itself rejects with "Authorization cancelled", which is what
+    // clears isLoading and surfaces the message — nothing to do here.
   }
 
   const refreshToken = async () => {
@@ -98,6 +119,7 @@ export function useOAuth2TokenActions({
     getNewToken,
     refreshToken,
     clearToken,
+    cancelTokenRequest: activeFlowId ? cancelTokenRequest : null,
     isExpired,
     expiresIn,
   }

@@ -8,11 +8,17 @@ use tauri::Url;
 use tauri_plugin_http::reqwest;
 use tauri_plugin_opener::OpenerExt;
 
-use crate::models::ClientWrapper;
+use crate::models::{ClientWrapper, PendingOAuthFlows};
 
 const OAUTH_TOKEN_ACCEPT_HEADER: &str =
     "application/json, application/x-www-form-urlencoded, text/plain";
 const TOKEN_CONTAINER_KEYS: &[&str] = &["data", "token", "result", "response"];
+
+/// How long to wait for the provider to redirect back to the loopback listener.
+///
+/// Deliberately generous: a real sign-in can involve MFA, an account chooser and
+/// a password manager. Cancelling is the UI's job, not the timeout's.
+const AUTH_CALLBACK_TIMEOUT_SECS: u64 = 300;
 
 #[derive(Debug, Deserialize)]
 pub struct OAuth2TokenExchangeOptions {
@@ -43,6 +49,10 @@ pub struct OAuth2AuthCodeOptions {
     scope: Option<String>,
     use_pkce: Option<bool>,
     redirect_uri: Option<String>,
+    /// Identifies this flow so the UI can cancel it. Optional — a flow started
+    /// without one simply cannot be cancelled, which keeps older callers working.
+    #[serde(default)]
+    flow_id: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -452,6 +462,7 @@ pub async fn oauth2_auth_code_flow(
     options: OAuth2AuthCodeOptions,
     app: tauri::AppHandle,
     client_wrapper: tauri::State<'_, ClientWrapper>,
+    pending_flows: tauri::State<'_, PendingOAuthFlows>,
 ) -> Result<OAuth2TokenResponse, String> {
     let auth_url = required_field(options.auth_url, "auth_url")?;
     let token_url = required_field(options.token_url, "token_url")?;
@@ -533,13 +544,46 @@ pub async fn oauth2_auth_code_flow(
         .open_url(auth_uri.as_str(), None::<&str>)
         .map_err(|e| format!("Failed to open browser: {}", e))?;
 
-    let (code, received_state) = tokio::time::timeout(
-        std::time::Duration::from_secs(120),
-        wait_for_callback(listener),
-    )
-    .await
-    .map_err(|_| "Authorization timed out after 2 minutes".to_string())?
-    .map_err(|e| format!("Callback error: {}", e))?;
+    // Register a cancel channel so the UI can abort a flow that is never going
+    // to complete. Signing in can legitimately take a while (MFA, a password
+    // manager, picking an account), so the timeout is generous and the cancel
+    // button is the real escape hatch.
+    let (cancel_tx, mut cancel_rx) = tokio::sync::watch::channel(false);
+    let flow_id = normalize_optional_input(options.flow_id);
+    if let Some(id) = &flow_id {
+        pending_flows
+            .flows
+            .lock()
+            .map_err(|_| "Failed to register the authorization flow".to_string())?
+            .insert(id.clone(), cancel_tx);
+    }
+
+    let outcome = tokio::select! {
+        result = tokio::time::timeout(
+            std::time::Duration::from_secs(AUTH_CALLBACK_TIMEOUT_SECS),
+            wait_for_callback(listener),
+        ) => match result {
+            Ok(inner) => inner.map_err(|e| format!("Callback error: {}", e)),
+            Err(_) => Err(format!(
+                "Timed out after {} minutes waiting for the provider to redirect back. \
+                 If your browser showed an error instead of a sign-in page, register \
+                 exactly this callback URL with the provider: {}",
+                AUTH_CALLBACK_TIMEOUT_SECS / 60,
+                redirect_uri
+            )),
+        },
+        _ = cancel_rx.changed() => Err("Authorization cancelled".to_string()),
+    };
+
+    // Always deregister, whichever way the flow ended, so a retry with the same
+    // id does not find a stale sender.
+    if let Some(id) = &flow_id {
+        if let Ok(mut flows) = pending_flows.flows.lock() {
+            flows.remove(id);
+        }
+    }
+
+    let (code, received_state) = outcome?;
 
     if received_state != state {
         return Err("State mismatch - possible CSRF attack".to_string());
@@ -572,6 +616,29 @@ pub async fn oauth2_auth_code_flow(
     }
 
     parse_oauth_token_response(res).await
+}
+
+/// Abort an in-flight authorization code flow.
+///
+/// Returns whether a flow was actually waiting: the UI uses that to tell "we
+/// stopped it" apart from "it had already finished or timed out".
+#[tauri::command]
+pub async fn oauth2_cancel_flow(
+    flow_id: String,
+    pending_flows: tauri::State<'_, PendingOAuthFlows>,
+) -> Result<bool, String> {
+    let sender = pending_flows
+        .flows
+        .lock()
+        .map_err(|_| "Failed to read in-flight authorization flows".to_string())?
+        .remove(&flow_id);
+
+    match sender {
+        // The receiver side treats any change as cancellation, so the value
+        // only has to differ from the `false` it was created with.
+        Some(sender) => Ok(sender.send(true).is_ok()),
+        None => Ok(false),
+    }
 }
 
 async fn wait_for_callback(listener: tokio::net::TcpListener) -> Result<(String, String), String> {

@@ -125,9 +125,26 @@ export function applyTokenResponse(config: OAuth2Config, token: OAuthTokenRespon
   }
 }
 
+/**
+ * Abort an in-flight authorization code flow.
+ *
+ * Resolves to whether a flow was actually waiting — false means it had already
+ * finished or timed out, so there is nothing to report to the user.
+ */
+export async function cancelOAuthFlow(flowId: string): Promise<boolean> {
+  try {
+    return await invoke<boolean>('oauth2_cancel_flow', { flowId })
+  } catch {
+    // Cancelling is best-effort; failing to cancel must not raise an error over
+    // whatever the flow itself is about to report.
+    return false
+  }
+}
+
 export async function requestOAuthToken(
   rawConfig: OAuth2Config,
-  resolve: VariableResolver
+  resolve: VariableResolver,
+  flowId?: string
 ): Promise<OAuthTokenResponse> {
   // Substitute first, then validate — otherwise a required field holding only
   // `{{clientId}}` passes the non-empty check and the literal braces are what
@@ -146,6 +163,7 @@ export async function requestOAuthToken(
           scope: optionalOrNull(config.scope),
           use_pkce: config.usePkce ?? true,
           redirect_uri: optionalOrNull(config.redirectUri),
+          flow_id: flowId ?? null,
         },
       })
     case 'client_credentials':

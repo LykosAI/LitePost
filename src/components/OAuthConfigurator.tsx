@@ -11,7 +11,7 @@ import { useEnvironmentStore } from "@/store/environments"
 import { detectEntraV1Url, fetchOidcDiscovery } from "@/utils/oidcDiscovery"
 import { substituteVariables } from "@/utils/variables"
 import { decodeToken } from "@/utils/jwt"
-import { Loader2, KeyRound, RefreshCw, Globe, Shield, Wand2 } from "lucide-react"
+import { Loader2, KeyRound, RefreshCw, Globe, Shield, Wand2, X } from "lucide-react"
 import { useMemo, useState } from "react"
 
 interface OAuthConfiguratorProps {
@@ -75,6 +75,7 @@ export function OAuthConfigurator({ oauth2, onOAuth2Change }: OAuthConfiguratorP
     getNewToken,
     refreshToken,
     clearToken,
+    cancelTokenRequest,
     isExpired,
     expiresIn,
   } = useOAuth2TokenActions({ oauth2, onOAuth2Change })
@@ -456,7 +457,7 @@ export function OAuthConfigurator({ oauth2, onOAuth2Change }: OAuthConfiguratorP
           {isLoading ? (
             <>
               <Loader2 size={14} className="mr-2 animate-spin" />
-              Getting Token…
+              {cancelTokenRequest ? 'Waiting for sign-in…' : 'Getting Token…'}
             </>
           ) : (
             <>
@@ -465,6 +466,25 @@ export function OAuthConfigurator({ oauth2, onOAuth2Change }: OAuthConfiguratorP
             </>
           )}
         </Button>
+
+        {/*
+          Only the authorization code flow parks waiting on the browser, and it
+          can wait forever: if the redirect URI is not registered the provider
+          shows an error page and never redirects back, so nothing ever arrives
+          on the callback listener.
+        */}
+        {cancelTokenRequest && (
+          <Button
+            onClick={cancelTokenRequest}
+            size="sm"
+            variant="outline"
+            className="border-border/40"
+            data-testid="cancel-token-request"
+          >
+            <X size={14} className="mr-1" />
+            Cancel
+          </Button>
+        )}
 
         {oauth2.refreshToken && (
           <Button
