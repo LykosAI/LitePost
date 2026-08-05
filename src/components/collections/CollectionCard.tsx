@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils"
 import { useThemeClass } from "@/hooks/useThemeClass"
 import { Collection, SavedRequest, Tab } from "@/types"
 import { methodColors } from "./collectionUtils"
+import { CollectionSettings } from "./CollectionSettings"
 import {
   ChevronDown,
   ChevronRight,
@@ -29,7 +30,7 @@ interface CollectionCardProps {
   onSaveCurrentRequest: (collectionId: string) => void
   onRestoreAllRequests: (collection: Collection) => void
   onDeleteCollection: (collectionId: string) => void
-  onSelectRequest: (request: SavedRequest) => void
+  onSelectRequest: (request: SavedRequest, collection: Collection) => void
   onDeleteRequest: (collectionId: string, requestId: string) => void
 }
 
@@ -125,6 +126,13 @@ export function CollectionCard({
       )}
 
       {isExpanded && (
+        <CollectionSettings
+          collection={collection}
+          onUpdateCollection={onUpdateCollection}
+        />
+      )}
+
+      {isExpanded && (
         <div className="space-y-1 mt-3 pl-4 border-l-2 border-border/20">
           {collection.requests.length === 0 && (
             <p className="text-xs text-muted-foreground/50 py-3 pl-2">
@@ -138,7 +146,7 @@ export function CollectionCard({
             >
               <div
                 className="flex items-center gap-2.5 flex-1 cursor-pointer min-w-0"
-                onClick={() => onSelectRequest(request)}
+                onClick={() => onSelectRequest(request, collection)}
               >
                 <span
                   className={cn(

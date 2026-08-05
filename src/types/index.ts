@@ -254,11 +254,23 @@ export interface Cookie {
   httpOnly?: boolean
 }
 
+/**
+ * Whether a saved request uses its own auth or the collection's.
+ *
+ * Absent means "not recorded" — see resolveRequestAuth, which keeps requests
+ * saved before collection-level auth existed behaving exactly as they did.
+ */
+export type AuthMode = 'inherit' | 'override'
+
 export interface Collection {
   id: string
   name: string
   description?: string
   requests: SavedRequest[]
+  /** Applied to requests that do not override it. */
+  auth?: AuthConfig
+  /** Activated automatically when a request from this collection is opened. */
+  environmentId?: string
   createdAt?: Date
   updatedAt?: Date
 }
@@ -274,6 +286,7 @@ export interface SavedRequest {
   body: string
   contentType: string
   auth: AuthConfig
+  authMode?: AuthMode
   cookies: Cookie[]
   testScripts: TestScript[]
   preRequestScripts?: TestScript[]

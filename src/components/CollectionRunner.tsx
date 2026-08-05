@@ -4,7 +4,9 @@ import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Card } from "@/components/ui/card"
-import { SavedRequest, Response, TestResult } from "@/types"
+import { Collection, SavedRequest, Response, TestResult } from "@/types"
+import { applyAuthToHeaders } from "@/utils/authHeaders"
+import { resolveRequestAuth } from "@/utils/collectionAuth"
 import { useCollectionStore } from "@/store/collections"
 import { useEnvironmentStore } from "@/store/environments"
 import { useSettingsStore } from "@/store/settings"
@@ -83,7 +85,7 @@ export function CollectionRunner({ open, onOpenChange }: CollectionRunnerProps) 
     )
 
     const runRequest = useCallback(
-        async (request: SavedRequest): Promise<RequestResult> => {
+        async (request: SavedRequest, collection?: Collection): Promise<RequestResult> => {
             const startTime = performance.now()
 
             try {
@@ -95,28 +97,15 @@ export function CollectionRunner({ open, onOpenChange }: CollectionRunnerProps) 
                     }
                 })
 
-                // Apply auth
+                // Apply auth, falling back to the collection's where the request
+                // does not carry its own — an imported spec relies on that.
                 let url = substituteVariables(request.rawUrl || request.url)
-                if (request.auth.type === 'basic') {
-                    const username = substituteVariables(request.auth.username || '')
-                    const password = substituteVariables(request.auth.password || '')
-                    const credentials = btoa(`${username}:${password}`)
-                    headerRecord['Authorization'] = `Basic ${credentials}`
-                } else if (request.auth.type === 'bearer' && request.auth.token) {
-                    headerRecord['Authorization'] = `Bearer ${substituteVariables(request.auth.token)}`
-                } else if (request.auth.type === 'api-key' && request.auth.key && request.auth.value) {
-                    const key = substituteVariables(request.auth.key)
-                    const value = substituteVariables(request.auth.value)
-                    if (request.auth.addTo === 'header') {
-                        headerRecord[key] = value
-                    } else {
-                        const separator = url.includes('?') ? '&' : '?'
-                        url += `${separator}${encodeURIComponent(key)}=${encodeURIComponent(value)}`
-                    }
-                } else if (request.auth.type === 'oauth2' && request.auth.oauth2?.accessToken) {
-                    const tokenType = request.auth.oauth2.tokenType || 'Bearer'
-                    headerRecord['Authorization'] = `${tokenType} ${substituteVariables(request.auth.oauth2.accessToken)}`
-                }
+                url = applyAuthToHeaders(
+                    resolveRequestAuth(request, collection),
+                    headerRecord,
+                    url,
+                    substituteVariables
+                )
 
                 // Cookie header
                 const cookieHeader = request.cookies
@@ -275,7 +264,7 @@ export function CollectionRunner({ open, onOpenChange }: CollectionRunnerProps) 
             if (cancelRef.current) break
 
             setCurrentIndex(i + 1)
-            const result = await runRequest(selectedCollection.requests[i])
+            const result = await runRequest(selectedCollection.requests[i], selectedCollection)
             setResults((prev) => [...prev, result])
         }
 

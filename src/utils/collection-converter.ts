@@ -215,7 +215,22 @@ function assertOpenapiDocument(doc: unknown): asserts doc is Record<string, any>
   }
 }
 
-export function importFromOpenapi(openapiDoc: any, baseUrl: string): Collection[] {
+export interface OpenapiImportOptions {
+  /**
+   * Write request URLs as `{{name}}/path` instead of baking in the absolute
+   * host, so one collection can be pointed at dev/test/stage/prod by switching
+   * environments. Without it a collection is welded to whichever host its spec
+   * was fetched from — which is a problem precisely where it matters most, on
+   * the environments that do not expose a spec to import from.
+   */
+  baseUrlVariable?: string;
+}
+
+export function importFromOpenapi(
+  openapiDoc: any,
+  baseUrl: string,
+  options: OpenapiImportOptions = {}
+): Collection[] {
   assertOpenapiDocument(openapiDoc);
 
   const collections: Collection[] = [];
@@ -230,7 +245,17 @@ export function importFromOpenapi(openapiDoc: any, baseUrl: string): Collection[
     updatedAt: new Date()
   };
 
-  let serverUrl = baseUrl;
+  const serverUrl = baseUrl;
+  const baseUrlVariable = options.baseUrlVariable?.trim();
+
+  /**
+   * `{{baseUrl}}/pet/findByStatus`. The variable reference is concatenated
+   * rather than run through `new URL()`, which would reject `{{baseUrl}}` as an
+   * invalid scheme. Trailing and leading slashes are normalised so the result
+   * is right whether the user's variable ends in `/` or not.
+   */
+  const parameterizedUrl = (path: string) =>
+    `{{${baseUrlVariable}}}/${path.replace(/^\/+/, '')}`;
 
   const paths = openapiDoc.paths || {};
   for (const path in paths) {
@@ -248,7 +273,9 @@ export function importFromOpenapi(openapiDoc: any, baseUrl: string): Collection[
           : path;
         let fullUrl = path;
         try {
-          if (serverUrl) {
+          if (baseUrlVariable) {
+            fullUrl = parameterizedUrl(path);
+          } else if (serverUrl) {
             // Ensure serverUrl ends with / to preserve base path
             const base = serverUrl.endsWith('/') ? serverUrl : serverUrl + '/';
             // Remove leading slash from path to prevent base path erasure
@@ -267,7 +294,7 @@ export function importFromOpenapi(openapiDoc: any, baseUrl: string): Collection[
             enabled: true
           }));
         let contentType = "application/json";
-        let body = "";
+        const body = "";
         if (operation.requestBody && operation.requestBody.content) {
           const contentTypes = Object.keys(operation.requestBody.content);
           if (contentTypes.length > 0) {
@@ -285,6 +312,10 @@ export function importFromOpenapi(openapiDoc: any, baseUrl: string): Collection[
           body,
           contentType,
           auth: { type: 'none' } as AuthConfig,
+          // Every operation in a spec sits behind the same API and the same
+          // OAuth app, so they inherit by default — otherwise importing means
+          // configuring auth once per endpoint, dozens of times.
+          authMode: 'inherit' as const,
           cookies: [],
           testScripts: [],
           testAssertions: [],

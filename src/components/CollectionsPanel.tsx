@@ -9,7 +9,8 @@ import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { FolderPlus, Download, Upload } from "lucide-react"
 import { useCollectionStore } from "@/store/collections"
-import { Tab } from "@/types"
+import { Collection, SavedRequest, Tab } from "@/types"
+import { useEnvironmentStore } from "@/store/environments"
 import { getRequestNameFromUrl } from "@/utils/url"
 import {
   DropdownMenu,
@@ -49,6 +50,8 @@ export const CollectionsPanel = forwardRef<HTMLDivElement, CollectionsPanelProps
       importFromPostman,
     } = useCollectionStore()
 
+    const { environments, activeEnvironmentId, setActiveEnvironment, setVariable } =
+      useEnvironmentStore()
     const [expandedCollections, setExpandedCollections] = useState<Set<string>>(new Set())
     const [openapiUrlModalOpen, setOpenapiUrlModalOpen] = useState(false)
     const [openapiRawModalOpen, setOpenapiRawModalOpen] = useState(false)
@@ -91,15 +94,30 @@ export const CollectionsPanel = forwardRef<HTMLDivElement, CollectionsPanelProps
       onOpenChange(false)
     }
 
-    const handleSelectSavedRequest = (request: Parameters<typeof savedRequestToTab>[0]) => {
-      handleSelectRequest(savedRequestToTab(request))
+    /**
+     * Switch to the collection's environment before opening anything from it.
+     * A collection written against `{{baseUrl}}` is meaningless without the
+     * environment that defines it, and silently sending a dev request at prod
+     * (or the reverse) is exactly the mistake worth designing out.
+     */
+    const activateCollectionEnvironment = (collection?: Collection) => {
+      if (!collection?.environmentId) return
+      if (collection.environmentId === activeEnvironmentId) return
+      if (!environments.some((env) => env.id === collection.environmentId)) return
+      setActiveEnvironment(collection.environmentId)
+    }
+
+    const handleSelectSavedRequest = (request: SavedRequest, collection?: Collection) => {
+      activateCollectionEnvironment(collection)
+      handleSelectRequest(savedRequestToTab(request, collection))
     }
 
     const handleRestoreAllRequests = (collectionId: string) => {
       const targetCollection = collections.find((collection) => collection.id === collectionId)
       if (!targetCollection) return
+      activateCollectionEnvironment(targetCollection)
       targetCollection.requests.forEach((request) => {
-        onRequestSelect(savedRequestToTab(request))
+        onRequestSelect(savedRequestToTab(request, targetCollection))
       })
       onOpenChange(false)
     }
@@ -192,9 +210,13 @@ export const CollectionsPanel = forwardRef<HTMLDivElement, CollectionsPanelProps
      * host has no reason to send Access-Control-Allow-Origin for a desktop
      * app's origin.
      */
-    const handleOpenapiImport = (apiDoc: unknown, baseUrl: string) => {
+    const handleOpenapiImport = (
+      apiDoc: unknown,
+      baseUrl: string,
+      baseUrlVariable?: string
+    ) => {
       try {
-        const importedCollections = importFromOpenapi(apiDoc, baseUrl);
+        const importedCollections = importFromOpenapi(apiDoc, baseUrl, { baseUrlVariable });
         const requestCount = importedCollections.reduce((sum, c) => sum + c.requests.length, 0);
 
         if (requestCount === 0) {
@@ -202,10 +224,25 @@ export const CollectionsPanel = forwardRef<HTMLDivElement, CollectionsPanelProps
           return;
         }
 
+        // Seed the variable so the collection works immediately, rather than
+        // importing 19 requests that all point at an undefined {{baseUrl}}.
+        let variableNote = "";
+        if (baseUrlVariable) {
+          if (activeEnvironmentId) {
+            setVariable(baseUrlVariable, baseUrl);
+            const envName = environments.find((env) => env.id === activeEnvironmentId)?.name
+            variableNote = ` — {{${baseUrlVariable}}} set${envName ? ` in ${envName}` : ""}`;
+          } else {
+            variableNote = ` — set {{${baseUrlVariable}}} in an environment to use it`;
+          }
+        }
+
         importCollections(importedCollections);
         setOpenapiUrlModalOpen(false);
         setOpenapiRawModalOpen(false);
-        toast.success(`Imported ${requestCount} request${requestCount === 1 ? "" : "s"} from OpenAPI`);
+        toast.success(
+          `Imported ${requestCount} request${requestCount === 1 ? "" : "s"} from OpenAPI${variableNote}`
+        );
       } catch (error) {
         if (shouldLogImportErrors) {
           console.error("Error importing OpenAPI:", error);

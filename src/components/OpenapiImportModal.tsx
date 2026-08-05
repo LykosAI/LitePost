@@ -4,16 +4,19 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { useState } from "react"
 import { toast } from "sonner"
+import { BaseUrlVariableToggle } from "./BaseUrlVariableToggle"
+import { DEFAULT_BASE_URL_VARIABLE } from "./openapiImportShared"
 
 interface OpenapiImportModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  onImport: (openapiDoc: unknown, baseUrl: string) => void
+  onImport: (openapiDoc: unknown, baseUrl: string, baseUrlVariable?: string) => void
 }
 
 export function OpenapiImportModal({ open, onOpenChange, onImport }: OpenapiImportModalProps) {
   const [rawJSON, setRawJSON] = useState("")
   const [baseUrl, setBaseUrl] = useState("")
+  const [useVariable, setUseVariable] = useState(true)
 
   const handleImport = () => {
     if (!rawJSON.trim()) {
@@ -35,9 +38,10 @@ export function OpenapiImportModal({ open, onOpenChange, onImport }: OpenapiImpo
     }
 
     try {
-      onImport(apiDoc, baseUrl)
+      onImport(apiDoc, baseUrl, useVariable ? DEFAULT_BASE_URL_VARIABLE : undefined)
       setRawJSON("")
       setBaseUrl("")
+      setUseVariable(true)
     } catch (error) {
       console.error("Error importing OpenAPI:", error)
       toast.error(error instanceof Error ? error.message : "Failed to import OpenAPI specification")
@@ -65,6 +69,11 @@ export function OpenapiImportModal({ open, onOpenChange, onImport }: OpenapiImpo
             value={baseUrl}
             onChange={(e) => setBaseUrl(e.target.value)}
             className="bg-background text-foreground border-border placeholder:text-muted-foreground"
+          />
+          <BaseUrlVariableToggle
+            checked={useVariable}
+            onCheckedChange={setUseVariable}
+            baseUrl={baseUrl}
           />
         </div>
         <DialogFooter className="mt-4 flex justify-end gap-2">

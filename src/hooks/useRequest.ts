@@ -3,6 +3,7 @@ import { Tab, HistoryItem } from '@/types'
 import { useEnvironmentStore } from '@/store/environments'
 import { useSettingsStore } from '@/store/settings'
 import { substituteVariables as substitute } from '@/utils/variables'
+import { applyAuthToHeaders, setHeader } from '@/utils/authHeaders'
 
 interface RedirectInfo {
   url: string
@@ -51,25 +52,6 @@ export function useRequest(onHistoryUpdate: (item: HistoryItem) => void) {
 
   const substituteVariables = (text: string): string => substitute(text, getVariable)
 
-  /**
-   * Set a header, replacing any existing key that differs only in case.
-   *
-   * HTTP header names are case-insensitive but a JS object's keys are not, so a
-   * plain assignment to `Authorization` leaves a user-typed `authorization`
-   * sitting right next to it and both get sent. Servers are free to pick either
-   * one, which shows up as an intermittent 401 that looks like the auth config
-   * is broken when it is actually a stale header from the Headers tab.
-   */
-  const setHeader = (headers: Record<string, string>, key: string, value: string) => {
-    const lowered = key.toLowerCase()
-    for (const existing of Object.keys(headers)) {
-      if (existing !== key && existing.toLowerCase() === lowered) {
-        delete headers[existing]
-      }
-    }
-    headers[key] = value
-  }
-
   const sendRequest = async (tab: Tab) => {
     if (!tab.rawUrl) return null
 
@@ -84,26 +66,7 @@ export function useRequest(onHistoryUpdate: (item: HistoryItem) => void) {
       })
 
       // Handle authentication with variable substitution
-      if (tab.auth.type === 'basic') {
-        const username = substituteVariables(tab.auth.username || '')
-        const password = substituteVariables(tab.auth.password || '')
-        const credentials = btoa(`${username}:${password}`)
-        setHeader(headerRecord, 'Authorization', `Basic ${credentials}`)
-      } else if (tab.auth.type === 'bearer' && tab.auth.token) {
-        setHeader(headerRecord, 'Authorization', `Bearer ${substituteVariables(tab.auth.token)}`)
-      } else if (tab.auth.type === 'api-key' && tab.auth.key && tab.auth.value) {
-        const key = substituteVariables(tab.auth.key)
-        const value = substituteVariables(tab.auth.value)
-        if (tab.auth.addTo === 'header') {
-          setHeader(headerRecord, key, value)
-        } else {
-          const separator = url.includes('?') ? '&' : '?'
-          url += `${separator}${encodeURIComponent(key)}=${encodeURIComponent(value)}`
-        }
-      } else if (tab.auth.type === 'oauth2' && tab.auth.oauth2?.accessToken) {
-        const tokenType = tab.auth.oauth2.tokenType || 'Bearer'
-        setHeader(headerRecord, 'Authorization', `${tokenType} ${tab.auth.oauth2.accessToken}`)
-      }
+      url = applyAuthToHeaders(tab.auth, headerRecord, url, substituteVariables)
 
       // Add cookies to headers with variable substitution
       const cookieHeader = tab.cookies
