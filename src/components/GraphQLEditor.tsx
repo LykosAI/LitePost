@@ -1,4 +1,5 @@
 import { useCallback, useRef, useEffect, useState, useMemo } from "react"
+import { basicAuthValue } from "@/utils/base64"
 import Editor, { OnMount, loader } from "@monaco-editor/react"
 import type { editor as MonacoEditor, IDisposable } from "monaco-editor"
 import { Button } from "@/components/ui/button"
@@ -213,8 +214,7 @@ export function GraphQLEditor({
 
             // Apply auth
             if (auth.type === 'basic' && auth.username) {
-                const credentials = btoa(`${auth.username}:${auth.password || ''}`)
-                headerRecord['Authorization'] = `Basic ${credentials}`
+                headerRecord['Authorization'] = basicAuthValue(auth.username, auth.password || '')
             } else if (auth.type === 'bearer' && auth.token) {
                 headerRecord['Authorization'] = `Bearer ${auth.token}`
             } else if (auth.type === 'api-key' && auth.key && auth.value && auth.addTo === 'header') {

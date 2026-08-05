@@ -1,4 +1,5 @@
 import { AuthConfig, Header, Cookie } from "@/types"
+import { basicAuthValue } from "@/utils/base64"
 
 interface RequestData {
   method: string
@@ -16,8 +17,7 @@ function getAuthHeaders(auth: AuthConfig): Record<string, string> {
   switch (auth.type) {
     case 'basic':
       if (auth.username && auth.password) {
-        const credentials = btoa(`${auth.username}:${auth.password}`)
-        headers['Authorization'] = `Basic ${credentials}`
+        headers['Authorization'] = basicAuthValue(auth.username, auth.password)
       }
       break
     case 'bearer':

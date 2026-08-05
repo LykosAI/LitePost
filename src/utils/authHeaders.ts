@@ -1,4 +1,5 @@
 import { AuthConfig } from '@/types'
+import { basicAuthValue } from '@/utils/base64'
 
 /**
  * Set a header, replacing any existing key that differs only in case.
@@ -39,7 +40,7 @@ export function applyAuthToHeaders(
   if (auth.type === 'basic') {
     const username = substitute(auth.username || '')
     const password = substitute(auth.password || '')
-    setHeader(headers, 'Authorization', `Basic ${btoa(`${username}:${password}`)}`)
+    setHeader(headers, 'Authorization', basicAuthValue(username, password))
     return url
   }
 

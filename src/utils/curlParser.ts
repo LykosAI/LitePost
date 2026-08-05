@@ -1,4 +1,5 @@
 import { AuthConfig, Header, URLParam, Cookie, FormDataEntry } from "@/types"
+import { base64ToUtf8 } from "@/utils/base64"
 
 export interface ParsedCurlRequest {
     method: string
@@ -137,7 +138,10 @@ function detectAuth(headers: Record<string, string>): {
         const basicMatch = value.match(/^Basic\s+(.+)$/i)
         if (basicMatch) {
             try {
-                const decoded = atob(basicMatch[1])
+                // Decoded as UTF-8 to match how it was encoded — atob alone
+                // hands back bytes-as-characters, which reads as mojibake for
+                // any credential outside ASCII.
+                const decoded = base64ToUtf8(basicMatch[1])
                 const [username, ...passwordParts] = decoded.split(':')
                 return {
                     auth: {
