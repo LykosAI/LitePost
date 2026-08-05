@@ -17,11 +17,10 @@ export function useHistory() {
     setHistory(newHistory)
   }, [])
 
-  useEffect(() => {
-    loadHistory()
-  }, [])
-
-  const loadHistory = async () => {
+  // Declared before the effect that lists it as a dependency: a dep array is
+  // evaluated during render, so referencing a `const` defined below would hit
+  // the temporal dead zone. Stable via applyHistory, so the effect runs once.
+  const loadHistory = useCallback(async () => {
     try {
       const loadedHistory = await loadFromFile<any[]>(HISTORY_FILE, [])
       // Convert ISO strings back to Date objects
@@ -34,7 +33,11 @@ export function useHistory() {
       console.log('No history file found, starting fresh')
       applyHistory([])
     }
-  }
+  }, [applyHistory])
+
+  useEffect(() => {
+    loadHistory()
+  }, [loadHistory])
 
   const saveHistory = async (newHistory: HistoryItem[]) => {
     try {

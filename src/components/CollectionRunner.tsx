@@ -259,7 +259,7 @@ export function CollectionRunner({ open, onOpenChange }: CollectionRunnerProps) 
                 }
             }
         },
-        [activeEnvironmentId, getVariable, setVariable, substituteVariables]
+        [activeEnvironmentId, getVariable, setVariable, substituteVariables, globalNetwork]
     )
 
     const runCollection = useCallback(async () => {

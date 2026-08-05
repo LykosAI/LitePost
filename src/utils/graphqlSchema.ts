@@ -293,7 +293,7 @@ export function getCompletionContext(
 
   // Field completions
   const operationType = findOperationType(text, offset)
-  let rootTypeName: string | null = null
+  let rootTypeName: string | null
   if (operationType === 'mutation') rootTypeName = schema.mutationTypeName
   else if (operationType === 'subscription') rootTypeName = schema.subscriptionTypeName
   else rootTypeName = schema.queryTypeName
@@ -346,7 +346,7 @@ function getArgumentCompletions(
 ): CompletionContext {
   // Find the parent type to look up the field's arguments
   const operationType = findOperationType(text, offset)
-  let rootTypeName: string | null = null
+  let rootTypeName: string | null
   if (operationType === 'mutation') rootTypeName = schema.mutationTypeName
   else if (operationType === 'subscription') rootTypeName = schema.subscriptionTypeName
   else rootTypeName = schema.queryTypeName
@@ -451,7 +451,7 @@ export function registerGraphQLLanguage(monacoInstance: typeof import('monaco-ed
             '@default': 'identifier',
           },
         }],
-        [/[{}()\[\]]/, '@brackets'],
+        [/[{}()[\]]/, '@brackets'],
         [/[!:=|&]/, 'delimiter'],
         [/,/, 'delimiter'],
       ],

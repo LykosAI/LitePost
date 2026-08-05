@@ -65,7 +65,7 @@ async function installUpdateManually(update: Update) {
         case 'Started':
           contentLength = event.data.contentLength || 0;
           break;
-        case 'Progress':
+        case 'Progress': {
           downloaded += event.data.chunkLength || 0;
           const progress = Math.round((downloaded / contentLength) * 100);
           toast.loading('Installing update...', {
@@ -74,6 +74,7 @@ async function installUpdateManually(update: Update) {
             ...toastStyles,
           });
           break;
+        }
         case 'Finished':
           toast.success('Update downloaded successfully. Relaunching...', { 
             id: toastId,

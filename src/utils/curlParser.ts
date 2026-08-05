@@ -460,8 +460,8 @@ export function parseCurlCommand(curlCommand: string): ParsedCurlRequest {
     }
 
     // Handle -u / --user basic auth
-    let auth: AuthConfig = { type: 'none' }
-    let filteredHeaders = rawHeaders
+    let auth: AuthConfig
+    let filteredHeaders: Record<string, string>
 
     if (basicAuthStr) {
         const [username, ...passwordParts] = basicAuthStr.split(':')
