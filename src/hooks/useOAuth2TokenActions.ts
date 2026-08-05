@@ -6,6 +6,7 @@ import {
   refreshOAuthToken,
   requestOAuthToken,
 } from '@/services/oauth'
+import { useEnvironmentStore } from '@/store/environments'
 
 interface UseOAuth2TokenActionsOptions {
   oauth2: OAuth2Config
@@ -28,7 +29,11 @@ export function useOAuth2TokenActions({
 }: UseOAuth2TokenActionsOptions): OAuth2TokenActions {
   const [isLoading, setIsLoading] = useState(false)
   const [tokenError, setTokenError] = useState<string | null>(null)
+  const { getVariable } = useEnvironmentStore()
 
+  // Note this stores against the *unresolved* config: substitution happens on
+  // the way out to the provider, so `{{clientSecret}}` stays `{{clientSecret}}`
+  // in what gets persisted with the request.
   const handleTokenResponse = (token: OAuthTokenResponse) => {
     onOAuth2Change(applyTokenResponse(oauth2, token))
   }
@@ -38,7 +43,7 @@ export function useOAuth2TokenActions({
     setTokenError(null)
 
     try {
-      const token = await requestOAuthToken(oauth2)
+      const token = await requestOAuthToken(oauth2, getVariable)
       handleTokenResponse(token)
     } catch (err) {
       setTokenError(err instanceof Error ? err.message : String(err))
@@ -56,7 +61,7 @@ export function useOAuth2TokenActions({
     setTokenError(null)
 
     try {
-      const token = await refreshOAuthToken(oauth2)
+      const token = await refreshOAuthToken(oauth2, getVariable)
       handleTokenResponse(token)
     } catch (err) {
       setTokenError(err instanceof Error ? err.message : String(err))

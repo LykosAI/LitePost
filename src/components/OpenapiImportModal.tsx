@@ -8,7 +8,7 @@ import { toast } from "sonner"
 interface OpenapiImportModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  onImport: (openapiDoc: any, baseUrl: string) => void
+  onImport: (openapiDoc: unknown, baseUrl: string) => void
 }
 
 export function OpenapiImportModal({ open, onOpenChange, onImport }: OpenapiImportModalProps) {

@@ -8,9 +8,11 @@ import { OAuth2Config, OAuth2GrantType } from "@/types"
 import { useThemeClass } from "@/hooks/useThemeClass"
 import { useOAuth2TokenActions } from "@/hooks/useOAuth2TokenActions"
 import { useEnvironmentStore } from "@/store/environments"
-import { fetchOidcDiscovery } from "@/utils/oidcDiscovery"
+import { detectEntraV1Url, fetchOidcDiscovery } from "@/utils/oidcDiscovery"
+import { substituteVariables } from "@/utils/variables"
+import { decodeToken } from "@/utils/jwt"
 import { Loader2, KeyRound, RefreshCw, Globe, Shield, Wand2 } from "lucide-react"
-import { useState } from "react"
+import { useMemo, useState } from "react"
 
 interface OAuthConfiguratorProps {
   oauth2: OAuth2Config
@@ -63,6 +65,10 @@ export function OAuthConfigurator({ oauth2, onOAuth2Change }: OAuthConfiguratorP
   const [isDiscovering, setIsDiscovering] = useState(false)
   const [discoveryError, setDiscoveryError] = useState<string | null>(null)
   const [discoveryNote, setDiscoveryNote] = useState<string | null>(null)
+  const [discoveryWarning, setDiscoveryWarning] = useState<string | null>(null)
+  const [entraV2Url, setEntraV2Url] = useState<string | null>(null)
+  const [showAllClaims, setShowAllClaims] = useState(false)
+  const decoded = useMemo(() => decodeToken(oauth2.accessToken), [oauth2.accessToken])
   const {
     isLoading,
     tokenError,
@@ -77,41 +83,89 @@ export function OAuthConfigurator({ oauth2, onOAuth2Change }: OAuthConfiguratorP
     onOAuth2Change({ ...oauth2, [field]: value })
   }
 
-  const handleDiscover = async () => {
-    if (!oauth2.discoveryUrl?.trim() || isDiscovering) return
+  /**
+   * Run discovery against an explicit URL rather than reading it off the prop.
+   * The v2.0 switch below needs to discover against a URL it has only just
+   * handed to the parent, which this render's `oauth2` does not know about yet.
+   */
+  const runDiscovery = async (rawUrl: string) => {
+    if (!rawUrl.trim() || isDiscovering) return
     setIsDiscovering(true)
     setDiscoveryError(null)
     setDiscoveryNote(null)
+    setDiscoveryWarning(null)
+    setEntraV2Url(null)
 
     try {
       // Support {{var}} in the discovery URL, like every other field
-      const resolvedUrl = oauth2.discoveryUrl.replace(/\{\{([^}]+)\}\}/g, (match, name) =>
-        getVariable(String(name).trim()) ?? match
-      )
+      const resolvedUrl = substituteVariables(rawUrl, getVariable)
       const discovery = await fetchOidcDiscovery(resolvedUrl)
 
       const updates: Partial<OAuth2Config> = {}
       if (discovery.authorizationEndpoint) updates.authUrl = discovery.authorizationEndpoint
       if (discovery.tokenEndpoint) updates.tokenUrl = discovery.tokenEndpoint
-      if (!oauth2.scope && discovery.scopesSupported?.length) {
+
+      // Scope is deliberately NOT auto-filled for client credentials. The
+      // discovery document's `scopes_supported` advertises what the identity
+      // provider offers for OIDC sign-in — it says nothing about the API you
+      // are actually calling. Filling in `openid profile email` yields a token
+      // minted for the provider's own userinfo endpoint (on Entra, for
+      // Microsoft Graph), which your API then rejects with a 401. Client
+      // credentials in particular needs a resource-specific scope that only
+      // the user knows, e.g. `api://<client-id>/.default`.
+      if (!oauth2.scope && oauth2.grantType !== 'client_credentials' && discovery.scopesSupported?.length) {
         const preferred = ['openid', 'profile', 'email'].filter((scope) =>
           discovery.scopesSupported!.includes(scope)
         )
         if (preferred.length > 0) updates.scope = preferred.join(' ')
       }
 
-      onOAuth2Change({ ...oauth2, ...updates })
+      // rawUrl is carried through so the v2.0 switch is not undone by the
+      // stale discoveryUrl still sitting on `oauth2`.
+      onOAuth2Change({ ...oauth2, discoveryUrl: rawUrl, ...updates })
       const filled = [
         updates.authUrl && 'authorization URL',
         updates.tokenUrl && 'token URL',
         updates.scope && 'scope',
       ].filter(Boolean)
       setDiscoveryNote(`Filled ${filled.join(', ')}`)
+
+      const v2Url = detectEntraV1Url(resolvedUrl)
+      if (v2Url) {
+        setEntraV2Url(v2Url)
+        setDiscoveryWarning(
+          'This is the Entra v1.0 discovery document. v1.0 selects the token audience with a ' +
+          '`resource` parameter, which LitePost does not send — you will get a token, but for ' +
+          'the wrong audience, and your API will answer 401. Use the v2.0 endpoint instead.'
+        )
+      } else if (!oauth2.scope && !updates.scope) {
+        setDiscoveryWarning(
+          'No scope set. Most providers need a scope naming the API you are calling ' +
+          '(Entra: `api://<client-id>/.default`) — without it the token may be issued for ' +
+          'a different audience and rejected with a 401.'
+        )
+      }
     } catch (error) {
       setDiscoveryError(error instanceof Error ? error.message : String(error))
     } finally {
       setIsDiscovering(false)
     }
+  }
+
+  const handleDiscover = () => runDiscovery(oauth2.discoveryUrl ?? '')
+
+  /**
+   * Swap in the v2.0 discovery URL and immediately re-run discovery against it.
+   * The URL is passed explicitly rather than read back from `oauth2` because
+   * the prop has not been updated yet at this point in the render cycle.
+   */
+  const applyEntraV2Url = () => {
+    if (!entraV2Url) return
+    const nextUrl = entraV2Url
+    setEntraV2Url(null)
+    setDiscoveryWarning(null)
+    onOAuth2Change({ ...oauth2, discoveryUrl: nextUrl })
+    void runDiscovery(nextUrl)
   }
 
   return (
@@ -178,6 +232,22 @@ export function OAuthConfigurator({ oauth2, onOAuth2Change }: OAuthConfiguratorP
         )}
         {discoveryNote && (
           <p className="text-[11px] text-primary bg-primary/10 rounded px-2 py-1">✓ {discoveryNote}</p>
+        )}
+        {discoveryWarning && (
+          <div className="text-[11px] text-amber-400 bg-amber-500/10 rounded px-2 py-1.5 space-y-1.5 border border-amber-500/20">
+            <p className="leading-snug">⚠ {discoveryWarning}</p>
+            {entraV2Url && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={applyEntraV2Url}
+                className="h-6 text-[11px] border-amber-500/30 hover:bg-amber-500/10"
+                data-testid="use-entra-v2-button"
+              >
+                Use the v2.0 endpoint
+              </Button>
+            )}
+          </div>
         )}
 
         {oauth2.grantType === 'authorization_code' ? (
@@ -323,6 +393,48 @@ export function OAuthConfigurator({ oauth2, onOAuth2Change }: OAuthConfiguratorP
           <div className="text-[11px] font-mono text-muted-foreground/70 bg-background/30 rounded px-2 py-1.5 truncate">
             {oauth2.tokenType || 'Bearer'} {oauth2.accessToken.substring(0, 50)}…
           </div>
+
+          {/*
+            The claims answer "the provider gave me a token, so why is the API
+            still saying 401?" — nearly always because `aud` names a different
+            API, or because the token is app-only where a user token is wanted.
+            Decoded locally and unverified; this is a read of what the token
+            says about itself, not a trust decision.
+          */}
+          {decoded ? (
+            <div className="space-y-2 pt-1">
+              {decoded.highlights.map((claim) => (
+                <div key={claim.label} className="space-y-0.5">
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-[11px] text-muted-foreground/70 shrink-0">{claim.label}</span>
+                    <span className="text-[11px] font-mono text-foreground break-all">{claim.value}</span>
+                  </div>
+                  {claim.hint && (
+                    <p className="text-[10px] text-muted-foreground/50 leading-snug">{claim.hint}</p>
+                  )}
+                </div>
+              ))}
+
+              <button
+                type="button"
+                onClick={() => setShowAllClaims((shown) => !shown)}
+                className="text-[11px] text-primary hover:underline"
+                data-testid="toggle-all-claims"
+              >
+                {showAllClaims ? 'Hide all claims' : `Show all ${Object.keys(decoded.claims).length} claims`}
+              </button>
+
+              {showAllClaims && (
+                <pre className="text-[10px] font-mono bg-background/40 rounded p-2 overflow-x-auto max-h-56 overflow-y-auto">
+                  {JSON.stringify(decoded.claims, null, 2)}
+                </pre>
+              )}
+            </div>
+          ) : (
+            <p className="text-[10px] text-muted-foreground/50 leading-snug">
+              Opaque token — no claims to decode. Check the audience with your API provider.
+            </p>
+          )}
         </FormSection>
       )}
 

@@ -189,7 +189,35 @@ function buildUrl(urlObj: PostmanItem['request']['url']): string {
   return url.toString()
 }
 
+/**
+ * Sanity-check the document before walking it.
+ *
+ * Without this a non-spec (an HTML error page that happened to parse, a
+ * Postman export, the wrong JSON file) produced an empty collection and a
+ * success toast, which is a much worse outcome than an error.
+ */
+function assertOpenapiDocument(doc: unknown): asserts doc is Record<string, any> {
+  if (!doc || typeof doc !== "object" || Array.isArray(doc)) {
+    throw new Error("That is not an OpenAPI document — expected a JSON object.");
+  }
+
+  const record = doc as Record<string, unknown>;
+  if (typeof record.swagger === "string" && record.swagger.startsWith("2.")) {
+    throw new Error(
+      "That is a Swagger 2.0 document. LitePost imports OpenAPI 3.x — most tools can emit 3.x, " +
+      "or you can convert the file first."
+    );
+  }
+  if (!record.openapi && !record.paths) {
+    throw new Error(
+      "No `openapi` version or `paths` object found — this does not look like an OpenAPI document."
+    );
+  }
+}
+
 export function importFromOpenapi(openapiDoc: any, baseUrl: string): Collection[] {
+  assertOpenapiDocument(openapiDoc);
+
   const collections: Collection[] = [];
   const title = openapiDoc.info?.title || "Imported OpenAPI Collection";
   const description = openapiDoc.info?.description || "";
@@ -210,7 +238,14 @@ export function importFromOpenapi(openapiDoc: any, baseUrl: string): Collection[
     for (const method in pathItem) {
       if (["get", "post", "put", "patch", "delete", "options", "head"].includes(method.toLowerCase())) {
         const operation = pathItem[method];
-        const name = operation.summary || `${method.toUpperCase()} ${path}`;
+        // Route first, summary second. The summary alone ("Update an existing
+        // pet.") reads nicely but leaves you unable to tell which endpoint a
+        // saved request actually hits without opening it — and the list
+        // truncates, so whatever goes first is what survives. The method is
+        // already shown as a separate badge, so it is not repeated here.
+        const name = operation.summary
+          ? `${path} — ${operation.summary}`
+          : path;
         let fullUrl = path;
         try {
           if (serverUrl) {

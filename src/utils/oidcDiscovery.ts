@@ -1,3 +1,5 @@
+import { fetchJsonViaBackend } from '@/utils/backendFetch'
+
 export interface OidcDiscovery {
   authorizationEndpoint?: string
   tokenEndpoint?: string
@@ -41,7 +43,27 @@ export function parseDiscoveryDocument(json: unknown): OidcDiscovery {
   return { authorizationEndpoint, tokenEndpoint, scopesSupported }
 }
 
-const isTauri = typeof window !== 'undefined' && !!(window as unknown as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__
+/**
+ * Microsoft Entra serves a discovery document at both
+ * `login.microsoftonline.com/<tenant>/.well-known/…` (v1.0) and
+ * `…/<tenant>/v2.0/.well-known/…` (v2.0). Both are valid, so discovery
+ * "succeeds" either way — but they are different protocol dialects. v1.0 keys
+ * its token audience off a `resource` parameter, which LitePost does not send;
+ * v2.0 uses `scope`, which it does. Point LitePost at the v1.0 document and you
+ * get a token for the wrong audience and an unexplained 401 from your API.
+ *
+ * Returns the corrected v2.0 URL when the input is an Entra v1.0 URL.
+ */
+export function detectEntraV1Url(input: string): string | null {
+  const url = normalizeDiscoveryUrl(input)
+  if (!/(^|\/\/)(login\.microsoftonline\.com|login\.windows\.net|sts\.windows\.net)\//i.test(url)) {
+    return null
+  }
+  if (/\/v2\.0\//i.test(url)) {
+    return null
+  }
+  return url.replace(WELL_KNOWN_PATH, `/v2.0${WELL_KNOWN_PATH}`)
+}
 
 /**
  * Fetch and parse an OIDC discovery document. Goes through the Rust HTTP
@@ -50,38 +72,6 @@ const isTauri = typeof window !== 'undefined' && !!(window as unknown as { __TAU
  */
 export async function fetchOidcDiscovery(inputUrl: string): Promise<OidcDiscovery> {
   const url = normalizeDiscoveryUrl(inputUrl)
-
-  let bodyText: string
-  if (isTauri) {
-    const { invoke } = await import('@tauri-apps/api/core')
-    const response = await invoke<{ status: number; body: string; error?: string }>('send_request', {
-      options: {
-        method: 'GET',
-        url,
-        headers: { Accept: 'application/json' },
-        cookies: [],
-      },
-    })
-    if (response.error) {
-      throw new Error(response.error)
-    }
-    if (response.status < 200 || response.status >= 300) {
-      throw new Error(`Discovery request failed with status ${response.status}`)
-    }
-    bodyText = response.body
-  } else {
-    const response = await fetch(url, { headers: { Accept: 'application/json' } })
-    if (!response.ok) {
-      throw new Error(`Discovery request failed with status ${response.status}`)
-    }
-    bodyText = await response.text()
-  }
-
-  let parsed: unknown
-  try {
-    parsed = JSON.parse(bodyText)
-  } catch {
-    throw new Error('Discovery response is not valid JSON')
-  }
+  const parsed = await fetchJsonViaBackend(url, { headers: { Accept: 'application/json' } })
   return parseDiscoveryDocument(parsed)
 }
