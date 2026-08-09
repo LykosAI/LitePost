@@ -4,6 +4,7 @@ use rand::RngCore;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 use std::collections::HashMap;
+use tauri::Emitter;
 use tauri::Url;
 use tauri_plugin_http::reqwest;
 use tauri_plugin_opener::OpenerExt;
@@ -19,6 +20,13 @@ const TOKEN_CONTAINER_KEYS: &[&str] = &["data", "token", "result", "response"];
 /// Deliberately generous: a real sign-in can involve MFA, an account chooser and
 /// a password manager. Cancelling is the UI's job, not the timeout's.
 const AUTH_CALLBACK_TIMEOUT_SECS: u64 = 300;
+
+/// RFC 8628 §3.2 defaults, used when the provider omits the fields. The expiry
+/// ceiling also bounds a provider-supplied lifetime so an extravagant
+/// `expires_in` cannot leave a poll loop running for hours.
+const DEVICE_CODE_DEFAULT_EXPIRES_SECS: u64 = 900;
+const DEVICE_CODE_MAX_EXPIRES_SECS: u64 = 1800;
+const DEVICE_POLL_DEFAULT_INTERVAL_SECS: u64 = 5;
 
 #[derive(Debug, Deserialize)]
 pub struct OAuth2TokenExchangeOptions {
@@ -164,8 +172,12 @@ fn parse_optional_string_field(
     }
 }
 
-fn parse_optional_expires_in(map: &Map<String, Value>) -> Result<Option<u64>, String> {
-    match lookup_value(map, &["expires_in", "expiresIn"]) {
+fn parse_optional_u64_field(
+    map: &Map<String, Value>,
+    aliases: &[&str],
+    field_name: &str,
+) -> Result<Option<u64>, String> {
+    match lookup_value(map, aliases) {
         None | Some(Value::Null) => Ok(None),
         Some(Value::Number(value)) => {
             if let Some(as_u64) = value.as_u64() {
@@ -176,7 +188,7 @@ fn parse_optional_expires_in(map: &Map<String, Value>) -> Result<Option<u64>, St
                     return Ok(Some(as_f64 as u64));
                 }
             }
-            Err("expires_in must be a whole non-negative number".to_string())
+            Err(format!("{} must be a whole non-negative number", field_name))
         }
         Some(Value::String(value)) => {
             let trimmed = value.trim();
@@ -185,11 +197,15 @@ fn parse_optional_expires_in(map: &Map<String, Value>) -> Result<Option<u64>, St
             }
             let parsed = trimmed
                 .parse::<u64>()
-                .map_err(|_| "expires_in must be a whole non-negative number".to_string())?;
+                .map_err(|_| format!("{} must be a whole non-negative number", field_name))?;
             Ok(Some(parsed))
         }
-        Some(_) => Err("expires_in must be a number or string".to_string()),
+        Some(_) => Err(format!("{} must be a number or string", field_name)),
     }
+}
+
+fn parse_optional_expires_in(map: &Map<String, Value>) -> Result<Option<u64>, String> {
+    parse_optional_u64_field(map, &["expires_in", "expiresIn"], "expires_in")
 }
 
 fn extract_oauth_error(map: &Map<String, Value>) -> Option<String> {
@@ -357,7 +373,141 @@ fn parse_oauth_error_body(body: &str, content_type: &str) -> Option<String> {
     None
 }
 
-async fn parse_oauth_token_response(res: reqwest::Response) -> Result<OAuth2TokenResponse, String> {
+/// The provider's answer to a device authorization request (RFC 8628 §3.2).
+#[derive(Debug, Clone, PartialEq)]
+struct DeviceAuthorization {
+    device_code: String,
+    user_code: String,
+    verification_uri: String,
+    verification_uri_complete: Option<String>,
+    expires_in: u64,
+    interval: u64,
+}
+
+fn map_to_device_authorization(map: &Map<String, Value>) -> Result<DeviceAuthorization, String> {
+    let device_code_aliases = &["device_code", "deviceCode"];
+
+    if lookup_value(map, device_code_aliases).is_none() {
+        if let Some(provider_error) = extract_oauth_error(map) {
+            return Err(format!("OAuth provider error: {}", provider_error));
+        }
+    }
+
+    Ok(DeviceAuthorization {
+        device_code: parse_required_string_field(map, device_code_aliases, "device_code")?,
+        user_code: parse_required_string_field(map, &["user_code", "userCode"], "user_code")?,
+        // Google answers with `verification_url`, despite RFC 8628 naming the
+        // field `verification_uri`.
+        verification_uri: parse_required_string_field(
+            map,
+            &[
+                "verification_uri",
+                "verification_url",
+                "verificationUri",
+                "verificationUrl",
+            ],
+            "verification_uri",
+        )?,
+        verification_uri_complete: parse_optional_string_field(
+            map,
+            &[
+                "verification_uri_complete",
+                "verification_url_complete",
+                "verificationUriComplete",
+            ],
+            "verification_uri_complete",
+        )?,
+        expires_in: parse_optional_expires_in(map)?.unwrap_or(DEVICE_CODE_DEFAULT_EXPIRES_SECS),
+        interval: parse_optional_u64_field(map, &["interval"], "interval")?
+            .unwrap_or(DEVICE_POLL_DEFAULT_INTERVAL_SECS),
+    })
+}
+
+fn parse_device_authorization_body(
+    body: &str,
+    content_type: &str,
+) -> Result<DeviceAuthorization, String> {
+    let trimmed = body.trim();
+    if trimmed.is_empty() {
+        return Err("device authorization response body is empty".to_string());
+    }
+
+    let mut errors = Vec::new();
+
+    for format in detect_parse_order(trimmed, content_type) {
+        let result = match format {
+            TokenBodyFormat::Json => parse_json_map(trimmed),
+            TokenBodyFormat::Form => parse_form_map(trimmed),
+        }
+        .and_then(|map| map_to_device_authorization(&map));
+
+        match result {
+            Ok(device) => return Ok(device),
+            Err(error) => errors.push(error),
+        }
+    }
+
+    Err(errors.join("; "))
+}
+
+/// What one round of polling the token endpoint told us.
+#[derive(Debug)]
+enum DevicePollOutcome {
+    Token(OAuth2TokenResponse),
+    /// The user has not approved yet — keep polling.
+    Pending,
+    /// The provider asked us to back off (RFC 8628 §3.5: add 5 seconds).
+    SlowDown,
+}
+
+fn parse_device_poll_body(body: &str, content_type: &str) -> Result<DevicePollOutcome, String> {
+    let trimmed = body.trim();
+    if trimmed.is_empty() {
+        return Err("token response body is empty".to_string());
+    }
+
+    let mut errors = Vec::new();
+
+    for format in detect_parse_order(trimmed, content_type) {
+        let map = match format {
+            TokenBodyFormat::Json => parse_json_map(trimmed),
+            TokenBodyFormat::Form => parse_form_map(trimmed),
+        };
+        let map = match map {
+            Ok(map) => map,
+            Err(error) => {
+                errors.push(error);
+                continue;
+            }
+        };
+
+        // The RFC reports poll state as an `error` with HTTP 400, but GitHub
+        // sends the same body with HTTP 200 — so the body, not the status,
+        // decides what happened.
+        let error_code =
+            lookup_value(&map, &["error", "error_code"]).and_then(value_as_non_empty_string);
+        match error_code.as_deref() {
+            Some("authorization_pending") => return Ok(DevicePollOutcome::Pending),
+            Some("slow_down") => return Ok(DevicePollOutcome::SlowDown),
+            Some(_) => {
+                let message = extract_oauth_error(&map)
+                    .unwrap_or_else(|| "unknown provider error".to_string());
+                return Err(format!("OAuth provider error: {}", message));
+            }
+            None => {}
+        }
+
+        match map_to_token_response(&map) {
+            Ok(token) => return Ok(DevicePollOutcome::Token(token)),
+            Err(error) => errors.push(error),
+        }
+    }
+
+    Err(errors.join("; "))
+}
+
+/// Split a response into its lowercased content-type and body text.
+async fn read_response_body(res: reqwest::Response) -> Result<(String, String), String> {
     let content_type = res
         .headers()
         .get("content-type")
@@ -368,7 +518,13 @@ async fn parse_oauth_token_response(res: reqwest::Response) -> Result<OAuth2Toke
     let body = res
         .text()
         .await
-        .map_err(|e| format!("Failed to read token response body: {}", e))?;
+        .map_err(|e| format!("Failed to read response body: {}", e))?;
+
+    Ok((content_type, body))
+}
+
+async fn parse_oauth_token_response(res: reqwest::Response) -> Result<OAuth2TokenResponse, String> {
+    let (content_type, body) = read_response_body(res).await?;
 
     parse_oauth_token_body(&body, &content_type).map_err(|error| {
         let content_type_display = if content_type.is_empty() {
@@ -641,6 +797,176 @@ pub async fn oauth2_cancel_flow(
     }
 }
 
+#[derive(Debug, Deserialize)]
+pub struct OAuth2DeviceFlowOptions {
+    device_auth_url: String,
+    token_url: String,
+    client_id: String,
+    client_secret: Option<String>,
+    scope: Option<String>,
+    /// Identifies this flow so the UI can cancel it and receive the user-code
+    /// event. Optional for the same reason as on the authorization code flow.
+    #[serde(default)]
+    flow_id: Option<String>,
+}
+
+/// What the UI must show while the poll loop waits: the code the user has to
+/// enter, and where to enter it.
+#[derive(Debug, Serialize, Clone)]
+struct OAuth2DevicePromptPayload {
+    user_code: String,
+    verification_uri: String,
+    verification_uri_complete: Option<String>,
+    expires_in: u64,
+}
+
+#[tauri::command]
+pub async fn oauth2_device_flow(
+    options: OAuth2DeviceFlowOptions,
+    app: tauri::AppHandle,
+    client_wrapper: tauri::State<'_, ClientWrapper>,
+    pending_flows: tauri::State<'_, PendingOAuthFlows>,
+) -> Result<OAuth2TokenResponse, String> {
+    let device_auth_url = required_field(options.device_auth_url, "device_auth_url")?;
+    let token_url = required_field(options.token_url, "token_url")?;
+    let client_id = required_field(options.client_id, "client_id")?;
+    let client_secret = normalize_optional_input(options.client_secret);
+
+    let client = client_wrapper.get_or_init_client()?;
+
+    let mut params = HashMap::new();
+    params.insert("client_id".to_string(), client_id.clone());
+    insert_optional_param(&mut params, "scope", options.scope);
+    if let Some(secret) = &client_secret {
+        params.insert("client_secret".to_string(), secret.clone());
+    }
+
+    let res = client
+        .post(&device_auth_url)
+        .header("accept", OAUTH_TOKEN_ACCEPT_HEADER)
+        .timeout(std::time::Duration::from_secs(30))
+        .form(&params)
+        .send()
+        .await
+        .map_err(|e| format!("Device authorization request failed: {}", e))?;
+
+    if !res.status().is_success() {
+        return Err(oauth_http_error("Device authorization request failed", res).await);
+    }
+
+    let (content_type, body) = read_response_body(res).await?;
+    let device = parse_device_authorization_body(&body, &content_type).map_err(|error| {
+        format!(
+            "Failed to parse device authorization response: {} (body preview: {})",
+            error,
+            oauth_body_preview(&body, 300)
+        )
+    })?;
+
+    // Hand the UI the code before opening the browser, so it is already on
+    // screen when the user lands on the verification page.
+    let flow_id = normalize_optional_input(options.flow_id);
+    if let Some(id) = &flow_id {
+        let _ = app.emit(
+            &format!("oauth-device-prompt-{}", id),
+            OAuth2DevicePromptPayload {
+                user_code: device.user_code.clone(),
+                verification_uri: device.verification_uri.clone(),
+                verification_uri_complete: device.verification_uri_complete.clone(),
+                expires_in: device.expires_in,
+            },
+        );
+    }
+
+    // `verification_uri_complete` arrives with the code pre-filled; the plain
+    // URI asks the user to type it. The code stays visible in the app either
+    // way, so the user can check it matches what the page shows.
+    let open_url = device
+        .verification_uri_complete
+        .as_deref()
+        .unwrap_or(&device.verification_uri);
+    app.opener()
+        .open_url(open_url, None::<&str>)
+        .map_err(|e| format!("Failed to open browser: {}", e))?;
+
+    let (cancel_tx, mut cancel_rx) = tokio::sync::watch::channel(false);
+    if let Some(id) = &flow_id {
+        pending_flows
+            .flows
+            .lock()
+            .map_err(|_| "Failed to register the authorization flow".to_string())?
+            .insert(id.clone(), cancel_tx);
+    }
+
+    let poll = async {
+        let mut interval = device.interval.max(1);
+        loop {
+            tokio::time::sleep(std::time::Duration::from_secs(interval)).await;
+
+            let mut poll_params = HashMap::new();
+            poll_params.insert(
+                "grant_type".to_string(),
+                "urn:ietf:params:oauth:grant-type:device_code".to_string(),
+            );
+            poll_params.insert("device_code".to_string(), device.device_code.clone());
+            poll_params.insert("client_id".to_string(), client_id.clone());
+            if let Some(secret) = &client_secret {
+                poll_params.insert("client_secret".to_string(), secret.clone());
+            }
+
+            let res = client
+                .post(&token_url)
+                .header("accept", OAUTH_TOKEN_ACCEPT_HEADER)
+                .timeout(std::time::Duration::from_secs(30))
+                .form(&poll_params)
+                .send()
+                .await
+                .map_err(|e| format!("Token request failed: {}", e))?;
+
+            let status = res.status();
+            let (content_type, body) = read_response_body(res).await?;
+
+            match parse_device_poll_body(&body, &content_type) {
+                Ok(DevicePollOutcome::Token(token)) => return Ok(token),
+                Ok(DevicePollOutcome::Pending) => {}
+                Ok(DevicePollOutcome::SlowDown) => interval += 5,
+                Err(error) => {
+                    return Err(if status.is_success() {
+                        format!(
+                            "Failed to parse token response: {} (body preview: {})",
+                            error,
+                            oauth_body_preview(&body, 300)
+                        )
+                    } else {
+                        format!("Token request failed ({}): {}", status, error)
+                    });
+                }
+            }
+        }
+    };
+
+    let expires_in = device.expires_in.min(DEVICE_CODE_MAX_EXPIRES_SECS);
+    let outcome = tokio::select! {
+        result = tokio::time::timeout(std::time::Duration::from_secs(expires_in), poll) => match result {
+            Ok(inner) => inner,
+            Err(_) => Err(format!(
+                "The device code expired after {} minutes without the sign-in being approved. \
+                 Get a new token to start over with a fresh code.",
+                expires_in.div_ceil(60)
+            )),
+        },
+        _ = cancel_rx.changed() => Err("Authorization cancelled".to_string()),
+    };
+
+    if let Some(id) = &flow_id {
+        if let Ok(mut flows) = pending_flows.flows.lock() {
+            flows.remove(id);
+        }
+    }
+
+    outcome
+}
+
 async fn wait_for_callback(listener: tokio::net::TcpListener) -> Result<(String, String), String> {
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
@@ -858,5 +1184,125 @@ mod oauth_parser_tests {
 
         assert!(error.contains("invalid_grant"));
         assert!(error.contains("Code expired"));
+    }
+
+    #[test]
+    fn parses_device_authorization_json() {
+        let body = r#"{
+            "device_code": "dev-abc",
+            "user_code": "WDJB-MJHT",
+            "verification_uri": "https://example.com/activate",
+            "verification_uri_complete": "https://example.com/activate?user_code=WDJB-MJHT",
+            "expires_in": 1800,
+            "interval": 10
+        }"#;
+        let device = parse_device_authorization_body(body, "application/json").unwrap();
+
+        assert_eq!(device.device_code, "dev-abc");
+        assert_eq!(device.user_code, "WDJB-MJHT");
+        assert_eq!(device.verification_uri, "https://example.com/activate");
+        assert_eq!(
+            device.verification_uri_complete.as_deref(),
+            Some("https://example.com/activate?user_code=WDJB-MJHT")
+        );
+        assert_eq!(device.expires_in, 1800);
+        assert_eq!(device.interval, 10);
+    }
+
+    #[test]
+    fn device_authorization_accepts_googles_verification_url_spelling() {
+        let body = r#"{
+            "device_code": "dev-goog",
+            "user_code": "ABCD-EFGH",
+            "verification_url": "https://www.google.com/device",
+            "expires_in": 1800,
+            "interval": 5
+        }"#;
+        let device = parse_device_authorization_body(body, "application/json").unwrap();
+
+        assert_eq!(device.verification_uri, "https://www.google.com/device");
+    }
+
+    #[test]
+    fn device_authorization_defaults_missing_expiry_and_interval() {
+        let body = r#"{"device_code":"d","user_code":"u","verification_uri":"https://x.test"}"#;
+        let device = parse_device_authorization_body(body, "application/json").unwrap();
+
+        assert_eq!(device.expires_in, DEVICE_CODE_DEFAULT_EXPIRES_SECS);
+        assert_eq!(device.interval, DEVICE_POLL_DEFAULT_INTERVAL_SECS);
+    }
+
+    #[test]
+    fn device_authorization_parses_form_encoded_body() {
+        // GitHub answers form-encoded unless asked for JSON.
+        let body = "device_code=dc123&user_code=ABCD-1234&verification_uri=https%3A%2F%2Fgithub.com%2Flogin%2Fdevice&expires_in=899&interval=5";
+        let device =
+            parse_device_authorization_body(body, "application/x-www-form-urlencoded").unwrap();
+
+        assert_eq!(device.device_code, "dc123");
+        assert_eq!(device.user_code, "ABCD-1234");
+        assert_eq!(device.verification_uri, "https://github.com/login/device");
+        assert_eq!(device.expires_in, 899);
+    }
+
+    #[test]
+    fn device_authorization_surfaces_provider_errors() {
+        let body = r#"{"error":"unauthorized_client","error_description":"Device flow not enabled"}"#;
+        let error = parse_device_authorization_body(body, "application/json").unwrap_err();
+
+        assert!(error.contains("unauthorized_client"));
+        assert!(error.contains("Device flow not enabled"));
+    }
+
+    #[test]
+    fn device_poll_treats_pending_as_keep_going() {
+        let body = r#"{"error":"authorization_pending"}"#;
+        assert!(matches!(
+            parse_device_poll_body(body, "application/json"),
+            Ok(DevicePollOutcome::Pending)
+        ));
+    }
+
+    #[test]
+    fn device_poll_treats_github_200_form_pending_as_keep_going() {
+        // GitHub reports poll state with HTTP 200 and a form body, so the parse
+        // must not depend on the status code or JSON.
+        let body = "error=authorization_pending&error_description=The+authorization+request+is+still+pending";
+        assert!(matches!(
+            parse_device_poll_body(body, "application/x-www-form-urlencoded"),
+            Ok(DevicePollOutcome::Pending)
+        ));
+    }
+
+    #[test]
+    fn device_poll_recognizes_slow_down() {
+        let body = r#"{"error":"slow_down"}"#;
+        assert!(matches!(
+            parse_device_poll_body(body, "application/json"),
+            Ok(DevicePollOutcome::SlowDown)
+        ));
+    }
+
+    #[test]
+    fn device_poll_fails_on_denial() {
+        let body = r#"{"error":"access_denied","error_description":"User declined"}"#;
+        let error = parse_device_poll_body(body, "application/json").unwrap_err();
+
+        assert!(error.contains("access_denied"));
+        assert!(error.contains("User declined"));
+    }
+
+    #[test]
+    fn device_poll_returns_the_token_when_approved() {
+        let body = r#"{"access_token":"tok-1","token_type":"bearer","expires_in":3600}"#;
+        let outcome = parse_device_poll_body(body, "application/json").unwrap();
+
+        match outcome {
+            DevicePollOutcome::Token(token) => {
+                assert_eq!(token.access_token, "tok-1");
+                assert_eq!(token.expires_in, Some(3600));
+            }
+            _ => panic!("expected a token"),
+        }
     }
 }

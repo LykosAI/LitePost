@@ -40,6 +40,7 @@ pub fn run() {
             streaming::cancel_stream,
             oauth::oauth2_token_exchange,
             oauth::oauth2_auth_code_flow,
+            oauth::oauth2_device_flow,
             oauth::oauth2_cancel_flow,
             oauth::oauth2_refresh,
             websocket::ws_connect,

@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge"
 import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
 import { OAuth2Config, OAuth2GrantType } from "@/types"
+import { CopyButton } from "@/components/CopyButton"
 import { useThemeClass } from "@/hooks/useThemeClass"
 import { useOAuth2TokenActions } from "@/hooks/useOAuth2TokenActions"
 import { useEnvironmentStore } from "@/store/environments"
@@ -25,6 +26,7 @@ const GRANT_TYPES: { value: OAuth2GrantType; label: string; description: string 
   { value: 'authorization_code', label: 'Authorization Code', description: 'Redirect-based flow for user auth' },
   { value: 'client_credentials', label: 'Client Credentials', description: 'Server-to-server auth' },
   { value: 'password', label: 'Password', description: 'Direct username/password auth' },
+  { value: 'device_code', label: 'Device Code', description: 'Enter a code in the browser — no redirect URI needed' },
 ]
 
 /** A small section wrapper with a label and icon */
@@ -78,6 +80,7 @@ export function OAuthConfigurator({ oauth2, onOAuth2Change, flowKey }: OAuthConf
     refreshToken,
     clearToken,
     cancelTokenRequest,
+    devicePrompt,
     isExpired,
     expiresIn,
   } = useOAuth2TokenActions({ oauth2, onOAuth2Change, flowKey })
@@ -107,6 +110,7 @@ export function OAuthConfigurator({ oauth2, onOAuth2Change, flowKey }: OAuthConf
       const updates: Partial<OAuth2Config> = {}
       if (discovery.authorizationEndpoint) updates.authUrl = discovery.authorizationEndpoint
       if (discovery.tokenEndpoint) updates.tokenUrl = discovery.tokenEndpoint
+      if (discovery.deviceAuthorizationEndpoint) updates.deviceAuthUrl = discovery.deviceAuthorizationEndpoint
 
       // Scope is deliberately NOT auto-filled for client credentials. The
       // discovery document's `scopes_supported` advertises what the identity
@@ -129,6 +133,7 @@ export function OAuthConfigurator({ oauth2, onOAuth2Change, flowKey }: OAuthConf
       const filled = [
         updates.authUrl && 'authorization URL',
         updates.tokenUrl && 'token URL',
+        updates.deviceAuthUrl && 'device authorization URL',
         updates.scope && 'scope',
       ].filter(Boolean)
       setDiscoveryNote(`Filled ${filled.join(', ')}`)
@@ -295,6 +300,38 @@ export function OAuthConfigurator({ oauth2, onOAuth2Change, flowKey }: OAuthConf
               </FormField>
             </div>
           </>
+        ) : oauth2.grantType === 'device_code' ? (
+          <>
+            <div className="grid grid-cols-2 gap-3">
+              <FormField
+                label="Device Authorization URL"
+                hint="No redirect URI to register — the provider hands out a code instead."
+              >
+                <Input
+                  placeholder="https://provider.com/oauth/device/code"
+                  value={oauth2.deviceAuthUrl || ''}
+                  onChange={(e) => updateField('deviceAuthUrl', e.target.value)}
+                  className="font-mono text-[13px] bg-background/50"
+                />
+              </FormField>
+              <FormField label="Token URL">
+                <Input
+                  placeholder="https://provider.com/oauth/token"
+                  value={oauth2.tokenUrl || ''}
+                  onChange={(e) => updateField('tokenUrl', e.target.value)}
+                  className="font-mono text-[13px] bg-background/50"
+                />
+              </FormField>
+            </div>
+            <FormField label="Scope">
+              <Input
+                placeholder="openid profile email (space-separated)"
+                value={oauth2.scope || ''}
+                onChange={(e) => updateField('scope', e.target.value)}
+                className="font-mono text-[13px] bg-background/50"
+              />
+            </FormField>
+          </>
         ) : (
           <div className="grid grid-cols-2 gap-3">
             <FormField label="Token URL">
@@ -441,6 +478,43 @@ export function OAuthConfigurator({ oauth2, onOAuth2Change, flowKey }: OAuthConf
         </FormSection>
       )}
 
+      {/*
+        The device flow's waiting room: the Rust command is still polling the
+        provider, and nothing more happens until the user enters this code in
+        the browser. Rendered from store state so it survives tab switches,
+        exactly like the flow's spinner.
+      */}
+      {devicePrompt && isLoading && (
+        <div
+          className="rounded-lg border border-primary/30 bg-primary/5 p-3 space-y-2"
+          data-testid="device-prompt"
+        >
+          <p className="text-xs text-muted-foreground">
+            Enter this code at{' '}
+            <a
+              href={devicePrompt.verificationUri}
+              target="_blank"
+              rel="noreferrer"
+              className="text-primary hover:underline break-all"
+            >
+              {devicePrompt.verificationUri}
+            </a>
+          </p>
+          <div className="flex items-center gap-2">
+            <span
+              className="text-xl font-mono font-semibold tracking-[0.2em] select-all"
+              data-testid="device-user-code"
+            >
+              {devicePrompt.userCode}
+            </span>
+            <CopyButton content={devicePrompt.userCode} />
+          </div>
+          <p className="text-[11px] text-muted-foreground/60 leading-snug">
+            The verification page opened in your browser — waiting for you to approve.
+          </p>
+        </div>
+      )}
+
       {/* Error */}
       {tokenError && (
         <div className="text-sm text-red-400 bg-red-500/10 rounded-lg p-3 border border-red-500/20 break-all">
@@ -470,10 +544,10 @@ export function OAuthConfigurator({ oauth2, onOAuth2Change, flowKey }: OAuthConf
         </Button>
 
         {/*
-          Only the authorization code flow parks waiting on the browser, and it
-          can wait forever: if the redirect URI is not registered the provider
-          shows an error page and never redirects back, so nothing ever arrives
-          on the callback listener.
+          The authorization code and device code flows park waiting on the
+          browser, and can wait a long time: an unregistered redirect URI never
+          redirects back, and a device code nobody enters polls until it
+          expires.
         */}
         {cancelTokenRequest && (
           <Button

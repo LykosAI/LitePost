@@ -52,6 +52,7 @@ function assertGrantRequirements(config: OAuth2Config) {
   assertResolved(config.clientSecret, 'Client Secret')
   assertResolved(config.tokenUrl, 'Token URL')
   assertResolved(config.authUrl, 'Authorization URL')
+  assertResolved(config.deviceAuthUrl, 'Device Authorization URL')
   assertResolved(config.scope, 'Scope')
   assertResolved(config.username, 'Username')
   assertResolved(config.password, 'Password')
@@ -68,6 +69,10 @@ function assertGrantRequirements(config: OAuth2Config) {
       requiredField(config.tokenUrl, 'Token URL')
       requiredField(config.username, 'Username')
       requiredField(config.password, 'Password')
+      return
+    case 'device_code':
+      requiredField(config.deviceAuthUrl, 'Device Authorization URL')
+      requiredField(config.tokenUrl, 'Token URL')
       return
     default: {
       const _never: never = config.grantType
@@ -106,6 +111,7 @@ export function resolveOAuth2Config(config: OAuth2Config, resolve: VariableResol
     discoveryUrl: substituteOptional(config.discoveryUrl, resolve),
     authUrl: substituteOptional(config.authUrl, resolve),
     tokenUrl: substituteOptional(config.tokenUrl, resolve),
+    deviceAuthUrl: substituteOptional(config.deviceAuthUrl, resolve),
     clientId: substituteVariables(config.clientId ?? '', resolve),
     clientSecret: substituteOptional(config.clientSecret, resolve),
     scope: substituteOptional(config.scope, resolve),
@@ -126,7 +132,7 @@ export function applyTokenResponse(config: OAuth2Config, token: OAuthTokenRespon
 }
 
 /**
- * Abort an in-flight authorization code flow.
+ * Abort an in-flight authorization code or device code flow.
  *
  * Resolves to whether a flow was actually waiting — false means it had already
  * finished or timed out, so there is nothing to report to the user.
@@ -173,6 +179,17 @@ export async function requestOAuthToken(
     case 'password':
       return invoke<OAuthTokenResponse>('oauth2_token_exchange', {
         options: createTokenExchangeOptions(config, 'password'),
+      })
+    case 'device_code':
+      return invoke<OAuthTokenResponse>('oauth2_device_flow', {
+        options: {
+          device_auth_url: requiredField(config.deviceAuthUrl, 'Device Authorization URL'),
+          token_url: requiredField(config.tokenUrl, 'Token URL'),
+          client_id: requiredField(config.clientId, 'Client ID'),
+          client_secret: optionalOrNull(config.clientSecret),
+          scope: optionalOrNull(config.scope),
+          flow_id: flowId ?? null,
+        },
       })
     default: {
       const _never: never = config.grantType

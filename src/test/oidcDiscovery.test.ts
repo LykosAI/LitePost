@@ -59,6 +59,16 @@ describe('parseDiscoveryDocument', () => {
     expect(parseDiscoveryDocument(noScopes).scopesSupported).toBeUndefined()
   })
 
+  it('extracts the device authorization endpoint when the provider offers one', () => {
+    const withDevice = {
+      ...validDoc,
+      device_authorization_endpoint: 'https://auth.example.com/oauth/device/code',
+    }
+    expect(parseDiscoveryDocument(withDevice).deviceAuthorizationEndpoint).toBe(
+      'https://auth.example.com/oauth/device/code'
+    )
+  })
+
   it('accepts a token-only document (client credentials providers)', () => {
     const result = parseDiscoveryDocument({ token_endpoint: 'https://a/t' })
     expect(result.tokenEndpoint).toBe('https://a/t')

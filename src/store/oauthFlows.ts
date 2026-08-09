@@ -18,20 +18,30 @@ import { create } from 'zustand'
  * on the callback listener, so restoring one from disk would only ever show a
  * spinner for something already gone.
  */
-export interface OAuthFlowState {
-  isLoading: boolean
-  /** Set only for grant types that can be cancelled, i.e. authorization code. */
-  flowId: string | null
-  error: string | null
+/** The code a device flow is waiting on, and where the user must enter it. */
+export interface OAuthDevicePrompt {
+  userCode: string
+  verificationUri: string
+  verificationUriComplete?: string
 }
 
-const IDLE: OAuthFlowState = { isLoading: false, flowId: null, error: null }
+export interface OAuthFlowState {
+  isLoading: boolean
+  /** Set only for grant types that can be cancelled: authorization code and device code. */
+  flowId: string | null
+  error: string | null
+  /** Set while a device code flow waits for the user to approve in the browser. */
+  devicePrompt: OAuthDevicePrompt | null
+}
+
+const IDLE: OAuthFlowState = { isLoading: false, flowId: null, error: null, devicePrompt: null }
 
 interface OAuthFlowStore {
   flows: Record<string, OAuthFlowState>
   getFlow: (key: string) => OAuthFlowState
   beginFlow: (key: string, flowId: string | null) => void
   endFlow: (key: string, error?: string | null) => void
+  setDevicePrompt: (key: string, prompt: OAuthDevicePrompt) => void
   clearError: (key: string) => void
 }
 
@@ -42,12 +52,17 @@ export const useOAuthFlowStore = create<OAuthFlowStore>((set, get) => ({
 
   beginFlow: (key, flowId) =>
     set((state) => ({
-      flows: { ...state.flows, [key]: { isLoading: true, flowId, error: null } },
+      flows: { ...state.flows, [key]: { isLoading: true, flowId, error: null, devicePrompt: null } },
     })),
 
   endFlow: (key, error = null) =>
     set((state) => ({
-      flows: { ...state.flows, [key]: { isLoading: false, flowId: null, error } },
+      flows: { ...state.flows, [key]: { isLoading: false, flowId: null, error, devicePrompt: null } },
+    })),
+
+  setDevicePrompt: (key, prompt) =>
+    set((state) => ({
+      flows: { ...state.flows, [key]: { ...(state.flows[key] ?? IDLE), devicePrompt: prompt } },
     })),
 
   clearError: (key) =>

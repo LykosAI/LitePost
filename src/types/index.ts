@@ -89,7 +89,7 @@ export interface Header {
 
 export type AuthType = 'none' | 'basic' | 'bearer' | 'api-key' | 'oauth2'
 
-export type OAuth2GrantType = 'authorization_code' | 'client_credentials' | 'password'
+export type OAuth2GrantType = 'authorization_code' | 'client_credentials' | 'password' | 'device_code'
 
 export interface OAuth2Config {
   grantType: OAuth2GrantType
@@ -97,6 +97,8 @@ export interface OAuth2Config {
   discoveryUrl?: string
   authUrl?: string
   tokenUrl?: string
+  /** Device code grant only — the RFC 8628 device authorization endpoint */
+  deviceAuthUrl?: string
   clientId: string
   clientSecret?: string
   scope?: string
