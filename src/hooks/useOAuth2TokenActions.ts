@@ -1,4 +1,5 @@
 import { useMemo, useRef } from 'react'
+import { listen } from '@tauri-apps/api/event'
 import { OAuth2Config } from '@/types'
 import {
   OAuthTokenResponse,
@@ -8,7 +9,14 @@ import {
   requestOAuthToken,
 } from '@/services/oauth'
 import { useEnvironmentStore } from '@/store/environments'
-import { useOAuthFlowStore } from '@/store/oauthFlows'
+import { OAuthDevicePrompt, useOAuthFlowStore } from '@/store/oauthFlows'
+
+/** Payload of the Rust side's oauth-device-prompt-{flowId} event. */
+interface DevicePromptEventPayload {
+  user_code: string
+  verification_uri: string
+  verification_uri_complete?: string | null
+}
 
 interface UseOAuth2TokenActionsOptions {
   oauth2: OAuth2Config
@@ -34,6 +42,8 @@ interface OAuth2TokenActions {
   clearToken: () => void
   /** Abort an in-flight browser sign-in. Null when there is nothing to cancel. */
   cancelTokenRequest: (() => Promise<void>) | null
+  /** The code a device flow is waiting on. Null outside a device flow. */
+  devicePrompt: OAuthDevicePrompt | null
   isExpired: boolean
   expiresIn: number | null
 }
@@ -55,6 +65,7 @@ export function useOAuth2TokenActions({
   const isLoading = flow?.isLoading ?? false
   const tokenError = flow?.error ?? null
   const activeFlowId = flow?.flowId ?? null
+  const devicePrompt = flow?.devicePrompt ?? null
 
   // Note this stores against the *unresolved* config: substitution happens on
   // the way out to the provider, so `{{clientSecret}}` stays `{{clientSecret}}`
@@ -64,22 +75,42 @@ export function useOAuth2TokenActions({
   }
 
   const getNewToken = async () => {
-    // Only the authorization code flow parks waiting on the browser, so it is
-    // the only one that can be cancelled.
-    const flowId = oauth2.grantType === 'authorization_code' ? crypto.randomUUID() : undefined
+    // The authorization code and device code flows park waiting on the
+    // browser, so they are the ones that can be cancelled.
+    const waitsOnBrowser =
+      oauth2.grantType === 'authorization_code' || oauth2.grantType === 'device_code'
+    const flowId = waitsOnBrowser ? crypto.randomUUID() : undefined
 
     // Read actions off the store rather than through the hook, so the calls
     // below still land if this component unmounted while the flow was running —
     // which is exactly what happens when you switch tabs mid sign-in.
-    const { beginFlow, endFlow } = useOAuthFlowStore.getState()
+    const { beginFlow, endFlow, setDevicePrompt } = useOAuthFlowStore.getState()
     beginFlow(key, flowId ?? null)
 
+    // A device flow needs its user code on screen while the command is still
+    // running, so the code arrives as an event rather than in the return value.
+    let unlistenDevicePrompt: (() => void) | undefined
     try {
+      if (oauth2.grantType === 'device_code' && flowId) {
+        unlistenDevicePrompt = await listen<DevicePromptEventPayload>(
+          `oauth-device-prompt-${flowId}`,
+          (event) => {
+            setDevicePrompt(key, {
+              userCode: event.payload.user_code,
+              verificationUri: event.payload.verification_uri,
+              verificationUriComplete: event.payload.verification_uri_complete ?? undefined,
+            })
+          }
+        )
+      }
+
       const token = await requestOAuthToken(oauth2, getVariable, flowId)
       handleTokenResponse(token)
       endFlow(key)
     } catch (err) {
       endFlow(key, err instanceof Error ? err.message : String(err))
+    } finally {
+      unlistenDevicePrompt?.()
     }
   }
 
@@ -137,6 +168,7 @@ export function useOAuth2TokenActions({
     refreshToken,
     clearToken,
     cancelTokenRequest: activeFlowId ? cancelTokenRequest : null,
+    devicePrompt,
     isExpired,
     expiresIn,
   }

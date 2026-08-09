@@ -3,6 +3,7 @@ import { fetchJsonViaBackend } from '@/utils/backendFetch'
 export interface OidcDiscovery {
   authorizationEndpoint?: string
   tokenEndpoint?: string
+  deviceAuthorizationEndpoint?: string
   scopesSupported?: string[]
 }
 
@@ -32,6 +33,8 @@ export function parseDiscoveryDocument(json: unknown): OidcDiscovery {
   const doc = json as Record<string, unknown>
   const authorizationEndpoint = typeof doc.authorization_endpoint === 'string' ? doc.authorization_endpoint : undefined
   const tokenEndpoint = typeof doc.token_endpoint === 'string' ? doc.token_endpoint : undefined
+  const deviceAuthorizationEndpoint =
+    typeof doc.device_authorization_endpoint === 'string' ? doc.device_authorization_endpoint : undefined
   const scopesSupported = Array.isArray(doc.scopes_supported)
     ? doc.scopes_supported.filter((scope): scope is string => typeof scope === 'string')
     : undefined
@@ -40,7 +43,7 @@ export function parseDiscoveryDocument(json: unknown): OidcDiscovery {
     throw new Error('No authorization_endpoint or token_endpoint in the response — is this an OIDC discovery document?')
   }
 
-  return { authorizationEndpoint, tokenEndpoint, scopesSupported }
+  return { authorizationEndpoint, tokenEndpoint, deviceAuthorizationEndpoint, scopesSupported }
 }
 
 /**

@@ -75,7 +75,7 @@ The key name and placement are fully configurable, so this works with APIs that 
 
 ## OAuth 2.0
 
-LitePost supports three OAuth 2.0 grant types. Each grant type is suited to a different scenario -- choose the one that matches your API's requirements.
+LitePost supports four OAuth 2.0 grant types. Each grant type is suited to a different scenario -- choose the one that matches your API's requirements.
 
 ### Common Fields
 
@@ -175,6 +175,29 @@ grant_type=password&username=jane&password=s3cret&client_id=my-app&client_secret
 
 ::: warning
 The Password Grant sends user credentials directly to the token endpoint. Only use this with trusted authorization servers over HTTPS. Many providers have deprecated this grant type in favor of Authorization Code with PKCE.
+:::
+
+### Device Code
+
+Use this grant type (RFC 8628, the "device flow") when you want a user sign-in without registering a redirect URI. There is no callback at all: the provider hands out a short code, you approve it in the browser, and LitePost polls until the token is ready. This makes it the quickest flow to set up against providers that support it -- GitHub, Microsoft Entra, Google, Auth0, and Okta among them.
+
+**Additional fields:**
+
+| Field                    | Description                                               |
+|--------------------------|-----------------------------------------------------------|
+| Device Authorization URL | The provider's device authorization endpoint (e.g. GitHub's `https://github.com/login/device/code`). Auto-fill discovers it from `device_authorization_endpoint` when the provider advertises one. |
+
+**How it works:**
+
+1. Click **Get Access Token**. LitePost asks the Device Authorization URL for a device code.
+2. LitePost shows the short user code (like `WDJB-MJHT`) with a copy button, and opens the provider's verification page in your browser.
+3. Enter the code (some providers pre-fill it) and approve the sign-in.
+4. LitePost polls the Token URL in the background -- honoring the provider's polling interval and `slow_down` responses -- and stores the access token the moment the approval lands.
+
+The code expires after a provider-chosen lifetime (typically 15 minutes); **Cancel** stops the wait early. Client Secret is usually not needed -- device flow clients are public clients.
+
+::: tip
+Make sure the device flow is enabled for your OAuth app -- some providers (GitHub, Entra) require opting in per application before the device authorization endpoint will accept your client ID.
 :::
 
 ### Token Management

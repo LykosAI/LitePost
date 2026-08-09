@@ -121,6 +121,47 @@ describe('requestOAuthToken validation', () => {
 
     await expect(requestOAuthToken(config, resolve)).rejects.toThrow(/\{\{a\}\}, \{\{b\}\}/)
   })
+
+  it('requires the device authorization URL for the device code grant', async () => {
+    const config: OAuth2Config = {
+      grantType: 'device_code',
+      clientId: 'device-client',
+      tokenUrl: 'https://example.com/token',
+    }
+
+    await expect(requestOAuthToken(config, resolve)).rejects.toThrow(
+      /Device Authorization URL is required/
+    )
+  })
+
+  it('rejects an unresolved variable in the device authorization URL', async () => {
+    const config: OAuth2Config = {
+      grantType: 'device_code',
+      clientId: 'device-client',
+      deviceAuthUrl: 'https://{{issuerHost}}/oauth/device/code',
+      tokenUrl: 'https://example.com/token',
+    }
+
+    await expect(requestOAuthToken(config, resolve)).rejects.toThrow(
+      /Device Authorization URL still contains \{\{issuerHost\}\}/
+    )
+  })
+})
+
+describe('resolveOAuth2Config device fields', () => {
+  it('substitutes variables in the device authorization URL', () => {
+    const config: OAuth2Config = {
+      grantType: 'device_code',
+      clientId: '{{clientId}}',
+      deviceAuthUrl: 'https://login.microsoftonline.com/{{tenant}}/oauth2/v2.0/devicecode',
+      tokenUrl: 'https://login.microsoftonline.com/{{tenant}}/oauth2/v2.0/token',
+    }
+    const resolved = resolveOAuth2Config(config, resolve)
+
+    expect(resolved.deviceAuthUrl).toBe(
+      'https://login.microsoftonline.com/contoso/oauth2/v2.0/devicecode'
+    )
+  })
 })
 
 describe('detectEntraV1Url', () => {
