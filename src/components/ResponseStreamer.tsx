@@ -120,6 +120,13 @@ export function ResponseStreamer({
             className="h-full pr-3 [&_[data-radix-scroll-area-thumb]]:bg-accent [&_[data-radix-scroll-area-thumb]]:hover:bg-accent/80"
             ref={scrollAreaRef}
           >
+            {(streaming.truncatedChars ?? 0) > 0 && (
+              <div className="mb-2 rounded-md border border-border/40 bg-secondary/30 px-2.5 py-1.5 text-[11px] text-muted-foreground">
+                Showing the most recent output —{' '}
+                {Math.round((streaming.truncatedChars ?? 0) / 1024).toLocaleString()} KB
+                trimmed from the start. Raise the stream buffer limit in Settings to keep more.
+              </div>
+            )}
             <div className="relative bg-muted rounded-md p-1.5 mb-2">
               {streaming.error ? (
                 <pre className="text-sm text-red-400 break-all overflow-wrap-anywhere">

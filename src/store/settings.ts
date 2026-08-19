@@ -15,11 +15,21 @@ export interface NetworkSettings {
   proxy: string           // proxy URL or empty string
 }
 
+export interface StreamingSettings {
+  /**
+   * Trailing characters of a stream body to keep, in KB. 0 means unlimited.
+   * Caps the per-chunk render cost of long-lived streams.
+   */
+  maxBufferKB: number
+}
+
 interface SettingsState {
   jsonViewer: JSONViewerSettings
   network: NetworkSettings
+  streaming: StreamingSettings
   updateJSONViewerSettings: (settings: Partial<JSONViewerSettings>) => Promise<void>
   updateNetworkSettings: (settings: Partial<NetworkSettings>) => Promise<void>
+  updateStreamingSettings: (settings: Partial<StreamingSettings>) => Promise<void>
 }
 
 const SETTINGS_FILE = 'settings.json'
@@ -36,20 +46,42 @@ export const defaultNetworkSettings: NetworkSettings = {
   proxy: '',
 }
 
+export const defaultStreamingSettings: StreamingSettings = {
+  maxBufferKB: 2048,
+}
+
 export const useSettingsStore = create<SettingsState>()(
   persist(
     (set, get) => ({
       jsonViewer: defaultJSONSettings,
       network: defaultNetworkSettings,
+      streaming: defaultStreamingSettings,
       updateJSONViewerSettings: async (settings) => {
         const nextSettings = { ...get().jsonViewer, ...settings }
         set({ jsonViewer: nextSettings })
-        await saveToFile(SETTINGS_FILE, { jsonViewer: nextSettings, network: get().network })
+        await saveToFile(SETTINGS_FILE, {
+          jsonViewer: nextSettings,
+          network: get().network,
+          streaming: get().streaming,
+        })
       },
       updateNetworkSettings: async (settings) => {
         const nextNetwork = { ...get().network, ...settings }
         set({ network: nextNetwork })
-        await saveToFile(SETTINGS_FILE, { jsonViewer: get().jsonViewer, network: nextNetwork })
+        await saveToFile(SETTINGS_FILE, {
+          jsonViewer: get().jsonViewer,
+          network: nextNetwork,
+          streaming: get().streaming,
+        })
+      },
+      updateStreamingSettings: async (settings) => {
+        const nextStreaming = { ...get().streaming, ...settings }
+        set({ streaming: nextStreaming })
+        await saveToFile(SETTINGS_FILE, {
+          jsonViewer: get().jsonViewer,
+          network: get().network,
+          streaming: nextStreaming,
+        })
       }
     }),
     {
@@ -59,6 +91,7 @@ export const useSettingsStore = create<SettingsState>()(
           const data = await loadFromFile<{
             jsonViewer: Partial<JSONViewerSettings>
             network?: Partial<NetworkSettings>
+            streaming?: Partial<StreamingSettings>
           }>(SETTINGS_FILE, { jsonViewer: defaultJSONSettings })
           return {
             state: {
@@ -69,6 +102,10 @@ export const useSettingsStore = create<SettingsState>()(
               network: {
                 ...defaultNetworkSettings,
                 ...(data?.network || {})
+              },
+              streaming: {
+                ...defaultStreamingSettings,
+                ...(data?.streaming || {})
               }
             }
           }
@@ -76,7 +113,8 @@ export const useSettingsStore = create<SettingsState>()(
         setItem: async (_, value) => {
           await saveToFile(SETTINGS_FILE, {
             jsonViewer: value.state.jsonViewer,
-            network: value.state.network
+            network: value.state.network,
+            streaming: value.state.streaming
           })
         },
         removeItem: () => {}
