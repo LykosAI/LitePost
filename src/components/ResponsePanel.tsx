@@ -166,7 +166,7 @@ function ResponsePanelComponent({
             <div className="relative flex justify-center">
               <div className="relative">
                 <Send className="h-14 w-14 text-muted-foreground/20 rotate-[-15deg]" />
-                <ArrowUpRight className="h-5 w-5 text-primary/30 absolute -top-1 -right-1 animate-pulse-soft" />
+                <ArrowUpRight className="h-5 w-5 text-primary/30 absolute -top-1 -right-1 animate-pulse-soft-intro" />
               </div>
             </div>
             <div className="space-y-2">

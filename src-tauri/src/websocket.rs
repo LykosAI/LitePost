@@ -116,7 +116,16 @@ pub async fn ws_connect(
     // Main event loop
     loop {
         tokio::select! {
-            _ = cmd_rx.changed() => {
+            result = cmd_rx.changed() => {
+                // The sender lives in `active_ws.connections` under this
+                // connection id, so an error here means the entry was replaced
+                // and nothing can ever send or close this socket again. Bail
+                // out rather than re-polling an arm that is instantly ready,
+                // which would spin this task at 100% of a core.
+                if result.is_err() {
+                    break;
+                }
+
                 let cmd = cmd_rx.borrow().clone();
                 match cmd {
                     WsCommand::Send(data) => {

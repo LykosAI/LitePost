@@ -122,11 +122,19 @@ pub async fn stream_sse(
     let mut current_id: Option<String> = None;
     let mut current_data: Vec<String> = Vec::new();
     let mut cancelled = false;
+    // Cleared if the cancel sender goes away. `changed()` then resolves
+    // instantly and forever, so leaving the arm enabled would spin this task at
+    // 100% of a core for as long as the response body stays open.
+    let mut cancellable = true;
 
     loop {
         tokio::select! {
-            _ = cancel_rx.changed() => {
-                if *cancel_rx.borrow() {
+            result = cancel_rx.changed(), if cancellable => {
+                if result.is_err() {
+                    // No cancel can ever arrive now. Keep draining the body so
+                    // the stream still finishes normally, just stop polling.
+                    cancellable = false;
+                } else if *cancel_rx.borrow() {
                     cancelled = true;
                     break;
                 }
