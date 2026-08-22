@@ -479,6 +479,21 @@
   }
 }
 
+/* A running animation keeps the WebView2 compositor producing frames for as
+   long as it lasts, so honour the OS "show animations" setting: with it off,
+   nothing here should tick in the background. */
+@media (prefers-reduced-motion: reduce) {
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
 /* ═══════════════════════════════════════════════════
    SCROLLBAR STYLING (for supporting browsers)
    ═══════════════════════════════════════════════════ */

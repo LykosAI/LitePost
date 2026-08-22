@@ -99,6 +99,9 @@ module.exports = {
 				'accordion-up': 'accordion-up 0.2s ease-out',
 				'shimmer': 'shimmer 2s infinite',
 				'pulse-soft': 'pulse-soft 2s ease-in-out infinite',
+				// Finite by design: an infinite animation keeps the WebView2 compositor
+				// producing frames forever, which burns CPU while the app sits idle.
+				'pulse-soft-intro': 'pulse-soft 2s ease-in-out 3 both',
 				'slide-in-right': 'slide-in-right 0.2s ease-out',
 				'scale-in': 'scale-in 0.15s ease-out',
 			},

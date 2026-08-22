@@ -58,6 +58,45 @@ export function shouldIgnoreStreamChunk(chunk: Pick<StreamChunk, 'data' | 'event
   return chunk.event === 'stats' || chunk.event === 'ping'
 }
 
+const CHARS_PER_KB = 1024
+/** How far into the retained window we will look for a line break to cut on. */
+const NEWLINE_ALIGN_WINDOW = 1024
+
+/**
+ * Append a chunk to the accumulated stream body, keeping at most `maxBufferKB`
+ * of trailing content. Long-lived streams (a log tail, an SSE endpoint left
+ * open overnight) would otherwise grow the buffer — and the DOM node rendering
+ * it — without bound. `maxBufferKB <= 0` means unlimited.
+ *
+ * Sizes are in characters rather than encoded bytes; the point is to bound the
+ * work per render, not to account for storage exactly.
+ */
+export function appendStreamContent(
+  previous: string,
+  addition: string,
+  maxBufferKB: number
+): { content: string; droppedChars: number } {
+  const content = previous + addition
+
+  if (maxBufferKB <= 0) {
+    return { content, droppedChars: 0 }
+  }
+
+  const limit = maxBufferKB * CHARS_PER_KB
+  if (content.length <= limit) {
+    return { content, droppedChars: 0 }
+  }
+
+  let cut = content.length - limit
+  // Prefer cutting at a line break so the first visible line is not a fragment.
+  const newline = content.indexOf('\n', cut)
+  if (newline !== -1 && newline - cut < NEWLINE_ALIGN_WINDOW) {
+    cut = newline + 1
+  }
+
+  return { content: content.slice(cut), droppedChars: cut }
+}
+
 export function toErrorMessage(error: unknown): string {
   if (error instanceof Error) {
     return error.message

@@ -2,7 +2,9 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import { listen } from '@tauri-apps/api/event'
 import { StreamChunk, StreamingResponse } from '@/types'
+import { useSettingsStore } from '@/store/settings'
 import {
+  appendStreamContent,
   StreamDonePayload,
   StreamHeaderPayload,
   StreamRequestOptions,
@@ -70,10 +72,19 @@ export function useStreamingResponse() {
 
         setStreaming((prev) => {
           if (!prev) return null
+          // Read straight from the store rather than subscribing: this fires
+          // once per chunk and must not re-render on unrelated settings edits.
+          const { maxBufferKB } = useSettingsStore.getState().streaming
+          const { content, droppedChars } = appendStreamContent(
+            prev.currentContent,
+            chunk.data,
+            maxBufferKB
+          )
           return {
             ...prev,
             chunkCount: prev.chunkCount + 1,
-            currentContent: prev.currentContent + chunk.data,
+            currentContent: content,
+            truncatedChars: (prev.truncatedChars ?? 0) + droppedChars,
             timing: createStreamingTiming(startTime.current),
           }
         })

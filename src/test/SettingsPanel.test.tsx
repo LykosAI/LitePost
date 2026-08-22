@@ -20,6 +20,10 @@ vi.mock('@/store/settings', () => ({
       proxy: '',
     },
     updateNetworkSettings: vi.fn(),
+    streaming: {
+      maxBufferKB: 2048,
+    },
+    updateStreamingSettings: vi.fn(),
   }))
 }))
 

@@ -25,6 +25,8 @@ export interface StreamingResponse {
   headers: Record<string, string>
   chunkCount: number
   currentContent: string
+  /** Characters dropped off the front of `currentContent` by the buffer cap. */
+  truncatedChars?: number
   isComplete: boolean
   error?: string
   timing?: {

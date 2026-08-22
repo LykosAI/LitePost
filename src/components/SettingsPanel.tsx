@@ -6,7 +6,7 @@ import {
   SheetDescription,
 } from "@/components/ui/sheet"
 import { Button } from "@/components/ui/button"
-import { Settings, RotateCw, Palette, Sliders, RefreshCw, Globe, ShieldCheck } from "lucide-react"
+import { Settings, RotateCw, Palette, Sliders, RefreshCw, Globe, ShieldCheck, Radio } from "lucide-react"
 import { Label } from "@/components/ui/label"
 import { Slider } from "@/components/ui/slider"
 import { Input } from "@/components/ui/input"
@@ -28,8 +28,16 @@ interface SettingsPanelProps {
 
 export const SettingsPanel = forwardRef<HTMLDivElement, SettingsPanelProps>(
   ({ open, onOpenChange }, _ref) => {
-    const { jsonViewer, updateJSONViewerSettings, network: networkRaw, updateNetworkSettings } = useSettingsStore()
+    const {
+      jsonViewer,
+      updateJSONViewerSettings,
+      network: networkRaw,
+      updateNetworkSettings,
+      streaming: streamingRaw,
+      updateStreamingSettings,
+    } = useSettingsStore()
     const network = networkRaw ?? { timeout: 30, connectTimeout: 10, sslVerification: true, proxy: '' }
+    const streaming = streamingRaw ?? { maxBufferKB: 2048 }
     const { color: themeColor, setColor: setThemeColor } = useThemeStore()
     const themeClass = useThemeClass()
     const [isCheckingUpdate, setIsCheckingUpdate] = useState(false)
@@ -332,6 +340,48 @@ export const SettingsPanel = forwardRef<HTMLDivElement, SettingsPanelProps>(
                     />
                     <p className="text-[11px] text-muted-foreground/70">
                       Route all requests through a proxy. Leave empty for direct connections.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <Separator className="bg-border/30" />
+
+              {/* Streaming Settings */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-2">
+                  <Radio className="h-4 w-4 text-primary/60" />
+                  <div>
+                    <h3 className="text-sm font-semibold text-foreground">Streaming</h3>
+                    <p className="text-xs text-muted-foreground">
+                      How much of a long-running stream to keep on screen
+                    </p>
+                  </div>
+                </div>
+                <div className="grid gap-6 glass-card bg-secondary/10 p-5 border-border/30">
+                  <div className="space-y-3.5">
+                    <div className="flex justify-between items-center">
+                      <Label className="text-foreground text-[13px] font-semibold">Stream Buffer Limit</Label>
+                      <span className="text-[11px] font-mono font-bold text-primary/90 bg-primary/15 px-2 py-0.5 rounded-md border border-primary/20">
+                        {streaming.maxBufferKB === 0
+                          ? 'Unlimited'
+                          : `${(streaming.maxBufferKB / 1024).toFixed(1)} MB`}
+                      </span>
+                    </div>
+                    <Slider
+                      value={[streaming.maxBufferKB]}
+                      min={0}
+                      max={20480}
+                      step={512}
+                      onValueChange={([value]) =>
+                        updateStreamingSettings({ maxBufferKB: value })
+                      }
+                      className="[&_[role=slider]]:bg-primary [&_[role=slider]]:border-primary/80 [&_[role=slider]]:shadow-glow-sm cursor-col-resize"
+                    />
+                    <p className="text-[11px] text-muted-foreground/70">
+                      Keep only the most recent output from a stream, trimming the start once
+                      this limit is passed. Set to 0 to keep everything — a stream left open for
+                      hours will then grow without bound and steadily slow the response view.
                     </p>
                   </div>
                 </div>
