@@ -58,6 +58,14 @@ export function KeyValueList<T extends { key: string; value: string; enabled: bo
                 placeholder={valuePlaceholder}
                 value={item.value}
                 onChange={(e) => updateItem(index, 'value', e.target.value)}
+                onKeyDown={(e) => {
+                  // Enter in the last row starts the next one, so a list can
+                  // be typed without reaching for the Add button.
+                  if (e.key === 'Enter' && index === items.length - 1 && (item.key || item.value)) {
+                    e.preventDefault()
+                    addItem()
+                  }
+                }}
                 disabled={disabled}
                 className={cn(
                   "bg-muted/30 border-border/30 text-foreground text-[13px] h-8 w-full",
@@ -77,6 +85,7 @@ export function KeyValueList<T extends { key: string; value: string; enabled: bo
               size="icon"
               role="checkbox"
               aria-checked={item.enabled}
+              aria-label={item.key ? `Enable ${item.key}` : `Enable row ${index + 1}`}
               onClick={() => updateItem(index, 'enabled', !item.enabled)}
               className={cn(
                 "h-8 w-8 rounded-md",
@@ -102,7 +111,7 @@ export function KeyValueList<T extends { key: string; value: string; enabled: bo
               size="icon"
               onClick={() => removeItem(index)}
               disabled={disabled}
-              aria-label="trash"
+              aria-label={item.key ? `Delete ${item.key}` : `Delete row ${index + 1}`}
               className="h-8 w-8 rounded-md hover:bg-red-500/10 hover:text-red-400"
             >
               <Trash2 className="h-3.5 w-3.5" />

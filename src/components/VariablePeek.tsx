@@ -43,7 +43,7 @@ export function VariablePeek({ text, className, compact = false }: VariablePeekP
             <div className="font-semibold text-muted-foreground uppercase tracking-wider text-[10px]">Variables</div>
             {resolved.map(({ token, name, value }) => (
               <div key={token} className="font-mono text-[11px] bg-secondary/50 px-1.5 py-0.5 rounded flex items-center gap-2">
-                <span className="text-primary">{name}</span>
+                <span className="text-primary truncate max-w-[140px]">{name}</span>
                 <span className="text-muted-foreground/60">=</span>
                 {value !== undefined ? (
                   <span className="truncate max-w-[220px]">{value}</span>

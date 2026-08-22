@@ -7,7 +7,8 @@ import { ChevronRight, ChevronDown } from "lucide-react"
 const CHILDREN_PAGE_SIZE = 100
 
 interface CollapsibleJSONProps {
-  data: any
+  /** Any parsed JSON value — object, array, or primitive. */
+  data: unknown
   level?: number
   isExpanded?: boolean
   maxAutoExpandDepth?: number

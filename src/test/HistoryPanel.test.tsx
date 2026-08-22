@@ -135,7 +135,7 @@ describe('HistoryPanel', () => {
   it('calls onClear when clear button is clicked', () => {
     render(<HistoryPanel {...mockProps} />)
 
-    const clearButton = screen.getByRole('button', { name: '' }) // Trash icon button
+    const clearButton = screen.getByRole('button', { name: 'Clear history' })
     fireEvent.click(clearButton)
 
     const confirmButton = screen.getByRole('button', { name: 'Clear' })
@@ -147,7 +147,7 @@ describe('HistoryPanel', () => {
   it('does not call onClear when clear dialog is cancelled', () => {
     render(<HistoryPanel {...mockProps} />)
 
-    const clearButton = screen.getByRole('button', { name: '' }) // Trash icon button
+    const clearButton = screen.getByRole('button', { name: 'Clear history' })
     fireEvent.click(clearButton)
 
     const cancelButton = screen.getByRole('button', { name: 'Cancel' })
@@ -159,7 +159,7 @@ describe('HistoryPanel', () => {
   it('does not show clear button when history is empty', () => {
     render(<HistoryPanel {...mockProps} history={[]} />)
 
-    const clearButton = screen.queryByRole('button', { name: '' }) // Trash icon button
+    const clearButton = screen.queryByRole('button', { name: 'Clear history' })
     expect(clearButton).not.toBeInTheDocument()
   })
 }) 

@@ -26,6 +26,25 @@ const AUTH_CALLBACK_TIMEOUT_SECS: u64 = 300;
 /// `expires_in` cannot leave a poll loop running for hours.
 const DEVICE_CODE_DEFAULT_EXPIRES_SECS: u64 = 900;
 const DEVICE_CODE_MAX_EXPIRES_SECS: u64 = 1800;
+
+/// POST a form to an OAuth endpoint with the standard accept header and
+/// timeout. Every token/device request in this module sends the same shape;
+/// `err_prefix` labels a transport failure ("Token request failed: ...").
+async fn post_oauth_form(
+    client: &reqwest::Client,
+    url: &str,
+    params: &HashMap<String, String>,
+    err_prefix: &str,
+) -> Result<reqwest::Response, String> {
+    client
+        .post(url)
+        .header("accept", OAUTH_TOKEN_ACCEPT_HEADER)
+        .timeout(std::time::Duration::from_secs(30))
+        .form(params)
+        .send()
+        .await
+        .map_err(|e| format!("{}: {}", err_prefix, e))
+}
 const DEVICE_POLL_DEFAULT_INTERVAL_SECS: u64 = 5;
 
 #[derive(Debug, Deserialize)]
@@ -597,14 +616,7 @@ pub async fn oauth2_token_exchange(
     }
 
     let client = client_wrapper.get_or_init_client()?;
-    let res = client
-        .post(&token_url)
-        .header("accept", OAUTH_TOKEN_ACCEPT_HEADER)
-        .timeout(std::time::Duration::from_secs(30))
-        .form(&params)
-        .send()
-        .await
-        .map_err(|e| format!("Token request failed: {}", e))?;
+    let res = post_oauth_form(&client, &token_url, &params, "Token request failed").await?;
 
     if !res.status().is_success() {
         return Err(oauth_http_error("Token request failed", res).await);
@@ -758,14 +770,7 @@ pub async fn oauth2_auth_code_flow(
     }
 
     let client = client_wrapper.get_or_init_client()?;
-    let res = client
-        .post(&token_url)
-        .header("accept", OAUTH_TOKEN_ACCEPT_HEADER)
-        .timeout(std::time::Duration::from_secs(30))
-        .form(&params)
-        .send()
-        .await
-        .map_err(|e| format!("Token exchange failed: {}", e))?;
+    let res = post_oauth_form(&client, &token_url, &params, "Token exchange failed").await?;
 
     if !res.status().is_success() {
         return Err(oauth_http_error("Token exchange failed", res).await);
@@ -841,14 +846,13 @@ pub async fn oauth2_device_flow(
         params.insert("client_secret".to_string(), secret.clone());
     }
 
-    let res = client
-        .post(&device_auth_url)
-        .header("accept", OAUTH_TOKEN_ACCEPT_HEADER)
-        .timeout(std::time::Duration::from_secs(30))
-        .form(&params)
-        .send()
-        .await
-        .map_err(|e| format!("Device authorization request failed: {}", e))?;
+    let res = post_oauth_form(
+        &client,
+        &device_auth_url,
+        &params,
+        "Device authorization request failed",
+    )
+    .await?;
 
     if !res.status().is_success() {
         return Err(oauth_http_error("Device authorization request failed", res).await);
@@ -914,14 +918,8 @@ pub async fn oauth2_device_flow(
                 poll_params.insert("client_secret".to_string(), secret.clone());
             }
 
-            let res = client
-                .post(&token_url)
-                .header("accept", OAUTH_TOKEN_ACCEPT_HEADER)
-                .timeout(std::time::Duration::from_secs(30))
-                .form(&poll_params)
-                .send()
-                .await
-                .map_err(|e| format!("Token request failed: {}", e))?;
+            let res =
+                post_oauth_form(&client, &token_url, &poll_params, "Token request failed").await?;
 
             let status = res.status();
             let (content_type, body) = read_response_body(res).await?;
@@ -1090,14 +1088,7 @@ pub async fn oauth2_refresh(
     insert_optional_param(&mut params, "client_secret", options.client_secret);
 
     let client = client_wrapper.get_or_init_client()?;
-    let res = client
-        .post(&token_url)
-        .header("accept", OAUTH_TOKEN_ACCEPT_HEADER)
-        .timeout(std::time::Duration::from_secs(30))
-        .form(&params)
-        .send()
-        .await
-        .map_err(|e| format!("Refresh token request failed: {}", e))?;
+    let res = post_oauth_form(&client, &token_url, &params, "Refresh token request failed").await?;
 
     if !res.status().is_success() {
         return Err(oauth_http_error("Refresh failed", res).await);

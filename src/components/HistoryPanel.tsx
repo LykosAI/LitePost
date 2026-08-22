@@ -108,15 +108,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 
-const methodColors: Record<string, string> = {
-  GET: "bg-sky-500/12 text-sky-400 ring-sky-500/20",
-  POST: "bg-emerald-500/12 text-emerald-400 ring-emerald-500/20",
-  PUT: "bg-amber-500/12 text-amber-400 ring-amber-500/20",
-  PATCH: "bg-orange-500/12 text-orange-400 ring-orange-500/20",
-  DELETE: "bg-rose-500/12 text-rose-400 ring-rose-500/20",
-  HEAD: "bg-violet-500/12 text-violet-400 ring-violet-500/20",
-  OPTIONS: "bg-cyan-500/12 text-cyan-400 ring-cyan-500/20"
-}
+import { methodBadgeColors as methodColors } from "@/utils/methodColors"
 
 interface HistoryPanelProps {
   history: HistoryItem[]
@@ -174,6 +166,8 @@ export const HistoryPanel = memo(function HistoryPanel({ history, onSelect, onRe
                   <Button
                     variant="ghost"
                     size="sm"
+                    title="Clear history"
+                    aria-label="Clear history"
                     className="h-7 w-7 p-0 rounded-lg hover:bg-destructive/20 hover:text-destructive transition-colors ml-auto"
                   >
                     <Trash2 className="h-3.5 w-3.5" />

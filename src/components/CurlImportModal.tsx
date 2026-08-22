@@ -12,6 +12,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { parseCurlCommand, isCurlCommand } from "@/utils/curlParser"
 import { toast } from "sonner"
+import { methodOutlineColors as methodColors } from "@/utils/methodColors"
 import { Terminal, ArrowRight, AlertCircle } from "lucide-react"
 import { useThemeClass } from "@/hooks/useThemeClass"
 
@@ -71,19 +72,15 @@ export function CurlImportModal({ open, onOpenChange, onImport }: CurlImportModa
     }, [preview, onImport, onOpenChange])
 
     // Method color mapping (matching RequestUrlBar)
-    const methodColors: Record<string, string> = {
-        GET: "bg-sky-500/15 text-sky-400 border-sky-500/30",
-        POST: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30",
-        PUT: "bg-amber-500/15 text-amber-400 border-amber-500/30",
-        DELETE: "bg-rose-500/15 text-rose-400 border-rose-500/30",
-        PATCH: "bg-orange-500/15 text-orange-400 border-orange-500/30",
-        HEAD: "bg-violet-500/15 text-violet-400 border-violet-500/30",
-        OPTIONS: "bg-cyan-500/15 text-cyan-400 border-cyan-500/30",
-    }
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className={`${themeClass} sm:max-w-[680px] bg-background border-border/40 backdrop-blur-xl`}>
+            <DialogContent
+                className={`${themeClass} sm:max-w-[680px] bg-background border-border/40 backdrop-blur-xl`}
+                onKeyDown={(e) => {
+                    if ((e.ctrlKey || e.metaKey) && e.key === "Enter") handleImport()
+                }}
+            >
                 <DialogHeader>
                     <DialogTitle className="text-foreground flex items-center gap-2">
                         <Terminal className="h-5 w-5 text-primary/70" />

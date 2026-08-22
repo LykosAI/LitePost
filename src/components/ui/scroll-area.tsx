@@ -15,7 +15,12 @@ const ScrollArea = React.forwardRef<
     className={cn("relative overflow-hidden", className)}
     {...props}
   >
-    <ScrollAreaPrimitive.Viewport className="h-full w-full rounded-[inherit]">
+    {/* Radix wraps viewport children in a `display: table` div, which sizes
+        to its content — so long unbroken strings (URLs, hashes) blow past the
+        panel edge and `truncate` never gets a bounded width to ellipsize in.
+        Every ScrollArea in this app scrolls vertically only, so force the
+        wrapper back to block and let text truncation work. */}
+    <ScrollAreaPrimitive.Viewport className="h-full w-full rounded-[inherit] [&>div]:!block">
       {children}
     </ScrollAreaPrimitive.Viewport>
     <ScrollBar />

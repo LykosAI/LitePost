@@ -111,13 +111,27 @@ describe('CollectionsPanel', () => {
     expect(addCollection).toHaveBeenCalledWith('New Collection')
   })
 
-  it('deletes a collection when delete button is clicked', async () => {
+  it('deletes a collection after confirming the dialog', async () => {
     const { deleteCollection, user } = setup()
-    
+
     const deleteButtons = screen.getAllByRole('button', { name: /Delete Collection/i })
     await user.click(deleteButtons[0])
 
+    // Destructive: nothing happens until the confirmation dialog's Delete
+    expect(deleteCollection).not.toHaveBeenCalled()
+
+    await user.click(screen.getByRole('button', { name: 'Delete' }))
     expect(deleteCollection).toHaveBeenCalledWith('1')
+  })
+
+  it('does not delete a collection when the dialog is cancelled', async () => {
+    const { deleteCollection, user } = setup()
+
+    const deleteButtons = screen.getAllByRole('button', { name: /Delete Collection/i })
+    await user.click(deleteButtons[0])
+    await user.click(screen.getByRole('button', { name: 'Cancel' }))
+
+    expect(deleteCollection).not.toHaveBeenCalled()
   })
 
   it('updates collection name when input changes', async () => {
@@ -173,7 +187,9 @@ describe('CollectionsPanel', () => {
       method: 'POST',
       url: 'https://api.test.com',
       rawUrl: 'https://api.test.com',
-      name: 'https://api.test.com',
+      // The tab's own (possibly user-set) name is kept, not overwritten
+      // with a URL-derived one.
+      name: 'Unnamed Request',
       body: '{"test": true}',
       contentType: 'application/json',
       headers: [],
@@ -212,7 +228,7 @@ describe('CollectionsPanel', () => {
     await user.click(expandButton)
 
     // Find and click the request menu button by its aria-label
-    const menuButton = screen.getByRole('button', { name: '' })
+    const menuButton = screen.getByRole('button', { name: /Actions for/i })
     await user.click(menuButton)
 
     // Click the delete option

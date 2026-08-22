@@ -113,13 +113,36 @@ describe('EnvironmentManager', () => {
     })
   })
 
-  it('deletes environment when delete button is clicked', () => {
+  it('deletes environment after confirming the dialog', () => {
     render(<EnvironmentManager />)
-    
-    const deleteButtons = screen.getAllByRole('button', { name: '' }) // Trash icon button
-    fireEvent.click(deleteButtons[0]) // Delete first environment
-    
+
+    fireEvent.click(screen.getByRole('button', { name: 'Delete environment Development' }))
+
+    // Destructive: nothing happens until the confirmation dialog's Delete
+    expect(mockStore.deleteEnvironment).not.toHaveBeenCalled()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
     expect(mockStore.deleteEnvironment).toHaveBeenCalledWith('1')
+  })
+
+  it('does not delete environment when the dialog is cancelled', () => {
+    render(<EnvironmentManager />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Delete environment Development' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+
+    expect(mockStore.deleteEnvironment).not.toHaveBeenCalled()
+  })
+
+  it('shows an empty state when there are no environments', () => {
+    vi.mocked(useEnvironmentStore).mockReturnValue({
+      ...mockStore,
+      environments: [],
+      activeEnvironmentId: null,
+    })
+    render(<EnvironmentManager />)
+
+    expect(screen.getByText('No environments yet')).toBeInTheDocument()
   })
 
   it('changes active environment when select value changes', async () => {

@@ -22,9 +22,10 @@ export function useHistory() {
   // the temporal dead zone. Stable via applyHistory, so the effect runs once.
   const loadHistory = useCallback(async () => {
     try {
-      const loadedHistory = await loadFromFile<any[]>(HISTORY_FILE, [])
-      // Convert ISO strings back to Date objects
-      applyHistory(loadedHistory.slice(0, MAX_HISTORY_ITEMS).map((item: any) => ({
+      // On disk the timestamp is an ISO string; everything else round-trips.
+      type StoredHistoryItem = Omit<HistoryItem, 'timestamp'> & { timestamp: string }
+      const loadedHistory = await loadFromFile<StoredHistoryItem[]>(HISTORY_FILE, [])
+      applyHistory(loadedHistory.slice(0, MAX_HISTORY_ITEMS).map((item) => ({
         ...item,
         timestamp: new Date(item.timestamp)
       })))

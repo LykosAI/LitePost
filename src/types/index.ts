@@ -125,16 +125,6 @@ export interface AuthConfig {
   oauth2?: OAuth2Config
 }
 
-export interface Session {
-  id: string
-  name: string
-  cookies: Cookie[]
-  headers: Header[]
-  domain: string
-  createdAt: Date
-  lastUsed: Date
-}
-
 export interface TestScript {
   id: string
   name: string
@@ -198,6 +188,8 @@ export interface NetworkConfig {
 export interface Tab {
   id: string
   name: string
+  /** Set when the user renames the tab; suppresses URL-derived auto-renames. */
+  nameEdited?: boolean
   method: string
   url: string
   rawUrl: string
@@ -210,7 +202,6 @@ export interface Tab {
   isEditing?: boolean
   auth: AuthConfig
   cookies: Cookie[]
-  activeSession?: Session
   testScripts: TestScript[]
   preRequestScripts?: TestScript[]
   testAssertions: TestAssertion[]

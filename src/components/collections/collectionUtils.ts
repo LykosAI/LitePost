@@ -1,15 +1,8 @@
 import { Collection, SavedRequest, Tab } from "@/types"
 import { resolveRequestAuth } from "@/utils/collectionAuth"
 
-export const methodColors: Record<string, string> = {
-  GET: "bg-blue-500/10 text-blue-500",
-  POST: "bg-green-500/10 text-green-500",
-  PUT: "bg-yellow-500/10 text-yellow-500",
-  PATCH: "bg-orange-500/10 text-orange-500",
-  DELETE: "bg-red-500/10 text-red-500",
-  HEAD: "bg-purple-500/10 text-purple-500",
-  OPTIONS: "bg-cyan-500/10 text-cyan-500",
-}
+// Re-exported so CollectionCard badges share the app-wide method hues.
+export { methodBadgeColors as methodColors } from "@/utils/methodColors"
 
 /**
  * Open a saved request as a tab.

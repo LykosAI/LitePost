@@ -3,10 +3,10 @@ import { TestScript, TestAssertion, TestResult, Response } from "@/types"
 interface TestContext {
   response: Response
   test: (name: string, fn: () => void) => void
-  expect: (value: any) => {
+  expect: (value: unknown) => {
     to: {
-      equal: (expected: any) => void
-      contain: (expected: any) => void
+      equal: (expected: unknown) => void
+      contain: (expected: unknown) => void
       exist: () => void
       be: {
         greaterThan: (expected: number) => void
@@ -33,15 +33,16 @@ function createTestContext(response: Response): [TestContext, () => { name: stri
         })
       }
     },
-    expect: (value: any) => ({
+    expect: (value: unknown) => ({
       to: {
-        equal: (expected: any) => {
+        equal: (expected: unknown) => {
           if (value !== expected) {
             throw new Error(`Expected ${value} to equal ${expected}`)
           }
         },
-        contain: (expected: any) => {
-          if (!value?.includes?.(expected)) {
+        contain: (expected: unknown) => {
+          const container = value as { includes?: (needle: unknown) => boolean } | null | undefined
+          if (!container?.includes?.(expected)) {
             throw new Error(`Expected ${value} to contain ${expected}`)
           }
         },
@@ -69,17 +70,19 @@ function createTestContext(response: Response): [TestContext, () => { name: stri
   return [context, () => testResults]
 }
 
-function getValueFromPath(obj: any, path: string): any {
+function getValueFromPath(obj: unknown, path: string): unknown {
   // Handle array indices in path (e.g. "items[0].id")
   const parts = path.split('.')
-  return parts.reduce((acc, part) => {
+  return parts.reduce<unknown>((acc, part) => {
+    const record = acc as Record<string, unknown> | null | undefined
     // Check if part contains array index
     const match = part.match(/^(\w+)\[(\d+)\]$/)
     if (match) {
-      const [_, arrayName, index] = match
-      return acc?.[arrayName]?.[parseInt(index)]
+      const [, arrayName, index] = match
+      const array = record?.[arrayName] as unknown[] | undefined
+      return array?.[parseInt(index)]
     }
-    return acc?.[part]
+    return record?.[part]
   }, obj)
 }
 
@@ -88,8 +91,8 @@ function evaluateAssertion(
   response: Response
 ): { success: boolean; message: string } {
   try {
-    let actualValue: any
-    
+    let actualValue: unknown
+
     switch (assertion.type) {
       case 'status':
         actualValue = response.status

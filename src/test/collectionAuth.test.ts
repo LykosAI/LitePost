@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { resolveRequestAuth, isInheritingAuth } from '@/utils/collectionAuth'
+import { resolveRequestAuth } from '@/utils/collectionAuth'
 import { applyAuthToHeaders, setHeader } from '@/utils/authHeaders'
 import { importFromOpenapi } from '@/utils/collection-converter'
 import { AuthConfig } from '@/types'
@@ -45,16 +45,6 @@ describe('resolveRequestAuth', () => {
 
   it('tolerates a missing collection entirely', () => {
     expect(resolveRequestAuth({ auth: requestAuth, authMode: 'inherit' })).toEqual({ type: 'none' })
-  })
-})
-
-describe('isInheritingAuth', () => {
-  it('reports inheritance accurately across the modes', () => {
-    expect(isInheritingAuth({ auth: { type: 'none' }, authMode: 'inherit' }, { auth: collectionAuth })).toBe(true)
-    expect(isInheritingAuth({ auth: requestAuth, authMode: 'override' }, { auth: collectionAuth })).toBe(false)
-    expect(isInheritingAuth({ auth: requestAuth }, { auth: collectionAuth })).toBe(false)
-    expect(isInheritingAuth({ auth: { type: 'none' } }, { auth: collectionAuth })).toBe(true)
-    expect(isInheritingAuth({ auth: { type: 'none' } }, {})).toBe(false)
   })
 })
 

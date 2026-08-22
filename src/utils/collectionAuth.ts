@@ -33,15 +33,3 @@ export function resolveRequestAuth(
   return collection?.auth ?? request.auth ?? NO_AUTH
 }
 
-/**
- * Whether a request is currently taking its auth from the collection, for
- * showing the user where the auth they are about to send comes from.
- */
-export function isInheritingAuth(
-  request: Pick<SavedRequest, 'auth' | 'authMode'>,
-  collection?: Pick<Collection, 'auth'>
-): boolean {
-  if (request.authMode === 'override') return false
-  if (request.authMode === 'inherit') return true
-  return !(request.auth && request.auth.type !== 'none') && !!collection?.auth
-}

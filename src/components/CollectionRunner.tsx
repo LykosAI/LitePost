@@ -5,14 +5,14 @@ import { Progress } from "@/components/ui/progress"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Card } from "@/components/ui/card"
 import { Collection, SavedRequest, Response, TestResult } from "@/types"
-import { applyAuthToHeaders } from "@/utils/authHeaders"
 import { resolveRequestAuth } from "@/utils/collectionAuth"
+import { buildSendRequestOptions } from "@/utils/requestBuilder"
+import { methodTextColors as methodColors } from "@/utils/methodColors"
 import { useCollectionStore } from "@/store/collections"
 import { useEnvironmentStore } from "@/store/environments"
 import { useSettingsStore } from "@/store/settings"
 import { runTests } from "@/utils/testRunner"
 import { invoke } from "@tauri-apps/api/core"
-import { runPreRequestScripts } from "@/utils/preRequestRunner"
 import { applyExtractionRules } from "@/utils/responseExtraction"
 import {
     Dialog,
@@ -74,113 +74,19 @@ export function CollectionRunner({ open, onOpenChange }: CollectionRunnerProps) 
 
     const selectedCollection = collections.find((c) => c.id === selectedCollectionId)
 
-    const substituteVariables = useCallback(
-        (text: string): string => {
-            return text.replace(/\{\{([^}]+)\}\}/g, (match, key) => {
-                const value = getVariable(key.trim())
-                return value !== undefined ? value : match
-            })
-        },
-        [getVariable]
-    )
-
     const runRequest = useCallback(
         async (request: SavedRequest, collection?: Collection): Promise<RequestResult> => {
             const startTime = performance.now()
 
             try {
-                // Build headers
-                const headerRecord: Record<string, string> = {}
-                request.headers.forEach((header) => {
-                    if (header.enabled && header.key) {
-                        headerRecord[substituteVariables(header.key)] = substituteVariables(header.value)
-                    }
+                // Auth falls back to the collection's where the request does
+                // not carry its own — an imported spec relies on that.
+                const { options, method } = await buildSendRequestOptions(request, {
+                    auth: resolveRequestAuth(request, collection),
+                    getVariable,
+                    setVariable,
+                    globalNetwork,
                 })
-
-                // Apply auth, falling back to the collection's where the request
-                // does not carry its own — an imported spec relies on that.
-                let url = substituteVariables(request.rawUrl || request.url)
-                url = applyAuthToHeaders(
-                    resolveRequestAuth(request, collection),
-                    headerRecord,
-                    url,
-                    substituteVariables
-                )
-
-                // Cookie header
-                const cookieHeader = request.cookies
-                    .map(
-                        (c) =>
-                            `${encodeURIComponent(substituteVariables(c.name))}=${encodeURIComponent(
-                                substituteVariables(c.value)
-                            )}`
-                    )
-                    .join("; ")
-                if (cookieHeader) headerRecord["Cookie"] = cookieHeader
-
-                const body =
-                    request.body && request.method !== "GET" && request.method !== "HEAD"
-                        ? substituteVariables(request.body)
-                        : undefined
-
-                let method = request.method
-                let runtimeUrl = url
-                let runtimeBody = body
-                const runtimeHeaders = { ...headerRecord }
-
-                if (request.preRequestScripts && request.preRequestScripts.length > 0) {
-                    const runtime = await runPreRequestScripts({
-                        scripts: request.preRequestScripts,
-                        request: {
-                            method,
-                            url: runtimeUrl,
-                            headers: runtimeHeaders,
-                            body: runtimeBody,
-                        },
-                        getVariable,
-                        setVariable,
-                        substituteVariables,
-                    })
-
-                    method = runtime.method
-                    runtimeUrl = runtime.url
-                    runtimeBody = runtime.body
-                    Object.keys(runtimeHeaders).forEach((key) => {
-                        delete runtimeHeaders[key]
-                    })
-                    Object.assign(runtimeHeaders, runtime.headers)
-                }
-
-                const nc = request.networkConfig
-                const options: Record<string, unknown> = {
-                    method,
-                    url: runtimeUrl,
-                    headers: runtimeHeaders,
-                    body: runtimeBody,
-                    content_type:
-                        runtimeBody && method !== "GET" && method !== "HEAD"
-                            ? request.contentType
-                            : undefined,
-                    cookies: request.cookies.map((c) => ({
-                        ...c,
-                        name: substituteVariables(c.name),
-                        value: substituteVariables(c.value),
-                    })),
-                    timeout: (nc?.timeout ?? globalNetwork.timeout) || undefined,
-                    connect_timeout: (nc?.connectTimeout ?? globalNetwork.connectTimeout) || undefined,
-                    ssl_verification: nc?.sslVerification ?? globalNetwork.sslVerification,
-                    proxy: (nc?.proxy ?? globalNetwork.proxy) || undefined,
-                }
-
-                if (request.contentType === "multipart/form-data" && request.formDataEntries) {
-                    options.form_data = request.formDataEntries.map((entry) => ({
-                        ...entry,
-                        key: substituteVariables(entry.key),
-                        value: entry.type === "text" ? substituteVariables(entry.value) : entry.value,
-                        fileName: entry.fileName ? substituteVariables(entry.fileName) : entry.fileName,
-                    }))
-                    options.content_type = "multipart/form-data"
-                }
 
                 const responseData = await invoke<{
                     status: number
@@ -248,7 +154,7 @@ export function CollectionRunner({ open, onOpenChange }: CollectionRunnerProps) 
                 }
             }
         },
-        [activeEnvironmentId, getVariable, setVariable, substituteVariables, globalNetwork]
+        [activeEnvironmentId, getVariable, setVariable, globalNetwork]
     )
 
     const runCollection = useCallback(async () => {
@@ -293,15 +199,6 @@ export function CollectionRunner({ open, onOpenChange }: CollectionRunnerProps) 
     const progress = totalRequests > 0 ? (currentIndex / totalRequests) * 100 : 0
 
     // Method colors
-    const methodColors: Record<string, string> = {
-        GET: "text-sky-400",
-        POST: "text-emerald-400",
-        PUT: "text-amber-400",
-        DELETE: "text-rose-400",
-        PATCH: "text-orange-400",
-        HEAD: "text-violet-400",
-        OPTIONS: "text-cyan-400",
-    }
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>

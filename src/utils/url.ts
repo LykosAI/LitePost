@@ -9,17 +9,6 @@ export function getRequestNameFromUrl(url: string): string {
   }
 }
 
-export function decodeUrlForDisplay(url: string): string {
-  try {
-    // First try to parse it as a URL to handle full URLs
-    const parsed = new URL(url)
-    const decodedPath = decodeURIComponent(parsed.pathname)
-    return `${parsed.origin}${decodedPath}${parsed.search}`
-  } catch {
-    // If it's not a full URL, just decode the string
-    return decodeURIComponent(url)
-  }
-}
 
 const TEMPLATE_TOKEN_REGEX = /\{\{[^}]+\}\}/g
 

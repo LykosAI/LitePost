@@ -57,7 +57,7 @@ export const CollectionsPanel = forwardRef<HTMLDivElement, CollectionsPanelProps
     const [openapiRawModalOpen, setOpenapiRawModalOpen] = useState(false)
     const fileInputRef = useRef<HTMLInputElement>(null)
     const themeClass = useThemeClass()
-    const { width, isDragging, setIsDragging } = useResizablePanel(600, 450)
+    const { width, isDragging, setIsDragging } = useResizablePanel(600, 450, 0.9, "litepost:collectionsPanelWidth")
     const shouldLogImportErrors =
       typeof import.meta !== "undefined" &&
       Boolean(import.meta.env?.DEV) &&
@@ -82,11 +82,12 @@ export const CollectionsPanel = forwardRef<HTMLDivElement, CollectionsPanelProps
     const handleSaveCurrentRequest = (collectionId: string) => {
       if (!currentRequest) return
 
-      const { id, loading, response, isEditing, activeSession, ...requestData } = currentRequest
-      addRequest(collectionId, {
-        ...requestData,
-        name: getRequestNameFromUrl(requestData.url)
-      })
+      const { id, loading, response, isEditing, ...requestData } = currentRequest
+      // Keep the tab's name (it may be user-set); fall back to a URL-derived one.
+      const name = requestData.name?.trim() || getRequestNameFromUrl(requestData.url)
+      addRequest(collectionId, { ...requestData, name })
+      const collectionName = collections.find((c) => c.id === collectionId)?.name
+      toast.success(`Saved "${name}"${collectionName ? ` to ${collectionName}` : ''}`)
     }
 
     const handleSelectRequest = (request: Tab) => {
@@ -122,28 +123,25 @@ export const CollectionsPanel = forwardRef<HTMLDivElement, CollectionsPanelProps
       onOpenChange(false)
     }
 
-    const handleExport = () => {
-      const blob = new Blob([exportCollections()], { type: 'application/json' })
+    const downloadJson = (content: string, fileName: string) => {
+      const blob = new Blob([content], { type: 'application/json' })
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
-      a.download = 'litepost-collections.json'
+      a.download = fileName
       document.body.appendChild(a)
       a.click()
       document.body.removeChild(a)
       URL.revokeObjectURL(url)
+      toast.success(`Exported ${fileName}`)
+    }
+
+    const handleExport = () => {
+      downloadJson(exportCollections(), 'litepost-collections.json')
     }
 
     const handleExportPostman = () => {
-      const blob = new Blob([exportToPostman()], { type: 'application/json' })
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = 'postman-collections.json'
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
-      URL.revokeObjectURL(url)
+      downloadJson(exportToPostman(), 'postman-collections.json')
     }
 
     const handleImport = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -260,6 +258,9 @@ export const CollectionsPanel = forwardRef<HTMLDivElement, CollectionsPanelProps
         >
           {/* Resize Handle */}
           <div
+            role="separator"
+            aria-orientation="vertical"
+            aria-label="Resize panel"
             className="absolute left-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-primary/20 active:bg-primary/30 z-50 transition-colors group"
             onMouseDown={(e) => { e.preventDefault(); setIsDragging(true); }}
           >

@@ -6,6 +6,7 @@ import { Loader2 } from "lucide-react"
 import { fetchJsonViaBackend } from "@/utils/backendFetch"
 import { BaseUrlVariableToggle } from "./BaseUrlVariableToggle"
 import { DEFAULT_BASE_URL_VARIABLE } from "./openapiImportShared"
+import { useThemeClass } from "@/hooks/useThemeClass"
 
 interface OpenapiDoc {
   servers?: { url?: string }[]
@@ -26,6 +27,7 @@ export function OpenapiUrlImportModal({ open, onOpenChange, onImport }: OpenapiU
   const [detectedServers, setDetectedServers] = useState<string[]>([])
   const [loadedDoc, setLoadedDoc] = useState<OpenapiDoc | null>(null)
   const [useVariable, setUseVariable] = useState(true)
+  const themeClass = useThemeClass()
 
   const reset = () => {
     setOpenapiUrl("")
@@ -96,7 +98,12 @@ export function OpenapiUrlImportModal({ open, onOpenChange, onImport }: OpenapiU
 
   return (
     <Dialog open={open} onOpenChange={(next) => { if (!next) reset(); onOpenChange(next) }}>
-      <DialogContent className="sm:max-w-[600px] bg-background border-border">
+      <DialogContent
+        className={`${themeClass} sm:max-w-[600px] bg-background border-border`}
+        onKeyDown={(e) => {
+          if ((e.ctrlKey || e.metaKey) && e.key === "Enter" && !isLoading) handleImport()
+        }}
+      >
         <DialogHeader>
           <DialogTitle className="text-foreground">Import OpenAPI from URL</DialogTitle>
           <DialogDescription className="text-muted-foreground">
@@ -114,7 +121,8 @@ export function OpenapiUrlImportModal({ open, onOpenChange, onImport }: OpenapiU
                 setDetectedServers([])
                 setError(null)
               }}
-              onKeyDown={(e) => { if (e.key === "Enter") loadSpec() }}
+              onKeyDown={(e) => { if (e.key === "Enter" && !e.ctrlKey && !e.metaKey) loadSpec() }}
+              autoFocus
               className="font-mono text-[13px] bg-background text-foreground border-border placeholder:text-muted-foreground"
             />
             <Button
@@ -179,7 +187,7 @@ export function OpenapiUrlImportModal({ open, onOpenChange, onImport }: OpenapiU
         <DialogFooter className="mt-4 flex justify-end gap-2">
           <Button
             variant="outline"
-            onClick={() => onOpenChange(false)}
+            onClick={() => { reset(); onOpenChange(false) }}
             className="text-foreground hover:text-foreground border-border"
           >
             Cancel

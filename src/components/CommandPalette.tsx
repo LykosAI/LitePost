@@ -7,15 +7,7 @@ import { useUiStore } from "@/store/ui"
 import { cn } from "@/lib/utils"
 import { Beaker, Check, Clock, Folder, History, Plus, Search, Settings, Terminal, Zap } from "lucide-react"
 
-const methodColors: Record<string, string> = {
-  GET: "text-sky-400",
-  POST: "text-emerald-400",
-  PUT: "text-amber-400",
-  PATCH: "text-orange-400",
-  DELETE: "text-rose-400",
-  HEAD: "text-violet-400",
-  OPTIONS: "text-cyan-400",
-}
+import { methodTextColors as methodColors } from "@/utils/methodColors"
 
 interface PaletteResult {
   kind: "history" | "saved" | "environment" | "action"
@@ -263,7 +255,9 @@ export function CommandPalette({
                     "flex-1 min-w-0 truncate text-foreground/90",
                     (result.kind === "history" || result.kind === "saved") && "font-mono"
                   )}>{result.label}</span>
-                  {result.sub && <span className="text-[11px] text-muted-foreground/50 shrink-0">{result.sub}</span>}
+                  {/* Capped: an unbounded shrink-0 sub (e.g. a long collection
+                      name) would force the whole row wider than the dialog. */}
+                  {result.sub && <span className="text-[11px] text-muted-foreground/50 max-w-[30%] truncate">{result.sub}</span>}
                 </button>
               </div>
             )

@@ -2,6 +2,17 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -102,15 +113,39 @@ export function CollectionCard({
           >
             <RotateCw className="h-4 w-4" />
           </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => onDeleteCollection(collection.id)}
-            className="h-8 text-destructive-foreground hover:text-destructive-foreground hover:bg-destructive"
-            aria-label={`Delete Collection ${collection.name}`}
-          >
-            <Trash2 className="h-4 w-4" />
-          </Button>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 text-destructive-foreground hover:text-destructive-foreground hover:bg-destructive"
+                aria-label={`Delete Collection ${collection.name}`}
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent className={`${themeClass} bg-background border-border/40 shadow-2xl rounded-2xl`}>
+              <AlertDialogHeader>
+                <AlertDialogTitle className="text-foreground font-bold">Delete Collection</AlertDialogTitle>
+                <AlertDialogDescription className="text-muted-foreground">
+                  This will permanently delete "{collection.name}"
+                  {collection.requests.length > 0
+                    ? ` and its ${collection.requests.length} saved request${collection.requests.length === 1 ? '' : 's'}`
+                    : ''}
+                  . This action cannot be undone.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel className="bg-secondary/50 text-foreground hover:bg-secondary border-none rounded-xl transition-colors">Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={() => onDeleteCollection(collection.id)}
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90 rounded-xl transition-all shadow-lg shadow-destructive/20"
+                >
+                  Delete
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
       </div>
 
@@ -160,7 +195,12 @@ export function CollectionCard({
               </div>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="sm" className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    aria-label={`Actions for ${request.name}`}
+                    className="h-7 w-7 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity"
+                  >
                     <MoreVertical className="h-3.5 w-3.5" />
                   </Button>
                 </DropdownMenuTrigger>
