@@ -18,7 +18,7 @@ interface EnvironmentPanelProps {
 export const EnvironmentPanel = forwardRef<HTMLDivElement, EnvironmentPanelProps>(
   ({ open, onOpenChange }, _ref) => {
     const themeClass = useThemeClass()
-    const { width, isDragging, setIsDragging } = useResizablePanel(600, 400)
+    const { width, isDragging, setIsDragging } = useResizablePanel(600, 400, 0.9, "litepost:environmentPanelWidth")
 
     return (
       <Sheet open={open} onOpenChange={onOpenChange}>
@@ -29,6 +29,9 @@ export const EnvironmentPanel = forwardRef<HTMLDivElement, EnvironmentPanelProps
         >
           {/* Resize Handle */}
           <div
+            role="separator"
+            aria-orientation="vertical"
+            aria-label="Resize panel"
             className="absolute left-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-primary/20 active:bg-primary/30 z-50 transition-colors group"
             onMouseDown={(e) => { e.preventDefault(); setIsDragging(true); }}
           >

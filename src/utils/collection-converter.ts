@@ -197,7 +197,28 @@ function buildUrl(urlObj: PostmanItem['request']['url']): string {
  * Postman export, the wrong JSON file) produced an empty collection and a
  * success toast, which is a much worse outcome than an error.
  */
-function assertOpenapiDocument(doc: unknown): asserts doc is Record<string, any> {
+interface OpenapiParameter {
+  name?: string
+  in?: string
+  schema?: { default?: unknown }
+}
+
+interface OpenapiOperation {
+  summary?: string
+  parameters?: OpenapiParameter[]
+  requestBody?: { content?: Record<string, unknown> }
+}
+
+/** The slice of an OpenAPI 3.x document the importer actually reads. */
+interface OpenapiDocument {
+  openapi?: unknown
+  swagger?: unknown
+  info?: { title?: string; description?: string }
+  paths?: Record<string, Record<string, OpenapiOperation>>
+  [key: string]: unknown
+}
+
+function assertOpenapiDocument(doc: unknown): asserts doc is OpenapiDocument {
   if (!doc || typeof doc !== "object" || Array.isArray(doc)) {
     throw new Error("That is not an OpenAPI document — expected a JSON object.");
   }
@@ -228,7 +249,7 @@ export interface OpenapiImportOptions {
 }
 
 export function importFromOpenapi(
-  openapiDoc: any,
+  openapiDoc: unknown,
   baseUrl: string,
   options: OpenapiImportOptions = {}
 ): Collection[] {
@@ -288,10 +309,10 @@ export function importFromOpenapi(
           fullUrl = serverUrl ? serverUrl.replace(/\/$/, '') + path : path;
         }
         const params = (operation.parameters || [])
-          .filter((param: any) => param.in !== "path")
-          .map((param: any) => ({
-            key: param.name,
-            value: param.schema && param.schema.default ? String(param.schema.default) : "",
+          .filter((param) => param.in !== "path")
+          .map((param) => ({
+            key: param.name ?? "",
+            value: param.schema && param.schema.default !== undefined ? String(param.schema.default) : "",
             enabled: true
           }));
         let contentType = "application/json";

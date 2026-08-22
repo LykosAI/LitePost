@@ -1,6 +1,7 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import { Plus, Save } from "lucide-react"
 import {
   Dialog,
@@ -14,9 +15,11 @@ import { useThemeClass } from "@/hooks/useThemeClass"
 interface SaveRequestDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  onSave: (collectionId: string) => void
-  onNewCollection: (name: string) => void
+  onSave: (collectionId: string, name: string) => void
+  onNewCollection: (collectionName: string, name: string) => void
   collections: Collection[]
+  /** Prefills the request-name field; falls back to a URL-derived name. */
+  defaultName?: string
 }
 
 export function SaveRequestDialog({
@@ -25,14 +28,25 @@ export function SaveRequestDialog({
   onSave,
   onNewCollection,
   collections,
+  defaultName = '',
 }: SaveRequestDialogProps) {
+  const [requestName, setRequestName] = useState(defaultName)
   const [newCollectionName, setNewCollectionName] = useState('')
   const [isAddingCollection, setIsAddingCollection] = useState(false)
   const themeClass = useThemeClass()
 
+  // Re-seed the name each time the dialog opens for the current tab.
+  useEffect(() => {
+    if (open) {
+      setRequestName(defaultName)
+      setIsAddingCollection(false)
+      setNewCollectionName('')
+    }
+  }, [open, defaultName])
+
   const handleAddCollection = () => {
     if (!newCollectionName.trim()) return
-    onNewCollection(newCollectionName.trim())
+    onNewCollection(newCollectionName.trim(), requestName)
     setNewCollectionName('')
     setIsAddingCollection(false)
   }
@@ -44,6 +58,17 @@ export function SaveRequestDialog({
           <DialogTitle className="text-foreground">Save to Collection</DialogTitle>
         </DialogHeader>
         <div className="space-y-4 mt-4">
+          <div className="space-y-1.5">
+            <Label htmlFor="save-request-name" className="text-foreground">Request name</Label>
+            <Input
+              id="save-request-name"
+              placeholder="Request name"
+              value={requestName}
+              onChange={(e) => setRequestName(e.target.value)}
+              className="bg-background text-foreground"
+            />
+          </div>
+
           {isAddingCollection ? (
             <div className="flex gap-2">
               <Input
@@ -61,8 +86,8 @@ export function SaveRequestDialog({
                 autoFocus
                 className="flex-1 bg-background text-foreground"
               />
-              <Button 
-                variant="secondary" 
+              <Button
+                variant="secondary"
                 onClick={handleAddCollection}
                 disabled={!newCollectionName.trim()}
               >
@@ -79,7 +104,7 @@ export function SaveRequestDialog({
               New Collection
             </Button>
           )}
-          
+
           {collections.length === 0 ? (
             !isAddingCollection && (
               <p className="text-sm text-muted-foreground">
@@ -91,11 +116,14 @@ export function SaveRequestDialog({
               <Button
                 key={collection.id}
                 variant="outline"
+                title={collection.name}
                 className="w-full justify-start text-foreground hover:bg-muted"
-                onClick={() => onSave(collection.id)}
+                onClick={() => onSave(collection.id, requestName)}
               >
-                <Save className="h-4 w-4 mr-2" />
-                {collection.name}
+                <Save className="h-4 w-4 mr-2 shrink-0" />
+                {/* Buttons are whitespace-nowrap; an uncapped long collection
+                    name would stretch the row past the dialog edge. */}
+                <span className="truncate">{collection.name}</span>
               </Button>
             ))
           )}
@@ -103,4 +131,4 @@ export function SaveRequestDialog({
       </DialogContent>
     </Dialog>
   )
-} 
+}

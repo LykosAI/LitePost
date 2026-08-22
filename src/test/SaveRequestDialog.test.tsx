@@ -101,18 +101,18 @@ describe('SaveRequestDialog', () => {
     await user.click(screen.getByText('New Collection'))
     await user.type(screen.getByPlaceholderText('Collection name'), 'New Collection')
     await user.click(screen.getByText('Add'))
-    
-    expect(onNewCollection).toHaveBeenCalledWith('New Collection')
+
+    expect(onNewCollection).toHaveBeenCalledWith('New Collection', '')
   })
 
   it('calls onNewCollection when pressing Enter in input', async () => {
     const { user, onNewCollection } = setup()
-    
+
     await user.click(screen.getByText('New Collection'))
     const input = screen.getByPlaceholderText('Collection name')
     await user.type(input, 'New Collection{enter}')
-    
-    expect(onNewCollection).toHaveBeenCalledWith('New Collection')
+
+    expect(onNewCollection).toHaveBeenCalledWith('New Collection', '')
   })
 
   it('cancels new collection input when pressing Escape', async () => {
@@ -148,16 +148,37 @@ describe('SaveRequestDialog', () => {
     await user.click(screen.getByText('New Collection'))
     await user.type(screen.getByPlaceholderText('Collection name'), '  New Collection  ')
     await user.click(screen.getByText('Add'))
-    
-    expect(onNewCollection).toHaveBeenCalledWith('New Collection')
+
+    expect(onNewCollection).toHaveBeenCalledWith('New Collection', '')
   })
 
   it('calls onSave when clicking on a collection', async () => {
     const { user, onSave } = setup()
-    
+
     await user.click(screen.getByText('Collection 1'))
-    
-    expect(onSave).toHaveBeenCalledWith('1')
+
+    expect(onSave).toHaveBeenCalledWith('1', '')
+  })
+
+  it('prefills the request name from defaultName and passes it to onSave', async () => {
+    const { user, onSave } = setup({ defaultName: 'Create user' })
+
+    expect(screen.getByPlaceholderText('Request name')).toHaveValue('Create user')
+
+    await user.click(screen.getByText('Collection 1'))
+
+    expect(onSave).toHaveBeenCalledWith('1', 'Create user')
+  })
+
+  it('passes an edited request name to onSave', async () => {
+    const { user, onSave } = setup({ defaultName: 'Create user' })
+
+    const nameInput = screen.getByPlaceholderText('Request name')
+    await user.clear(nameInput)
+    await user.type(nameInput, 'Renamed request')
+    await user.click(screen.getByText('Collection 1'))
+
+    expect(onSave).toHaveBeenCalledWith('1', 'Renamed request')
   })
 
   it('clears input when adding a new collection', async () => {

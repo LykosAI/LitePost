@@ -1,5 +1,7 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from 'react'
-import { basicAuthValue } from '@/utils/base64'
+import { applyAuthToHeaders } from '@/utils/authHeaders'
+import { substituteVariables as substitute } from '@/utils/variables'
+import { useEnvironmentStore } from '@/store/environments'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -72,6 +74,7 @@ export function WebSocketPanel({ url, headers, auth }: WebSocketPanelProps) {
     clearMessages,
   } = useWebSocket()
 
+  const { getVariable } = useEnvironmentStore()
   const [messageInput, setMessageInput] = useState('')
   const [formatJson, setFormatJson] = useState(true)
   const [filter, setFilter] = useState<MessageFilter>('all')
@@ -105,26 +108,30 @@ export function WebSocketPanel({ url, headers, auth }: WebSocketPanelProps) {
       return
     }
 
+    // Resolve {{variables}} and apply auth the same way a normal send does.
+    const substituteVariables = (text: string) => substitute(text, getVariable)
     const headerRecord: Record<string, string> = {}
     headers.forEach(h => {
       if (h.enabled && h.key) {
-        headerRecord[h.key] = h.value
+        headerRecord[substituteVariables(h.key)] = substituteVariables(h.value)
       }
     })
 
-    // Apply auth
-    if (auth.type === 'basic' && auth.username) {
-      headerRecord['Authorization'] = basicAuthValue(auth.username, auth.password || '')
-    } else if (auth.type === 'bearer' && auth.token) {
-      headerRecord['Authorization'] = `Bearer ${auth.token}`
-    } else if (auth.type === 'api-key' && auth.key && auth.value && auth.addTo === 'header') {
-      headerRecord[auth.key] = auth.value
-    } else if (auth.type === 'oauth2' && auth.oauth2?.accessToken) {
-      headerRecord['Authorization'] = `${auth.oauth2.tokenType || 'Bearer'} ${auth.oauth2.accessToken}`
+    // Re-derive the ws(s) protocol after substitution — a {{baseUrl}} URL
+    // isn't parseable until its variables are resolved.
+    let connectUrl = substituteVariables(wsUrl)
+    try {
+      const parsed = new URL(connectUrl)
+      if (parsed.protocol === 'http:') parsed.protocol = 'ws:'
+      else if (parsed.protocol === 'https:') parsed.protocol = 'wss:'
+      connectUrl = parsed.toString()
+    } catch {
+      // Not a parseable URL — send as typed and let the backend report it
     }
+    connectUrl = applyAuthToHeaders(auth, headerRecord, connectUrl, substituteVariables)
 
-    connect({ url: wsUrl, headers: headerRecord })
-  }, [isConnected, wsUrl, headers, auth, connect, disconnect])
+    connect({ url: connectUrl, headers: headerRecord })
+  }, [isConnected, wsUrl, headers, auth, getVariable, connect, disconnect])
 
   const handleSend = useCallback(() => {
     if (!messageInput.trim() || !isConnected) return

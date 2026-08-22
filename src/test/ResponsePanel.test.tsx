@@ -105,7 +105,7 @@ describe('ResponsePanel', () => {
     render(<ResponsePanel response={mockJsonResponse} />)
     expect(screen.getByText('OK')).toBeInTheDocument()
     expect(screen.getByText('100ms')).toBeInTheDocument()
-    expect(screen.getByText('0.2KB')).toBeInTheDocument()
+    expect(screen.getByText('200 B')).toBeInTheDocument()
   })
 
   it('renders JSON response with collapsible viewer', async () => {

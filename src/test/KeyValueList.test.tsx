@@ -36,7 +36,7 @@ describe('KeyValueList', () => {
     const onItemsChange = vi.fn()
     render(<KeyValueList items={initialItems} onItemsChange={onItemsChange} />)
     
-    fireEvent.click(screen.getByLabelText('trash'))
+    fireEvent.click(screen.getByLabelText('Delete test'))
     expect(onItemsChange).toHaveBeenCalledWith([])
   })
 
@@ -114,7 +114,7 @@ describe('KeyValueList', () => {
     const onItemsChange = vi.fn()
     render(<KeyValueList items={initialItems} onItemsChange={onItemsChange} />)
     
-    const trashButtons = screen.getAllByLabelText('trash')
+    const trashButtons = screen.getAllByLabelText(/^Delete /)
     fireEvent.click(trashButtons[1]) // Remove middle item
     
     expect(onItemsChange).toHaveBeenCalledWith([
@@ -122,4 +122,27 @@ describe('KeyValueList', () => {
       { key: 'key3', value: 'value3', enabled: true }
     ])
   })
-}) 
+
+  it('adds a new row on Enter in the last row value field', () => {
+    const initialItems = [{ key: 'test', value: 'value', enabled: true }]
+    const onItemsChange = vi.fn()
+    render(<KeyValueList items={initialItems} onItemsChange={onItemsChange} />)
+
+    fireEvent.keyDown(screen.getByPlaceholderText('Value'), { key: 'Enter' })
+
+    expect(onItemsChange).toHaveBeenCalledWith([
+      { key: 'test', value: 'value', enabled: true },
+      { key: '', value: '', enabled: true }
+    ])
+  })
+
+  it('does not add a row on Enter in an empty row', () => {
+    const initialItems = [{ key: '', value: '', enabled: true }]
+    const onItemsChange = vi.fn()
+    render(<KeyValueList items={initialItems} onItemsChange={onItemsChange} />)
+
+    fireEvent.keyDown(screen.getByPlaceholderText('Value'), { key: 'Enter' })
+
+    expect(onItemsChange).not.toHaveBeenCalled()
+  })
+})

@@ -28,16 +28,7 @@ import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useSta
 const HTTP_METHODS = ["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"]
 const URL_IDLE_COMMIT_MS = 800
 
-// Method-specific colors for the select trigger (brighter/more vivid)
-const methodSelectColors: Record<string, string> = {
-  GET: "text-sky-400 drop-shadow-[0_0_8px_rgba(56,189,248,0.25)]",
-  POST: "text-emerald-400 drop-shadow-[0_0_8px_rgba(52,211,153,0.25)]",
-  PUT: "text-amber-400 drop-shadow-[0_0_8px_rgba(251,191,36,0.25)]",
-  DELETE: "text-rose-400 drop-shadow-[0_0_8px_rgba(251,113,133,0.25)]",
-  PATCH: "text-orange-400 drop-shadow-[0_0_8px_rgba(251,146,60,0.25)]",
-  HEAD: "text-violet-400 drop-shadow-[0_0_8px_rgba(167,139,250,0.25)]",
-  OPTIONS: "text-cyan-400 drop-shadow-[0_0_8px_rgba(34,211,238,0.25)]",
-}
+import { methodGlowColors as methodSelectColors } from "@/utils/methodColors"
 
 interface RequestUrlBarProps {
   method: string

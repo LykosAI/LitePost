@@ -23,7 +23,11 @@ import { RequestUrlBar } from "./RequestUrlBar"
 import { SaveRequestDialog } from "./SaveRequestDialog"
 import { CookieEditor } from "./CookieEditor"
 import { useStreamingResponse } from "@/hooks/useStreamingResponse"
-import { applyAuthToRequest } from "@/utils/auth"
+import { useEnvironmentStore } from "@/store/environments"
+import { substituteVariables as substitute } from "@/utils/variables"
+import { applyAuthToHeaders } from "@/utils/authHeaders"
+import { formatBytes } from "@/utils/format"
+import { toast } from "sonner"
 import type { RequestBodyEditorHandle } from "./RequestBodyEditor"
 import type { RequestUrlBarHandle } from "./RequestUrlBar"
 
@@ -155,6 +159,8 @@ interface RequestPanelProps {
   onAuthChange: (auth: AuthConfig) => void
   /** The tab this panel is showing, used to scope in-flight OAuth sign-ins. */
   tabId?: string
+  /** Current tab name, offered as the default when saving to a collection. */
+  tabName?: string
   onCookiesChange: (cookies: Cookie[]) => void
   onTestScriptsChange: (scripts: TestScript[]) => void
   onPreRequestScriptsChange?: (scripts: TestScript[]) => void
@@ -192,6 +198,7 @@ export function RequestPanel({
   contentType,
   auth,
   tabId,
+  tabName,
   cookies,
   response,
   testScripts,
@@ -224,6 +231,7 @@ export function RequestPanel({
   onNetworkConfigChange,
 }: RequestPanelProps) {
   const { collections, addRequest, addCollection } = useCollectionStore()
+  const { getVariable } = useEnvironmentStore()
   const [saveDialogOpen, setSaveDialogOpen] = useState(false)
   // "" = every section collapsed (chips only); the response owns the window.
   const [activeConfigTab, setActiveConfigTab] = useState("")
@@ -286,6 +294,7 @@ export function RequestPanel({
   const getLatestUrl = useCallback(() => urlBarRef.current?.flush() ?? url, [url])
 
   const handleSend = useCallback(() => {
+    if (loadingRef.current || isStreamingRef.current) return
     onSend({
       body: getLatestBody(),
       url: getLatestUrl(),
@@ -328,19 +337,31 @@ export function RequestPanel({
   // Add keyboard event handler
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Check if Enter is pressed and Ctrl/Cmd is not held down (to avoid conflicts with newlines in body)
-      if (e.key === 'Enter' && !e.ctrlKey && !e.metaKey && !loadingRef.current && !isStreamingRef.current) {
-        const activeElement = document.activeElement
-        const isInTextArea = activeElement?.tagName === 'TEXTAREA'
-        const isInInput = activeElement?.tagName === 'INPUT'
-        const isContentEditable = activeElement?.hasAttribute('contenteditable')
-        // Monaco editors wrap content in a div with this class
-        const isInMonaco = activeElement?.closest('.monaco-editor') != null
+      if (e.key !== 'Enter' || loadingRef.current || isStreamingRef.current) return
 
-        if (!isInTextArea && !isInInput && !isContentEditable && !isInMonaco) {
-          e.preventDefault()
-          onSendRef.current()
-        }
+      const activeElement = document.activeElement
+      // Never fire behind an open dialog — Enter on a focused dialog button
+      // would both activate it and send the request underneath.
+      if (activeElement?.closest('[role="dialog"], [role="alertdialog"]')) return
+
+      // Ctrl/Cmd+Enter sends from anywhere, including the body editor.
+      if (e.ctrlKey || e.metaKey) {
+        e.preventDefault()
+        onSendRef.current()
+        return
+      }
+
+      // Bare Enter only sends outside text-entry contexts (inputs handle
+      // their own Enter; editors need it for newlines).
+      const isInTextArea = activeElement?.tagName === 'TEXTAREA'
+      const isInInput = activeElement?.tagName === 'INPUT'
+      const isContentEditable = activeElement?.hasAttribute('contenteditable')
+      // Monaco editors wrap content in a div with this class
+      const isInMonaco = activeElement?.closest('.monaco-editor') != null
+
+      if (!isInTextArea && !isInInput && !isContentEditable && !isInMonaco) {
+        e.preventDefault()
+        onSendRef.current()
       }
     }
 
@@ -361,7 +382,7 @@ export function RequestPanel({
       return null
     }
 
-    return body.length > 1024 ? `${(body.length / 1024).toFixed(1)}K` : `${body.length}B`
+    return formatBytes(body.length)
   }, [body])
 
   const activeOverflowTab = OVERFLOW_TABS.find((tab) => tab.value === activeConfigTab) ?? null
@@ -375,11 +396,11 @@ export function RequestPanel({
     setActiveConfigTab((current) => (current === value ? "" : value))
   }, [])
 
-  const handleSaveToCollection = (collectionId: string) => {
+  const buildRequestData = (name: string) => {
     const latestBody = getLatestBody()
     const latestUrl = getLatestUrl()
-    const requestData = {
-      name: getRequestNameFromUrl(latestUrl),
+    return {
+      name: name.trim() || getRequestNameFromUrl(latestUrl),
       method,
       url: latestUrl,
       rawUrl: latestUrl,
@@ -401,43 +422,22 @@ export function RequestPanel({
       formDataEntries,
       networkConfig,
     }
-
-    addRequest(collectionId, requestData)
-    setSaveDialogOpen(false)
   }
 
-  const handleAddCollection = (name: string) => {
-    const latestBody = getLatestBody()
-    const latestUrl = getLatestUrl()
-    // Create new collection and get its ID
-    const newCollection = addCollection(name)
-
-    // Add request to the new collection
-    addRequest(newCollection, {
-      name: getRequestNameFromUrl(latestUrl),
-      method,
-      url: latestUrl,
-      rawUrl: latestUrl,
-      params,
-      headers,
-      body: latestBody,
-      contentType,
-      auth,
-      cookies,
-      testScripts,
-      preRequestScripts,
-      testAssertions,
-      testResults,
-      extractionRules,
-      graphqlQuery,
-      graphqlVariables,
-      graphqlOperationName,
-      isGraphQL,
-      formDataEntries,
-      networkConfig,
-    })
-
+  const handleSaveToCollection = (collectionId: string, name: string) => {
+    const requestData = buildRequestData(name)
+    addRequest(collectionId, requestData)
     setSaveDialogOpen(false)
+    const collectionName = collections.find((c) => c.id === collectionId)?.name
+    toast.success(`Saved "${requestData.name}"${collectionName ? ` to ${collectionName}` : ''}`)
+  }
+
+  const handleAddCollection = (collectionName: string, name: string) => {
+    const requestData = buildRequestData(name)
+    const newCollection = addCollection(collectionName)
+    addRequest(newCollection, requestData)
+    setSaveDialogOpen(false)
+    toast.success(`Saved "${requestData.name}" to ${collectionName}`)
   }
 
   const handleRunTests = async () => {
@@ -446,11 +446,16 @@ export function RequestPanel({
     onTestResultsChange(results)
   }
 
-  // Prepare request data based on current state
+  // Prepare request data based on current state. Mirrors the pipeline in
+  // utils/requestBuilder — substitution and auth included, so a streamed
+  // {{baseUrl}}/events with a {{token}} bearer resolves exactly like a
+  // regular send instead of going out verbatim.
   const prepareRequestData = () => {
+    const substituteVariables = (text: string) => substitute(text, getVariable)
     const latestBody = getLatestBody()
     const latestUrl = getLatestUrl()
-    // Build URL with params
+
+    // Build URL with params, then resolve variables in the whole thing
     let finalUrl = latestUrl
     if (params.length > 0) {
       const queryString = buildQueryString(params)
@@ -458,24 +463,30 @@ export function RequestPanel({
         finalUrl = replaceUrlQuery(finalUrl, queryString)
       }
     }
+    finalUrl = substituteVariables(finalUrl)
 
     // Prepare headers with auth
     const preparedHeaders: Record<string, string> = {}
-    const headersWithAuth = applyAuthToRequest(headers, auth)
-
-    headersWithAuth.forEach((header: Header) => {
+    headers.forEach((header) => {
       if (header.enabled && header.key) {
-        preparedHeaders[header.key] = header.value || ''
+        preparedHeaders[substituteVariables(header.key)] = substituteVariables(header.value || '')
       }
     })
+    finalUrl = applyAuthToHeaders(auth, preparedHeaders, finalUrl, substituteVariables)
 
     // Prepare cookies
-    const preparedCookies = cookies.filter(cookie => cookie.name)
+    const preparedCookies = cookies
+      .filter(cookie => cookie.name)
+      .map(cookie => ({
+        ...cookie,
+        name: substituteVariables(cookie.name),
+        value: substituteVariables(cookie.value),
+      }))
 
     return {
       finalUrl,
       preparedHeaders,
-      preparedBody: latestBody,
+      preparedBody: substituteVariables(latestBody),
       preparedCookies
     }
   }
@@ -538,6 +549,7 @@ export function RequestPanel({
         onSave={handleSaveToCollection}
         onNewCollection={handleAddCollection}
         collections={collections}
+        defaultName={tabName || getRequestNameFromUrl(url)}
       />
 
       {/* Gradient separator */}
@@ -692,6 +704,7 @@ export function RequestPanel({
                 onBodyChange={onBodyChange}
                 onContentTypeChange={onContentTypeChange}
                 onFormDataEntriesChange={onFormDataEntriesChange}
+                onSend={handleSend}
               />
             </Suspense>
           </TabsContent>
@@ -783,6 +796,7 @@ export function RequestPanel({
                     onGraphQLChange?.({ graphqlOperationName: n })
                     onBodyChange(buildGraphQLBody(graphqlQuery, graphqlVariables, n))
                   }}
+                  onSend={handleSend}
                 />
               </Suspense>
             ) : (

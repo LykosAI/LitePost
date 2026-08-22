@@ -245,7 +245,7 @@ describe('TabBar', () => {
     expect(onStopEditing).toHaveBeenCalledWith('tab1', 'Request 1')
   })
 
-  it('hides close button when only one tab exists', () => {
+  it('still offers the close button for a single tab (closing it resets to a fresh one)', () => {
     const { tabs: [singleTab], ...props } = setup()
     cleanup()
     render(
@@ -255,7 +255,19 @@ describe('TabBar', () => {
         activeTab={singleTab.id}
       />
     )
-    expect(screen.queryByTestId('x-icon')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: `Close ${singleTab.name}` })).toBeInTheDocument()
+  })
+
+  it('closes a tab on middle-click', () => {
+    const { onCloseTab, tabs } = setup()
+
+    const tabLabel = screen.getByText(tabs[0].name)
+    fireEvent(
+      tabLabel,
+      new MouseEvent('auxclick', { bubbles: true, cancelable: true, button: 1 })
+    )
+
+    expect(onCloseTab).toHaveBeenCalledWith(tabs[0].id)
   })
 
   it('handles horizontal scrolling', () => {

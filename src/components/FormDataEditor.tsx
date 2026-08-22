@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/select"
 import { Plus, Trash2, File, Upload, X } from "lucide-react"
 import { useThemeClass } from "@/hooks/useThemeClass"
+import { formatBytes } from "@/utils/format"
 
 export interface FormDataEntry {
     id: string
@@ -30,11 +31,6 @@ interface FormDataEditorProps {
     onEntriesChange: (entries: FormDataEntry[]) => void
 }
 
-function formatFileSize(bytes: number): string {
-    if (bytes < 1024) return `${bytes} B`
-    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
-    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
-}
 
 export function FormDataEditor({ entries, onEntriesChange }: FormDataEditorProps) {
     const themeClass = useThemeClass()
@@ -197,7 +193,7 @@ export function FormDataEditor({ entries, onEntriesChange }: FormDataEditorProps
                                                 <span className="truncate">{entry.fileName}</span>
                                                 {entry.fileSize && (
                                                     <span className="text-muted-foreground shrink-0">
-                                                        ({formatFileSize(entry.fileSize)})
+                                                        ({formatBytes(entry.fileSize)})
                                                     </span>
                                                 )}
                                             </Badge>

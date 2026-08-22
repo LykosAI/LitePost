@@ -67,6 +67,9 @@ function App() {
     setActiveTab,
     addTab,
     closeTab,
+    closeOtherTabs,
+    closeTabsToRight,
+    duplicateTab,
     updateTab,
     startEditing,
     stopEditing,
@@ -105,6 +108,51 @@ function App() {
     window.addEventListener("keydown", handleKeyDown)
     return () => window.removeEventListener("keydown", handleKeyDown)
   }, [togglePalette])
+
+  // Ref mirrors so the tab-shortcut listener stays stable across renders.
+  const tabsRef = useRef(tabs)
+  tabsRef.current = tabs
+  const activeTabRef = useRef(activeTab)
+  activeTabRef.current = activeTab
+
+  // Tab management shortcuts: Ctrl+T new, Ctrl+W close, Ctrl(+Shift)+Tab
+  // cycle, Ctrl+1–9 jump (9 = last, as in every browser).
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (!(e.ctrlKey || e.metaKey)) return
+      const currentTabs = tabsRef.current
+      const current = activeTabRef.current
+
+      if (e.key === "Tab") {
+        e.preventDefault()
+        const index = currentTabs.findIndex((tab) => tab.id === current)
+        if (index === -1) return
+        const nextIndex = e.shiftKey
+          ? (index - 1 + currentTabs.length) % currentTabs.length
+          : (index + 1) % currentTabs.length
+        setActiveTab(currentTabs[nextIndex].id)
+        return
+      }
+      if (e.shiftKey) return
+
+      const key = e.key.toLowerCase()
+      if (key === "t") {
+        e.preventDefault()
+        addTab()
+      } else if (key === "w") {
+        e.preventDefault()
+        closeTab(current)
+      } else if (e.key >= "1" && e.key <= "9") {
+        const index = e.key === "9" ? currentTabs.length - 1 : Number(e.key) - 1
+        if (index < currentTabs.length) {
+          e.preventDefault()
+          setActiveTab(currentTabs[index].id)
+        }
+      }
+    }
+    window.addEventListener("keydown", handleKeyDown)
+    return () => window.removeEventListener("keydown", handleKeyDown)
+  }, [addTab, closeTab, setActiveTab])
 
   // Mirror the theme class onto <html> so portaled content (tooltips, menus,
   // dialogs) inherits theme tokens instead of falling back to :root defaults.
@@ -155,24 +203,22 @@ function App() {
     const requestUrl = overrides.url ?? tab?.rawUrl
     if (!tab || !requestUrl?.trim()) return
 
+    const urlUpdates = overrides.url === undefined ? {} : {
+      rawUrl: overrides.url,
+      url: overrides.url,
+      // A user-set tab name survives URL edits.
+      ...(tab.nameEdited ? {} : { name: getRequestNameFromUrl(overrides.url) }),
+    }
     const requestTab = {
       ...tab,
       ...(overrides.body === undefined ? {} : { body: overrides.body }),
-      ...(overrides.url === undefined ? {} : {
-        rawUrl: overrides.url,
-        url: overrides.url,
-        name: getRequestNameFromUrl(overrides.url),
-      }),
+      ...urlUpdates,
     }
     updateTab(tabId, {
       loading: true,
       response: null,
       ...(overrides.body === undefined ? {} : { body: overrides.body }),
-      ...(overrides.url === undefined ? {} : {
-        rawUrl: overrides.url,
-        url: overrides.url,
-        name: getRequestNameFromUrl(overrides.url),
-      }),
+      ...urlUpdates,
     })
     const response = await sendRequest(requestTab)
     updateTab(tabId, { loading: false, response: response || null })
@@ -300,6 +346,9 @@ function App() {
                     onTabChange={setActiveTab}
                     onAddTab={addTab}
                     onCloseTab={closeTab}
+                    onCloseOtherTabs={closeOtherTabs}
+                    onCloseTabsToRight={closeTabsToRight}
+                    onDuplicateTab={duplicateTab}
                     onStartEditing={startEditing}
                     onStopEditing={stopEditing}
                   />
@@ -318,6 +367,7 @@ function App() {
                           body={currentTab.body}
                           contentType={currentTab.contentType}
                           auth={currentTab.auth}
+                          tabName={currentTab.name}
                           cookies={currentTab.cookies}
                           response={currentTab.response}
                           testScripts={currentTab.testScripts}
@@ -330,7 +380,8 @@ function App() {
                             updateTab(currentTab.id, {
                               rawUrl,
                               url: rawUrl,
-                              name: getRequestNameFromUrl(rawUrl)
+                              // A user-set tab name survives URL edits.
+                              ...(currentTab.nameEdited ? {} : { name: getRequestNameFromUrl(rawUrl) })
                             })
                           }}
                           onParamsChange={(params) => updateTab(currentTab.id, { params })}

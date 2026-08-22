@@ -63,23 +63,24 @@ vi.mock('@/components/CodeSnippetViewer', () => ({
 
 // Add mock for SaveRequestDialog
 vi.mock('@/components/SaveRequestDialog', () => ({
-  SaveRequestDialog: ({ onSave, onNewCollection, open }: { 
-    onSave: (id: string) => void,
-    onNewCollection: (name: string) => void,
-    open: boolean
+  SaveRequestDialog: ({ onSave, onNewCollection, open, defaultName }: {
+    onSave: (id: string, name: string) => void,
+    onNewCollection: (collectionName: string, name: string) => void,
+    open: boolean,
+    defaultName?: string
   }) => {
     if (!open) return null;
     return (
       <div data-testid="save-dialog">
-        <button 
+        <button
           data-testid="save-to-existing"
-          onClick={() => onSave('collection-1')}
+          onClick={() => onSave('collection-1', defaultName ?? '')}
         >
           Save to Existing
         </button>
-        <button 
+        <button
           data-testid="create-new"
-          onClick={() => onNewCollection('New Collection')}
+          onClick={() => onNewCollection('New Collection', defaultName ?? '')}
         >
           Create New
         </button>
@@ -383,6 +384,10 @@ describe('RequestPanel Save Functionality', () => {
 });
 
 describe('Keyboard Shortcuts', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
   const mockProps = {
     method: 'GET',
     url: 'https://api.example.com',
@@ -413,15 +418,39 @@ describe('Keyboard Shortcuts', () => {
     addCollection: vi.fn()
   };
 
-  it('does not trigger send with Ctrl+Enter', async () => {
+  it('triggers send with Ctrl+Enter, even from a text-entry context', async () => {
     render(<RequestPanel {...mockProps} />);
-    
-    fireEvent.keyDown(document, { 
-      key: 'Enter', 
+
+    // Ctrl+Enter is the send-from-anywhere shortcut — it must fire even
+    // while focus is in a textarea (where bare Enter must not).
+    const textarea = document.createElement('textarea')
+    document.body.appendChild(textarea)
+    textarea.focus()
+
+    fireEvent.keyDown(document, {
+      key: 'Enter',
       ctrlKey: true,
-      metaKey: false 
+      metaKey: false
     });
-    
-    expect(mockProps.onSend).not.toHaveBeenCalled();
+
+    expect(mockProps.onSend).toHaveBeenCalled();
+    document.body.removeChild(textarea)
   });
-}); 
+
+  it('does not send on Enter while a dialog is open', async () => {
+    render(<RequestPanel {...mockProps} />);
+
+    const dialog = document.createElement('div')
+    dialog.setAttribute('role', 'dialog')
+    const button = document.createElement('button')
+    dialog.appendChild(button)
+    document.body.appendChild(dialog)
+    button.focus()
+
+    fireEvent.keyDown(document, { key: 'Enter', ctrlKey: false });
+    fireEvent.keyDown(document, { key: 'Enter', ctrlKey: true });
+
+    expect(mockProps.onSend).not.toHaveBeenCalled();
+    document.body.removeChild(dialog)
+  });
+});

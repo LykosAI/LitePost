@@ -1,5 +1,7 @@
 import { useCallback, useRef, useEffect, useState, useMemo } from "react"
-import { basicAuthValue } from "@/utils/base64"
+import { applyAuthToHeaders } from "@/utils/authHeaders"
+import { substituteVariables as substitute } from "@/utils/variables"
+import { useEnvironmentStore } from "@/store/environments"
 import Editor, { OnMount, loader } from "@monaco-editor/react"
 import type { editor as MonacoEditor, IDisposable } from "monaco-editor"
 import { Button } from "@/components/ui/button"
@@ -46,6 +48,8 @@ interface GraphQLEditorProps {
     onQueryChange: (query: string) => void
     onVariablesChange: (variables: string) => void
     onOperationNameChange: (name: string) => void
+    /** Ctrl/Cmd+Enter inside either editor sends the request. */
+    onSend?: () => void
 }
 
 // Simple Monaco theme config for the GraphQL editor - uses the same bg as body editor
@@ -68,8 +72,11 @@ export function GraphQLEditor({
     onQueryChange,
     onVariablesChange,
     onOperationNameChange,
+    onSend,
 }: GraphQLEditorProps) {
     const { color: themeColor } = useThemeStore()
+    const onSendRef = useRef(onSend)
+    onSendRef.current = onSend
     const [activeSection, setActiveSection] = useState<"query" | "variables">("query")
     const queryEditorRef = useRef<MonacoEditor.IStandaloneCodeEditor | null>(null)
     const varsEditorRef = useRef<MonacoEditor.IStandaloneCodeEditor | null>(null)
@@ -77,6 +84,7 @@ export function GraphQLEditor({
     const completionDisposableRef = useRef<IDisposable | null>(null)
 
     const { getSchema, isLoading, getError, setSchema, setLoading, setError } = useGraphQLSchemaStore()
+    const { getVariable } = useEnvironmentStore()
     const schema = getSchema(url)
     const loading = isLoading(url)
     const schemaError = getError(url)
@@ -153,18 +161,27 @@ export function GraphQLEditor({
         },
     }
 
+    // Monaco swallows Ctrl+Enter, so the send shortcut must be an editor command.
+    const registerSendCommand = useCallback((editor: MonacoEditor.IStandaloneCodeEditor) => {
+        editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, () => {
+            onSendRef.current?.()
+        })
+    }, [])
+
     const handleQueryMount: OnMount = useCallback(
         (editor) => {
             queryEditorRef.current = editor
+            registerSendCommand(editor)
         },
-        []
+        [registerSendCommand]
     )
 
     const handleVarsMount: OnMount = useCallback(
         (editor) => {
             varsEditorRef.current = editor
+            registerSendCommand(editor)
         },
-        []
+        [registerSendCommand]
     )
 
     // Sync external query changes
@@ -202,26 +219,19 @@ export function GraphQLEditor({
         setError(url, null)
 
         try {
-            // Build headers for introspection request
+            // Build headers for introspection request, resolving {{variables}}
+            // and applying auth the same way a normal send does.
+            const substituteVariables = (text: string) => substitute(text, getVariable)
             const headerRecord: Record<string, string> = {
                 'Content-Type': 'application/json',
             }
             headers.forEach(h => {
                 if (h.enabled && h.key) {
-                    headerRecord[h.key] = h.value
+                    headerRecord[substituteVariables(h.key)] = substituteVariables(h.value)
                 }
             })
 
-            // Apply auth
-            if (auth.type === 'basic' && auth.username) {
-                headerRecord['Authorization'] = basicAuthValue(auth.username, auth.password || '')
-            } else if (auth.type === 'bearer' && auth.token) {
-                headerRecord['Authorization'] = `Bearer ${auth.token}`
-            } else if (auth.type === 'api-key' && auth.key && auth.value && auth.addTo === 'header') {
-                headerRecord[auth.key] = auth.value
-            } else if (auth.type === 'oauth2' && auth.oauth2?.accessToken) {
-                headerRecord['Authorization'] = `${auth.oauth2.tokenType || 'Bearer'} ${auth.oauth2.accessToken}`
-            }
+            const requestUrl = applyAuthToHeaders(auth, headerRecord, substituteVariables(url), substituteVariables)
 
             const response = await invoke<{
                 status: number
@@ -229,7 +239,7 @@ export function GraphQLEditor({
             }>('send_request', {
                 options: {
                     method: 'POST',
-                    url,
+                    url: requestUrl,
                     headers: headerRecord,
                     body: JSON.stringify({ query: INTROSPECTION_QUERY }),
                     content_type: 'application/json',
@@ -249,7 +259,7 @@ export function GraphQLEditor({
         } finally {
             setLoading(url, false)
         }
-    }, [url, loading, headers, auth, setLoading, setError, setSchema])
+    }, [url, loading, headers, auth, getVariable, setLoading, setError, setSchema])
 
     const userTypeCount = schema
         ? Array.from(schema.types.values()).filter(t => t.name && !t.name.startsWith('__')).length

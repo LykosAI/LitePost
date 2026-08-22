@@ -12,6 +12,7 @@ import { HeadersView } from "./HeadersView"
 import { TimingView } from "./TimingView"
 import { Send, ArrowUpRight, Clock, HardDrive, AlertTriangle, Filter } from "lucide-react"
 import { runJsonQuery } from "@/utils/jsonQuery"
+import { formatBytes } from "@/utils/format"
 import { extractGraphQLErrors, type GraphQLError } from "@/utils/graphqlSchema"
 import { ResponseStreamer } from "./ResponseStreamer"
 import { LazySyntaxHighlighter } from "./LazySyntaxHighlighter"
@@ -41,13 +42,6 @@ const cnFilterBadge = (state: "matched" | "partial" | "none") =>
         : "text-destructive bg-destructive/10"
   }`
 
-const formatByteSize = (size: number) => {
-  if (size >= 1024 * 1024) {
-    return `${(size / (1024 * 1024)).toFixed(1)}MB`
-  }
-
-  return `${Math.max(1, Math.round(size / 1024))}KB`
-}
 
 function ResponsePanelComponent({
   response,
@@ -257,7 +251,7 @@ function ResponsePanelComponent({
                 {response.size && (
                   <span className="flex items-center gap-1 text-xs text-muted-foreground font-mono">
                     <HardDrive className="h-3 w-3" />
-                    {(response.size.total / 1024).toFixed(1)}KB
+                    {formatBytes(response.size.total)}
                   </span>
                 )}
               </div>
@@ -347,7 +341,7 @@ function ResponsePanelComponent({
               ) : isLargeBody ? (
                 <div className="space-y-2">
                   <p className="text-xs text-muted-foreground/70 pr-8">
-                    Large response ({formatByteSize(bodySize)}). Showing plain text to reduce memory usage.
+                    Large response ({formatBytes(bodySize)}). Showing plain text to reduce memory usage.
                   </p>
                   <pre className="text-sm font-mono whitespace-pre-wrap break-all text-foreground">
                     {response.body}

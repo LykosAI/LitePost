@@ -80,6 +80,8 @@ interface RequestBodyEditorProps {
   onBodyChange: (body: string) => void
   onContentTypeChange: (contentType: string) => void
   onFormDataEntriesChange?: (entries: FormDataEntry[]) => void
+  /** Ctrl/Cmd+Enter inside the editor sends the request. */
+  onSend?: () => void
 }
 
 export interface RequestBodyEditorHandle {
@@ -93,6 +95,7 @@ export const RequestBodyEditor = forwardRef<RequestBodyEditorHandle, RequestBody
   onBodyChange,
   onContentTypeChange,
   onFormDataEntriesChange,
+  onSend,
 }, ref) {
   const themeClass = useThemeClass()
   const { color: themeColor } = useThemeStore()
@@ -106,6 +109,8 @@ export const RequestBodyEditor = forwardRef<RequestBodyEditorHandle, RequestBody
   // Keep a stable ref to onBodyChange so delayed commits always call the latest version
   const onBodyChangeRef = useRef(onBodyChange)
   onBodyChangeRef.current = onBodyChange
+  const onSendRef = useRef(onSend)
+  onSendRef.current = onSend
 
   const clearIdleCommit = useCallback(() => {
     if (idleCommitTimer.current) {
@@ -151,6 +156,12 @@ export const RequestBodyEditor = forwardRef<RequestBodyEditorHandle, RequestBody
     blurDisposableRef.current?.dispose()
     blurDisposableRef.current = editor.onDidBlurEditorText(() => {
       flushBody()
+    })
+
+    // Monaco swallows Ctrl+Enter (insert line below), so the app-wide
+    // send shortcut must be registered as an editor command.
+    editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, () => {
+      onSendRef.current?.()
     })
   }, [flushBody, themeColor])
 

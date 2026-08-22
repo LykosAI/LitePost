@@ -41,10 +41,12 @@ const CollectionRunner = lazy(async () => {
   return { default: module.CollectionRunner }
 })
 
-const isTauri = typeof window !== 'undefined' && !!(window as any).__TAURI_INTERNALS__
+const isTauri =
+  typeof window !== 'undefined' &&
+  !!(window as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__
 
 export function TitleBar({ currentRequest, onRequestSelect }: TitleBarProps) {
-  const [appWindow, setAppWindow] = useState<any>(null)
+  const [appWindow, setAppWindow] = useState<import('@tauri-apps/api/window').Window | null>(null)
 
   useEffect(() => {
     if (isTauri) {
@@ -94,7 +96,7 @@ export function TitleBar({ currentRequest, onRequestSelect }: TitleBarProps) {
   // Keyboard shortcut: Ctrl+I to open cURL import
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === 'i') {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'i') {
         e.preventDefault()
         openPanel('curl-import')
       }

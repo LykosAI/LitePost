@@ -41,7 +41,7 @@ export const SettingsPanel = forwardRef<HTMLDivElement, SettingsPanelProps>(
     const { color: themeColor, setColor: setThemeColor } = useThemeStore()
     const themeClass = useThemeClass()
     const [isCheckingUpdate, setIsCheckingUpdate] = useState(false)
-    const { width, isDragging, setIsDragging } = useResizablePanel(480, 400)
+    const { width, isDragging, setIsDragging } = useResizablePanel(480, 400, 0.9, "litepost:settingsPanelWidth")
 
     const handleCheckUpdate = async () => {
       setIsCheckingUpdate(true)
@@ -70,6 +70,9 @@ export const SettingsPanel = forwardRef<HTMLDivElement, SettingsPanelProps>(
         >
           {/* Resize Handle */}
           <div
+            role="separator"
+            aria-orientation="vertical"
+            aria-label="Resize panel"
             className="absolute left-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-primary/20 active:bg-primary/30 z-50 transition-colors group"
             onMouseDown={(e) => { e.preventDefault(); setIsDragging(true); }}
           >
@@ -147,9 +150,9 @@ export const SettingsPanel = forwardRef<HTMLDivElement, SettingsPanelProps>(
                 </div>
                 <div className="flex items-center justify-between glass-card bg-secondary/10 p-4 border-border/30">
                   <div className="space-y-1">
-                    <Label className="text-foreground text-[13px] font-semibold">Auto Updates</Label>
+                    <Label className="text-foreground text-[13px] font-semibold">Updates</Label>
                     <p className="text-[11px] text-muted-foreground/80">
-                      We check daily for new background patches
+                      Updates are checked automatically — check now to see right away
                     </p>
                   </div>
                   <Button

@@ -2,8 +2,7 @@ import { invoke } from '@tauri-apps/api/core'
 import { Tab, HistoryItem } from '@/types'
 import { useEnvironmentStore } from '@/store/environments'
 import { useSettingsStore } from '@/store/settings'
-import { substituteVariables as substitute } from '@/utils/variables'
-import { applyAuthToHeaders, setHeader } from '@/utils/authHeaders'
+import { buildSendRequestOptions } from '@/utils/requestBuilder'
 
 interface RedirectInfo {
   url: string
@@ -50,99 +49,16 @@ export function useRequest(onHistoryUpdate: (item: HistoryItem) => void) {
   const { getVariable, setVariable } = useEnvironmentStore()
   const { network: globalNetwork } = useSettingsStore()
 
-  const substituteVariables = (text: string): string => substitute(text, getVariable)
-
   const sendRequest = async (tab: Tab) => {
     if (!tab.rawUrl) return null
 
     try {
-      // Substitute environment variables in URL and headers
-      let url = substituteVariables(tab.rawUrl)
-      const headerRecord: Record<string, string> = {}
-      tab.headers.forEach(header => {
-        if (header.enabled && header.key) {
-          headerRecord[substituteVariables(header.key)] = substituteVariables(header.value)
-        }
+      const { options, method } = await buildSendRequestOptions(tab, {
+        auth: tab.auth,
+        getVariable,
+        setVariable,
+        globalNetwork,
       })
-
-      // Handle authentication with variable substitution
-      url = applyAuthToHeaders(tab.auth, headerRecord, url, substituteVariables)
-
-      // Add cookies to headers with variable substitution
-      const cookieHeader = tab.cookies
-        .map(c => `${encodeURIComponent(substituteVariables(c.name))}=${encodeURIComponent(substituteVariables(c.value))}`)
-        .join('; ')
-
-      if (cookieHeader) {
-        setHeader(headerRecord, 'Cookie', cookieHeader)
-      }
-
-      // Substitute variables in body if it exists
-      let body = tab.body && tab.method !== "GET" && tab.method !== "HEAD"
-        ? substituteVariables(tab.body)
-        : undefined
-      let method = tab.method
-
-      if (tab.preRequestScripts && tab.preRequestScripts.length > 0) {
-        const { runPreRequestScripts } = await import('@/utils/preRequestRunner')
-        const runtime = await runPreRequestScripts({
-          scripts: tab.preRequestScripts,
-          request: {
-            method,
-            url,
-            headers: headerRecord,
-            body,
-          },
-          getVariable,
-          setVariable,
-          substituteVariables,
-        })
-
-        method = runtime.method
-        url = runtime.url
-        body = runtime.body
-
-        // Replace header values with runtime values.
-        Object.keys(headerRecord).forEach((key) => {
-          delete headerRecord[key]
-        })
-        Object.assign(headerRecord, runtime.headers)
-      }
-
-      // Merge network config: per-request overrides global defaults
-      const nc = tab.networkConfig
-      const timeout = nc?.timeout ?? globalNetwork.timeout
-      const connect_timeout = nc?.connectTimeout ?? globalNetwork.connectTimeout
-      const ssl_verification = nc?.sslVerification ?? globalNetwork.sslVerification
-      const proxy = nc?.proxy ?? globalNetwork.proxy
-
-      const options: Record<string, unknown> = {
-        method,
-        url,
-        headers: headerRecord,
-        body,
-        content_type: body && method !== "GET" && method !== "HEAD" ? tab.contentType : undefined,
-        cookies: tab.cookies.map(c => ({
-          ...c,
-          name: substituteVariables(c.name),
-          value: substituteVariables(c.value)
-        })),
-        timeout: timeout || undefined,
-        connect_timeout: connect_timeout || undefined,
-        ssl_verification,
-        proxy: proxy || undefined,
-      }
-
-      // Include form data for multipart/form-data requests
-      if (tab.contentType === 'multipart/form-data' && tab.formDataEntries) {
-        options.form_data = tab.formDataEntries.map((entry) => ({
-          ...entry,
-          key: substituteVariables(entry.key),
-          value: entry.type === 'text' ? substituteVariables(entry.value) : entry.value,
-          fileName: entry.fileName ? substituteVariables(entry.fileName) : entry.fileName
-        }))
-        options.content_type = 'multipart/form-data'
-      }
 
       const response = await invoke<ResponseData>('send_request', { options })
 

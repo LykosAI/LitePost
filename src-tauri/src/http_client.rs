@@ -244,11 +244,9 @@ where
 {
     let mut total = 0.0;
     let mut has_value = false;
-    for value in values {
-        if let Some(v) = value {
-            total += v;
-            has_value = true;
-        }
+    for v in values.into_iter().flatten() {
+        total += v;
+        has_value = true;
     }
     has_value.then_some(total)
 }
@@ -366,7 +364,7 @@ fn perform_curl_request(
                     return true;
                 };
 
-                let line = raw_line.trim_end_matches(|c| c == '\r' || c == '\n');
+                let line = raw_line.trim_end_matches(['\r', '\n']);
                 if line.is_empty() {
                     return true;
                 }

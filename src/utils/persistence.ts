@@ -1,4 +1,6 @@
-const isTauri = typeof window !== 'undefined' && !!(window as any).__TAURI_INTERNALS__
+const isTauri =
+  typeof window !== 'undefined' &&
+  !!(window as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__
 
 const shouldLogPersistenceErrors =
   typeof import.meta !== 'undefined' &&
@@ -82,30 +84,31 @@ export async function saveToFile(filename: string, data: unknown): Promise<void>
 }
 
 // Helper to convert ISO date strings back to Date objects in loaded data
-export function convertDates<T>(obj: any): T {
+export function convertDates<T>(obj: unknown): T {
   if (obj === null || obj === undefined) {
-    return obj
+    return obj as T
   }
 
-  if (obj instanceof Array) {
-    return obj.map(item => convertDates<any>(item)) as unknown as T
+  if (Array.isArray(obj)) {
+    return obj.map(item => convertDates<unknown>(item)) as unknown as T
   }
 
   if (obj instanceof Object) {
-    const converted = { ...obj }
+    const converted: Record<string, unknown> = { ...(obj as Record<string, unknown>) }
     for (const key in converted) {
-      if (typeof converted[key] === 'string') {
+      const value = converted[key]
+      if (typeof value === 'string') {
         // Check if string matches ISO date format
-        const dateCheck = Date.parse(converted[key])
-        if (!isNaN(dateCheck) && converted[key].includes('T')) {
-          converted[key] = new Date(converted[key])
+        const dateCheck = Date.parse(value)
+        if (!isNaN(dateCheck) && value.includes('T')) {
+          converted[key] = new Date(value)
         }
-      } else if (converted[key] instanceof Object) {
-        converted[key] = convertDates(converted[key])
+      } else if (value instanceof Object) {
+        converted[key] = convertDates(value)
       }
     }
     return converted as T
   }
 
-  return obj
+  return obj as T
 }

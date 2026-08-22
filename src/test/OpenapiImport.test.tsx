@@ -58,7 +58,8 @@ describe('OpenapiImportModal', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /import/i }))
 
-    expect(toast.error).toHaveBeenCalledWith('Please paste the OpenAPI JSON content.')
+    // Validation failures surface inline in the dialog, not as toasts
+    expect(screen.getByText('Please paste the OpenAPI JSON content.')).toBeInTheDocument()
     expect(mockOnImport).not.toHaveBeenCalled()
   })
 
@@ -75,7 +76,7 @@ describe('OpenapiImportModal', () => {
     fireEvent.change(textarea, { target: { value: 'invalid json' } })
     fireEvent.click(screen.getByRole('button', { name: /import/i }))
 
-    expect(toast.error).toHaveBeenCalledWith('Invalid JSON. Please check the pasted content.')
+    expect(screen.getByText('Invalid JSON. Please check the pasted content.')).toBeInTheDocument()
     expect(mockOnImport).not.toHaveBeenCalled()
   })
 
@@ -92,7 +93,7 @@ describe('OpenapiImportModal', () => {
     fireEvent.change(textarea, { target: { value: '{"valid": "json"}' } })
     fireEvent.click(screen.getByRole('button', { name: /import/i }))
 
-    expect(toast.error).toHaveBeenCalledWith('Please enter a valid base URL.')
+    expect(screen.getByText('Please enter a valid base URL.')).toBeInTheDocument()
     expect(mockOnImport).not.toHaveBeenCalled()
   })
 
