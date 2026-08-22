@@ -74,6 +74,14 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # vite build OOMs under Node's default heap cap on the 7GB macOS runners
           NODE_OPTIONS: --max-old-space-size=4096
+          # macOS Developer ID signing + notarization (ignored on other platforms).
+          # Secrets are shared with the Stability Matrix release pipeline.
+          APPLE_CERTIFICATE: ${{ secrets.PROD_MACOS_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.PROD_MACOS_CERTIFICATE_PWD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.PROD_MACOS_CERTIFICATE_NAME }}
+          APPLE_ID: ${{ secrets.PROD_MACOS_NOTARIZATION_APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.PROD_MACOS_NOTARIZATION_PWD }}
+          APPLE_TEAM_ID: ${{ secrets.PROD_MACOS_NOTARIZATION_TEAM_ID }}
         with:
           tagName: ${{ github.ref_name }}
           releaseName: 'LitePost ${{ github.ref_name }}'
